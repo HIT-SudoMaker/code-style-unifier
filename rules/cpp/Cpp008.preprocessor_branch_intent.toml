@@ -1,0 +1,11 @@
+id = "Cpp008"
+name = "preprocessor_branch_intent"
+kind = "under_review"
+scope = "block"
+domain = "maintainability"
+languages = ["c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["block_region"]
+message = "C/C++ preprocessor branches need intent review."

@@ -1,0 +1,11 @@
+id = "Cpp004"
+name = "public_header_using_namespace"
+kind = "hard_violation"
+scope = "module"
+domain = "dependency"
+languages = ["cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["module_unit", "dependency_edge"]
+message = "C++ public headers must not use namespace imports broadly."

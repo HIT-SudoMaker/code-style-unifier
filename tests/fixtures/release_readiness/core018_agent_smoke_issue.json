@@ -1,0 +1,16 @@
+{
+  "id": "issue:Core018:ev_file_bc558baef30ba075cef35b492099d723ac2fc391801d64acc0932fee08833f39_line_line_437_1_e0754077e755",
+  "kind": "hard_violation",
+  "rule": "Core018",
+  "name": "suppression.reason_required",
+  "scope": "line",
+  "domain": "maintainability",
+  "language": "rust",
+  "path": "core/evaluators/core.rs",
+  "range": "437:1-437:1",
+  "message": "抑制标记必须包含 reason",
+  "evidence": [
+    "ev:file:bc558baef30ba075cef35b492099d723ac2fc391801d64acc0932fee08833f39:line:line:437:1:e0754077e755"
+  ],
+  "blocks": true
+}

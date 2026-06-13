@@ -1,0 +1,11 @@
+id = "Cpp002"
+name = "include_graph_complexity"
+kind = "soft_friction"
+scope = "project"
+domain = "dependency"
+languages = ["c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["dependency_edge"]
+message = "C/C++ include graph complexity creates friction."

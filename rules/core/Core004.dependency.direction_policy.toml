@@ -1,0 +1,11 @@
+id = "Core004"
+name = "dependency.direction_policy"
+kind = "soft_friction"
+scope = "project"
+domain = "dependency"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["module_unit", "dependency_edge"]
+message = "Dependency direction should follow project policy."

@@ -1,0 +1,11 @@
+id = "Core028"
+name = "error.raw_message_boundary"
+kind = "under_review"
+scope = "expression"
+domain = "maintainability"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["expression"]
+message = "Raw error message boundaries need review."

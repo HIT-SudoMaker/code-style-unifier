@@ -1,0 +1,11 @@
+id = "Core009"
+name = "dependency.sorting"
+kind = "hard_violation"
+scope = "module"
+domain = "dependency"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "extension"
+source_ids = ["L004"]
+evidence_types = ["dependency_edge"]
+message = "Dependencies must be sorted within their groups."

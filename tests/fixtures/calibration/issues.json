@@ -1,0 +1,58 @@
+[
+  {
+    "id": "issue:Core011:public_callback",
+    "kind": "hard_violation",
+    "rule": "Core011",
+    "name": "public_surface.required_docs",
+    "scope": "symbol",
+    "domain": "documentation",
+    "language": "python",
+    "path": "app/callbacks.py",
+    "range": "14:1-14:1",
+    "message": "公开接口必须有契约文档",
+    "evidence": ["public:ev:file:abc:symbol:function:14:1:callback"],
+    "blocks": true
+  },
+  {
+    "id": "issue:Py005:missing_annotation",
+    "kind": "hard_violation",
+    "rule": "Py005",
+    "name": "function.annotation_completeness",
+    "scope": "symbol",
+    "domain": "typing",
+    "language": "python",
+    "path": "app/service.py",
+    "range": "20:1-20:1",
+    "message": "Python 函数必须有完整注解",
+    "evidence": ["ev:file:def:symbol:function:20:1:run"],
+    "blocks": true
+  },
+  {
+    "id": "issue:Core027:english_comment",
+    "kind": "hard_violation",
+    "rule": "Core027",
+    "name": "text.natural_language.review",
+    "scope": "text",
+    "domain": "style",
+    "language": "rust",
+    "path": "src/lib.rs",
+    "range": "9:1-9:28",
+    "message": "内部文本疑似使用英文，需要审查是否应改为中文",
+    "evidence": ["ev:file:ghi:text:comment:9:1"],
+    "blocks": true
+  },
+  {
+    "id": "issue:Core019:external_width",
+    "kind": "hard_violation",
+    "rule": "Core019",
+    "name": "layout.line_length",
+    "scope": "line",
+    "domain": "style",
+    "language": "cpp",
+    "path": "third_party/api.hpp",
+    "range": "7:1-7:124",
+    "message": "行宽超过配置阈值",
+    "evidence": ["ev:file:jkl:line:7"],
+    "blocks": true
+  }
+]

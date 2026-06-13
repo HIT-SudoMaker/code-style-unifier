@@ -1,0 +1,11 @@
+id = "Core007"
+name = "file.role_ambiguity"
+kind = "soft_friction"
+scope = "file"
+domain = "project"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["file_unit"]
+message = "File role is ambiguous."

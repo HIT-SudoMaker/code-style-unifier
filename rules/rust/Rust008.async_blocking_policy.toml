@@ -1,0 +1,11 @@
+id = "Rust008"
+name = "async_blocking_policy"
+kind = "under_review"
+scope = "block"
+domain = "safety_adjacent"
+languages = ["rust"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["block_region"]
+message = "Rust async blocking behavior needs review."

@@ -1,0 +1,11 @@
+id = "Core001"
+name = "project.language_boundary"
+kind = "soft_friction"
+scope = "project"
+domain = "project"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["workspace", "file_unit"]
+message = "Project language boundaries should be explicit."

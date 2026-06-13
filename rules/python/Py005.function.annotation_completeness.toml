@@ -1,0 +1,11 @@
+id = "Py005"
+name = "function.annotation_completeness"
+kind = "hard_violation"
+scope = "symbol"
+domain = "typing"
+languages = ["python"]
+default_enabled = true
+origin = "reference"
+source_ids = ["L018"]
+evidence_types = ["symbol"]
+message = "Python functions must have complete annotations."

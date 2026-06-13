@@ -1,0 +1,11 @@
+id = "Core020"
+name = "docs.section_order"
+kind = "hard_violation"
+scope = "text"
+domain = "documentation"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "extension"
+source_ids = ["L009"]
+evidence_types = ["doc_region", "text_span"]
+message = "Documentation sections must appear in the required order."

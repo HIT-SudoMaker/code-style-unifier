@@ -1,0 +1,11 @@
+id = "Cpp009"
+name = "ownership_lifecycle_contract"
+kind = "under_review"
+scope = "block"
+domain = "safety_adjacent"
+languages = ["c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["block_region"]
+message = "C/C++ ownership lifecycle needs contract review."

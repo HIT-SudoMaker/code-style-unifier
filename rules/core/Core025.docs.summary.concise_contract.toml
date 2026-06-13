@@ -1,0 +1,11 @@
+id = "Core025"
+name = "docs.summary.concise_contract"
+kind = "under_review"
+scope = "text"
+domain = "documentation"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "reference"
+source_ids = ["L023"]
+evidence_types = ["doc_region", "text_span"]
+message = "Documentation summaries need concision review."

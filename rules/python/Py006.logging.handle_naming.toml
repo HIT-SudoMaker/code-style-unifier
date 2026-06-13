@@ -1,0 +1,11 @@
+id = "Py006"
+name = "logging.handle_naming"
+kind = "hard_violation"
+scope = "symbol"
+domain = "logging"
+languages = ["python"]
+default_enabled = true
+origin = "reference"
+source_ids = ["L014"]
+evidence_types = ["symbol"]
+message = "Python logging handles must use the required naming contract."

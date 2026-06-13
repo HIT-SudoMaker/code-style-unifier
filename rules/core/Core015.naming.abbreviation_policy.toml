@@ -1,0 +1,11 @@
+id = "Core015"
+name = "naming.abbreviation_policy"
+kind = "hard_violation"
+scope = "symbol"
+domain = "naming"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "extension"
+source_ids = ["L017"]
+evidence_types = ["symbol", "text_span"]
+message = "Abbreviations must follow the term policy."

@@ -1,0 +1,11 @@
+id = "Cpp006"
+name = "macro_contract_policy"
+kind = "under_review"
+scope = "symbol"
+domain = "maintainability"
+languages = ["c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["symbol"]
+message = "C/C++ macros need contract review."

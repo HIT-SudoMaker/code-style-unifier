@@ -1,0 +1,11 @@
+id = "Cpp001"
+name = "header_boundary_policy"
+kind = "soft_friction"
+scope = "project"
+domain = "public_api"
+languages = ["c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["workspace", "file_unit"]
+message = "C/C++ header boundaries should be explicit."

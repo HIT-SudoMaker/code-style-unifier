@@ -1,0 +1,11 @@
+id = "Rust010"
+name = "panic_context_policy"
+kind = "under_review"
+scope = "expression"
+domain = "maintainability"
+languages = ["rust"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["expression"]
+message = "Rust panic context needs review."

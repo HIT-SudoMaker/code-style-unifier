@@ -1,0 +1,11 @@
+id = "Rust006"
+name = "trait_object_boundary_clarity"
+kind = "under_review"
+scope = "symbol"
+domain = "maintainability"
+languages = ["rust"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["symbol"]
+message = "Rust trait object boundaries need clarity review."

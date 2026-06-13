@@ -1,0 +1,11 @@
+id = "Core023"
+name = "docs.summary.chinese_period_forbidden"
+kind = "hard_violation"
+scope = "text"
+domain = "documentation"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "reference"
+source_ids = ["L008.chinese_period"]
+evidence_types = ["text_span"]
+message = "Documentation summaries must not end with a Chinese period."

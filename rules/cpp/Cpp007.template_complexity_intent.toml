@@ -1,0 +1,11 @@
+id = "Cpp007"
+name = "template_complexity_intent"
+kind = "under_review"
+scope = "symbol"
+domain = "maintainability"
+languages = ["cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["symbol"]
+message = "C++ template complexity needs intent review."

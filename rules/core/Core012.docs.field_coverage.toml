@@ -1,0 +1,11 @@
+id = "Core012"
+name = "docs.field_coverage"
+kind = "hard_violation"
+scope = "symbol"
+domain = "documentation"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "extension"
+source_ids = ["L011"]
+evidence_types = ["doc_region"]
+message = "Documentation fields must cover the required contract."

@@ -1,0 +1,73 @@
+{
+  "generated_from": "csu check src",
+  "summary": {
+    "items": 154,
+    "blocking": 70
+  },
+  "issues": [
+    {
+      "id": "issue:Core011:public_ev_file_3539278255bba6f4afd3c4188db21ea2af21453719803f8f2babdbe1b4ee50ca_symbol_enum_30_1_925641d42b07",
+      "kind": "hard_violation",
+      "rule": "Core011",
+      "name": "public_surface.required_docs",
+      "scope": "symbol",
+      "domain": "documentation",
+      "language": "rust",
+      "path": "core/calibration.rs",
+      "range": "30:1-30:1",
+      "message": "公开接口必须有契约文档",
+      "evidence": [
+        "public:ev:file:3539278255bba6f4afd3c4188db21ea2af21453719803f8f2babdbe1b4ee50ca:symbol:enum:30:1:925641d42b07"
+      ],
+      "blocks": true
+    },
+    {
+      "id": "issue:Core015:ev_file_7101c2caec119661de4e08b071218f4e007ccacb2a601172075fd26745b19de8_symbol_struct_11_1_bc44b3e6d9ea",
+      "kind": "hard_violation",
+      "rule": "Core015",
+      "name": "naming.abbreviation_policy",
+      "scope": "symbol",
+      "domain": "naming",
+      "language": "rust",
+      "path": "core/evaluators/cpp.rs",
+      "range": "11:1-11:1",
+      "message": "符号包含禁用缩写",
+      "evidence": [
+        "ev:file:7101c2caec119661de4e08b071218f4e007ccacb2a601172075fd26745b19de8:symbol:struct:11:1:bc44b3e6d9ea"
+      ],
+      "blocks": true
+    },
+    {
+      "id": "issue:Core018:ev_file_bc558baef30ba075cef35b492099d723ac2fc391801d64acc0932fee08833f39_line_line_437_1_e0754077e755",
+      "kind": "hard_violation",
+      "rule": "Core018",
+      "name": "suppression.reason_required",
+      "scope": "line",
+      "domain": "maintainability",
+      "language": "rust",
+      "path": "core/evaluators/core.rs",
+      "range": "437:1-437:1",
+      "message": "抑制标记必须包含 reason",
+      "evidence": [
+        "ev:file:bc558baef30ba075cef35b492099d723ac2fc391801d64acc0932fee08833f39:line:line:437:1:e0754077e755"
+      ],
+      "blocks": true
+    },
+    {
+      "id": "issue:Core019:ev_file_7150c163624b8dc70ddeb1f73aeac6c425c0b848ed5eb318a082f06c44faeef8_line_line_450_1_5edd640542d4",
+      "kind": "hard_violation",
+      "rule": "Core019",
+      "name": "layout.line_length",
+      "scope": "line",
+      "domain": "style",
+      "language": "rust",
+      "path": "core/history.rs",
+      "range": "450:1-450:1",
+      "message": "行宽超过配置限制",
+      "evidence": [
+        "ev:file:7150c163624b8dc70ddeb1f73aeac6c425c0b848ed5eb318a082f06c44faeef8:line:line:450:1:5edd640542d4"
+      ],
+      "blocks": true
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+id = "Core018"
+name = "suppression.reason_required"
+kind = "hard_violation"
+scope = "line"
+domain = "maintainability"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["line_span"]
+message = "Suppressions must include a reason."

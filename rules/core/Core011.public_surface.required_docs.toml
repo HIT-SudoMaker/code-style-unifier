@@ -1,0 +1,11 @@
+id = "Core011"
+name = "public_surface.required_docs"
+kind = "hard_violation"
+scope = "symbol"
+domain = "documentation"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "extension"
+source_ids = ["L007"]
+evidence_types = ["public_surface", "doc_region"]
+message = "Public surfaces must have contract documentation."

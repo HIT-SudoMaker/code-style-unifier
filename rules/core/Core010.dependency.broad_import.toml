@@ -1,0 +1,11 @@
+id = "Core010"
+name = "dependency.broad_import"
+kind = "hard_violation"
+scope = "module"
+domain = "dependency"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "extension"
+source_ids = ["L006"]
+evidence_types = ["dependency_edge"]
+message = "Broad imports are not allowed."

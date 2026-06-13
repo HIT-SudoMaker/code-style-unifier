@@ -1,0 +1,51 @@
+{
+  "schema_version": "1",
+  "case_count": 5,
+  "findings_count_is_optimization_goal": false,
+  "actionable_case_ids": [
+    "case:Core011:callback:001",
+    "case:Core027:comment:001",
+    "case:Core027:kind:001",
+    "case:Core019:profile:001"
+  ],
+  "by_rule": {
+    "Core011": {
+      "case_count": 1,
+      "label_counts": {
+        "false_positive": 1
+      },
+      "action_counts": {
+        "fix_fact_extraction": 1
+      }
+    },
+    "Core019": {
+      "case_count": 1,
+      "label_counts": {
+        "external_style_mismatch": 1
+      },
+      "action_counts": {
+        "add_profile_policy": 1
+      }
+    },
+    "Core027": {
+      "case_count": 2,
+      "label_counts": {
+        "false_negative": 1,
+        "wrong_kind": 1
+      },
+      "action_counts": {
+        "broaden_rule_contract": 1,
+        "change_issue_kind": 1
+      }
+    },
+    "Py005": {
+      "case_count": 1,
+      "label_counts": {
+        "true_positive": 1
+      },
+      "action_counts": {
+        "keep_rule": 1
+      }
+    }
+  }
+}

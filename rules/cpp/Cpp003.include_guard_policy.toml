@@ -1,0 +1,11 @@
+id = "Cpp003"
+name = "include_guard_policy"
+kind = "hard_violation"
+scope = "file"
+domain = "dependency"
+languages = ["c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["file_unit"]
+message = "C/C++ headers must follow include guard policy."

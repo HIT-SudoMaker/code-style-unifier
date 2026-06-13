@@ -1,0 +1,11 @@
+id = "Core022"
+name = "docs.physical_layout"
+kind = "hard_violation"
+scope = "text"
+domain = "documentation"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "extension"
+source_ids = ["L019"]
+evidence_types = ["doc_region"]
+message = "Documentation physical layout must follow the contract."

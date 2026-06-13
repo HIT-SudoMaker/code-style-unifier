@@ -1,0 +1,11 @@
+id = "Core014"
+name = "naming.case_convention"
+kind = "hard_violation"
+scope = "symbol"
+domain = "naming"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["symbol"]
+message = "Symbol names must follow case conventions."

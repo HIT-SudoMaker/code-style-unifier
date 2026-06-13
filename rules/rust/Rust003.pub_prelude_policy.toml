@@ -1,0 +1,11 @@
+id = "Rust003"
+name = "pub_prelude_policy"
+kind = "under_review"
+scope = "module"
+domain = "public_api"
+languages = ["rust"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["module_unit", "public_surface"]
+message = "Rust pub prelude exposure needs review."

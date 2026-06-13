@@ -1,0 +1,40 @@
+name = "default"
+enabled_rules = [
+  "Core001", "Core002", "Core003", "Core004", "Core005", "Core006", "Core007",
+  "Core008", "Core009", "Core010", "Core011", "Core012", "Core013", "Core014",
+  "Core015", "Core016", "Core017", "Core018", "Core019", "Core020", "Core021",
+  "Core022", "Core023", "Core024", "Core025", "Core026", "Core027", "Core028",
+  "Py001", "Py002", "Py003", "Py004", "Py005", "Py006", "Py007", "Py008",
+  "Rust001", "Rust002", "Rust003", "Rust004", "Rust005", "Rust006", "Rust007",
+  "Rust008", "Rust009", "Rust010",
+  "Cpp001", "Cpp002", "Cpp003", "Cpp004", "Cpp005", "Cpp006", "Cpp007",
+  "Cpp008", "Cpp009", "Cpp010",
+]
+exclude_dirs = [".git", ".venv", "build", "dist", "target", "vendor"]
+exclude_file_patterns = []
+
+[thresholds]
+line_length_limit = 100
+doc_summary_max_chars = 80
+history_max_runs = 30
+history_max_days = 14
+history_max_bytes = 536870912
+
+[term_policy]
+allowed_abbreviation_tokens = ["args", "cfg", "cpu", "csv", "fps", "http", "id", "init", "json", "kwargs", "meta", "ms", "nn", "np", "npz", "rgb", "ssim", "uuid"]
+allowed_abbreviation_names = []
+allowed_technical_fragments = ["SSIM", "FFT", "HTTP", "NCHW", "[B, C, H, W]"]
+
+[term_policy.banned_abbreviation_tokens]
+cfg = "configuration"
+ctx = "context"
+desc = "description"
+fh = "file_handle"
+fmt = "format"
+meta = "metadata"
+msg = "message"
+obj = "object"
+pth = "path"
+sig = "signature"
+temp = "temporary"
+vid = "violation_id"

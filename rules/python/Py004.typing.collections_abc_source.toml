@@ -1,0 +1,11 @@
+id = "Py004"
+name = "typing.collections_abc_source"
+kind = "hard_violation"
+scope = "module"
+domain = "typing"
+languages = ["python"]
+default_enabled = true
+origin = "reference"
+source_ids = ["L013"]
+evidence_types = ["dependency_edge", "symbol"]
+message = "Collection ABC types must come from collections.abc."

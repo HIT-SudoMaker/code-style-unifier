@@ -1,0 +1,11 @@
+id = "Core013"
+name = "docs.internal_api_doc.review"
+kind = "under_review"
+scope = "symbol"
+domain = "documentation"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["public_surface", "doc_region"]
+message = "Internal API documentation needs review."

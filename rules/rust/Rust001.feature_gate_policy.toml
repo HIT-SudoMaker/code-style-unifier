@@ -1,0 +1,11 @@
+id = "Rust001"
+name = "feature_gate_policy"
+kind = "under_review"
+scope = "project"
+domain = "maintainability"
+languages = ["rust"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["workspace"]
+message = "Rust feature gate usage needs review."

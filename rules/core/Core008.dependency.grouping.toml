@@ -1,0 +1,11 @@
+id = "Core008"
+name = "dependency.grouping"
+kind = "hard_violation"
+scope = "module"
+domain = "dependency"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "extension"
+source_ids = ["L003"]
+evidence_types = ["module_unit", "dependency_edge"]
+message = "Dependency groups must follow the required layout."

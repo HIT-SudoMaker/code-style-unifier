@@ -1,0 +1,11 @@
+id = "Py002"
+name = "future_import.position"
+kind = "hard_violation"
+scope = "module"
+domain = "dependency"
+languages = ["python"]
+default_enabled = true
+origin = "reference"
+source_ids = ["L005"]
+evidence_types = ["module_unit", "dependency_edge"]
+message = "Future imports must appear in the required position."

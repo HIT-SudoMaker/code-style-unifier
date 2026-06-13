@@ -1,0 +1,11 @@
+id = "Rust002"
+name = "cfg_complexity_policy"
+kind = "soft_friction"
+scope = "module"
+domain = "maintainability"
+languages = ["rust"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["module_unit"]
+message = "Rust cfg complexity creates maintainability friction."

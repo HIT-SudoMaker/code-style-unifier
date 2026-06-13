@@ -1,0 +1,11 @@
+id = "Core005"
+name = "history.health"
+kind = "soft_friction"
+scope = "project"
+domain = "history"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["workspace"]
+message = "History archive health needs review."

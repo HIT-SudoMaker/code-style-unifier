@@ -1,0 +1,12 @@
+id = "Core027"
+name = "text.natural_language.review"
+kind = "under_review"
+scope = "text"
+domain = "style"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "reference"
+source_ids = ["L022"]
+evidence_types = ["text_span", "comment_region"]
+message = "Internal text appears to use natural-language English and needs review."
+notes = "Heuristic natural-language signal for internal docstrings and comments; always under_review and non-blocking."

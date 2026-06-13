@@ -1,0 +1,11 @@
+id = "Py008"
+name = "logging.lazy_formatting"
+kind = "hard_violation"
+scope = "expression"
+domain = "logging"
+languages = ["python"]
+default_enabled = true
+origin = "reference"
+source_ids = ["L015"]
+evidence_types = ["expression"]
+message = "Logging calls must use lazy formatting."

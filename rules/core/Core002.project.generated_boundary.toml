@@ -1,0 +1,11 @@
+id = "Core002"
+name = "project.generated_boundary"
+kind = "soft_friction"
+scope = "project"
+domain = "project"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["file_unit"]
+message = "Generated code boundaries should be explicit."

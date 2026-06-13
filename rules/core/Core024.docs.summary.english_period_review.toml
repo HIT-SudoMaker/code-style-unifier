@@ -1,0 +1,11 @@
+id = "Core024"
+name = "docs.summary.english_period_review"
+kind = "under_review"
+scope = "text"
+domain = "documentation"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "reference"
+source_ids = ["L008.english_period"]
+evidence_types = ["text_span"]
+message = "Documentation summaries ending with an English period need review."

@@ -1,0 +1,11 @@
+id = "Core006"
+name = "file.specific_names"
+kind = "hard_violation"
+scope = "file"
+domain = "style"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "extension"
+source_ids = ["L021"]
+evidence_types = ["file_unit"]
+message = "File names must be specific."

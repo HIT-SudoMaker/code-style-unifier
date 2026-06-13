@@ -1,0 +1,11 @@
+id = "Rust004"
+name = "use_tree_shape_policy"
+kind = "under_review"
+scope = "module"
+domain = "dependency"
+languages = ["rust"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["module_unit", "dependency_edge"]
+message = "Rust use tree shape needs review."

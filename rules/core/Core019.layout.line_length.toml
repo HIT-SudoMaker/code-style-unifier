@@ -1,0 +1,11 @@
+id = "Core019"
+name = "layout.line_length"
+kind = "hard_violation"
+scope = "line"
+domain = "style"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "extension"
+source_ids = ["L001"]
+evidence_types = ["line_span"]
+message = "Lines must stay within the configured visual width."

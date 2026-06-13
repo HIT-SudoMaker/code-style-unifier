@@ -1,0 +1,11 @@
+id = "Core016"
+name = "naming.boolean_predicate"
+kind = "under_review"
+scope = "symbol"
+domain = "naming"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "extension"
+source_ids = ["L020"]
+evidence_types = ["symbol"]
+message = "Boolean predicate naming needs review."

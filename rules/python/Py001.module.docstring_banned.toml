@@ -1,0 +1,11 @@
+id = "Py001"
+name = "module.docstring_banned"
+kind = "hard_violation"
+scope = "module"
+domain = "documentation"
+languages = ["python"]
+default_enabled = true
+origin = "reference"
+source_ids = ["L002"]
+evidence_types = ["module_unit", "doc_region"]
+message = "Python module docstrings are not allowed."

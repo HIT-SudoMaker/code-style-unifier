@@ -1,0 +1,13 @@
+id = "Core026"
+name = "text.term_policy"
+kind = "hard_violation"
+scope = "text"
+domain = "style"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["text_span"]
+message = "Text must follow deterministic term policy."
+term_policy_keys = ["allowed_abbreviation_tokens", "allowed_abbreviation_names", "allowed_technical_fragments", "banned_abbreviation_tokens"]
+notes = "Deterministic term-policy violations only; natural-language language preference is Core027 and must not be blocked here."

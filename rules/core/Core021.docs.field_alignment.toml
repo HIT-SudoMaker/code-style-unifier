@@ -1,0 +1,11 @@
+id = "Core021"
+name = "docs.field_alignment"
+kind = "hard_violation"
+scope = "text"
+domain = "documentation"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "extension"
+source_ids = ["L010"]
+evidence_types = ["doc_region", "text_span"]
+message = "Documentation fields must be aligned consistently."

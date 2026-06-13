@@ -1,0 +1,11 @@
+id = "Core017"
+name = "comments.block_intent.required"
+kind = "under_review"
+scope = "block"
+domain = "maintainability"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["block_region", "comment_region"]
+message = "Complex blocks should carry intent comments."

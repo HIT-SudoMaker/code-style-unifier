@@ -1,0 +1,11 @@
+id = "Py003"
+name = "future_annotations.consistency"
+kind = "under_review"
+scope = "module"
+domain = "typing"
+languages = ["python"]
+default_enabled = true
+origin = "reference"
+source_ids = ["L016"]
+evidence_types = ["module_unit", "dependency_edge"]
+message = "Future annotations usage needs consistency review."

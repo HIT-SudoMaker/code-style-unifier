@@ -1,0 +1,11 @@
+id = "Py007"
+name = "typing.old_style_generics"
+kind = "hard_violation"
+scope = "expression"
+domain = "typing"
+languages = ["python"]
+default_enabled = true
+origin = "reference"
+source_ids = ["L012"]
+evidence_types = ["expression"]
+message = "Old-style Python generics are not allowed."

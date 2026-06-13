@@ -1,0 +1,11 @@
+id = "Core003"
+name = "dependency.cycle_risk"
+kind = "soft_friction"
+scope = "project"
+domain = "dependency"
+languages = ["python", "rust", "c", "cpp"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["dependency_edge"]
+message = "Dependency graph shows cycle risk."
