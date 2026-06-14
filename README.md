@@ -1,6 +1,6 @@
 # CSU — 语义级代码风格检查器
 
-> **CSU** is a semantic-level code style checker for multi-module projects increasingly produced by LLM-based and "vibe coding" workflows. Where formatters (black, rustfmt, clang-format) normalize whitespace and layout, CSU checks the layer above: contract documentation, naming conventions, terminology policy, public-surface boundaries, and language-specific module habits across Python, Rust, C, and C++. A pure-Rust pipeline builds a unified evidence layer before evaluation, evaluates **56 rule contracts**, and emits machine-readable JSON for agent orchestration (Codex, Claude Code). Trust comes from explicit boundaries and a calibration mechanism, not feature claims.
+> **CSU**（Code Style Unifier）是一个面向 agent 时代大型代码库的语义级代码风格检查器。它不处理空格、换行和缩进，而是检查更高一层的问题：命名是否统一，公开 API 是否有契约文档，术语是否漂移，注释语言是否混乱，依赖和安全边界是否仍然可维护。CSU 用 Rust 实现，先把 Python / Rust / C / C++ 源码提取成统一 evidence layer，再基于 **56 条规则契约** 输出机器可读 JSON，供 Codex、Claude Code 或其他 agent 继续修正、校准与复核。
 
 ---
 
@@ -22,21 +22,35 @@
 
 ## 1. 研究背景
 
-### 1.1 LLM 的兴起与 AI 辅助编程的采用
+### 1.1 个人与小团队正在获得更大的代码生产能力
 
-随着大语言模型（Large Language Models, LLMs）的发展，基于 LLMs 的自动化编程——社区语境中常称为 **"Vibe Coding"**——正在改变个人和小团队构建软件的方式。过去需要多人长期维护的上万行甚至数十万行代码项目，现在可以被更快地搭建出来。根据 Stack Overflow 2025 开发者调查，**84% 的受访者正在使用或计划使用 AI 开发工具** [5]。LLMs 与软件工程的结合，已从代码生成扩展到代码摘要、漏洞检测、代码管理等任务，成为学术界与工业界共同关注的方向 [1][2][3][4]。
+这个项目来自我维护大型科研代码库时反复遇到的一个问题：当代码规模增长到几万行、十几万行之后，困难不只在于“还能不能写得动”，更在于“写完之后是否还看得清、管得住、改得动”。
 
-### 1.2 困难转移到了语义层
+LLM 和 Codex、Claude Code 这类 agent 工具让个人和小团队获得了过去难以想象的代码生产能力。以前一个人长期维护几万行代码已经相当吃力；现在，借助 agent，开发和管理 10 万行、20 万行，甚至更大规模的项目，已经不再遥不可及。根据 Stack Overflow 2025 开发者调查，**84% 的受访者正在使用或计划使用 AI 开发工具** [5]。LLM 与软件工程的结合，也已经从代码生成扩展到代码摘要、漏洞检测、代码管理等任务 [1][2][3][4]。
 
-但代码生成速度提升之后，真正困难的部分并没有消失，而是**转移到了语义层**：语义一致性、模块边界、命名风格、文档契约、长期维护成本。
+但生产能力提高之后，项目并不会自动变得更清晰。相反，当更多代码由不同人、不同 agent、不同会话连续写入时，维护者很快会遇到一种新的压力：项目表面还能运行，局部也都说得过去，但整体表达开始变散，统一约定开始失效。
 
-这种转移在多 agent 并行生成时尤其明显。当模块 A 由一个 agent 在某次会话生成、模块 B 由另一个 agent 在另一次会话生成时，两者**没有共享的上下文**：它们各自"局部正确"，却可能在命名约定、文档详略、术语取舍、错误消息边界上彼此不一致。这类问题难以靠人肉 review 发现——单个模块读起来都合理，差异只在跨模块对比时才暴露；而当代码库达到数万行时，跨模块对比本身就成了不可承受的人工成本。
+### 1.2 两类劣化：架构耦合与语义退化
 
-换言之，LLM 把"写代码"变便宜了，却把"让代码彼此一致"变贵了。
+大型项目膨胀时，常见的劣化大致有两类。
 
-### 1.3 格式化工具解决不了语义层
+第一类是**架构上的耦合化**，也就是大家常说的“屎山化”：模块互相纠缠，依赖方向混乱，改一处牵动一片。这类问题当然棘手，但它通常足够显眼，也比较容易通过模块拆分、深度重构，甚至推倒重来加以缓解。
 
-传统格式化工具（black、rustfmt、prettier、clang-format）解决的是**格式层**问题：空格、换行、缩进、括号、导入排序的一部分。它们不处理更高一层的语义级问题。可以用一个层次模型来理解 CSU 的定位：
+第二类更隐蔽，我把它称为**语义上的退化**：项目经过多次重构，由不同的人、不同的 agent 经手之后，命名风格、文档习惯、术语取舍、注释语言都可能逐渐漂移。到了这个时候，即便翻出项目初期约定的文档，那套统一约定也可能已经名存实亡。
+
+举例来说，同样是表达“是否就绪”，模块 A 写成 `is_ready`，模块 B 写成 `ready_flag`，模块 C 又写成 `check_ready`；同样是专业术语，有的模块保留 `SSIM`、`ABI`、`NCHW`，有的模块却把它们当成不规范缩写；同样是公开接口，有的地方认真写好了文档契约，有的地方完全裸露在外。这些写法单独看未必有错，也未必影响程序运行；但一旦放在同一个项目里，代码就会越来越散。人类读者和 agent 都要不断在不同作者、不同语境、不同习惯之间切换，理解成本随之升高。
+
+换言之，LLM 把“写代码”变便宜了，却把“让大量代码彼此一致”变贵了。
+
+### 1.3 为什么现有工具不够
+
+语义退化难处理，是因为它不像格式问题那样边界清楚。
+
+传统工具各自有明确边界。Formatter 处理空格、换行和缩进，比如 black、rustfmt、clang-format；compiler 和 type checker 处理语法、类型与生命周期，比如 rustc、mypy、TypeScript；linter 处理常见错误、局部质量和语言习惯，比如 Ruff、Clippy、ESLint。但这些工具通常不会告诉我们：这个模块的命名是否与项目其他部分一致，这个公开接口是否符合项目文档约定，这段注释的语言是否与整体表达风格发生漂移。
+
+只依赖 LLM 也不稳。长上下文并不等于全局理解：当项目约定分散在大量文件、模块和历史修改中时，模型容易遗漏局部约束、混淆相似语义，甚至给出看似合理却难以追溯的判断。Agent 很适合执行明确任务，但不应该被迫独自承担跨文件、跨模块、跨历史版本的语义一致性审查。
+
+可以用一个层次模型来理解 CSU 的定位：
 
 | 层次 | 关心的问题 | 典型工具 |
 |------|-----------|----------|
@@ -45,7 +59,7 @@
 | **语义风格层** | **命名一致性、文档契约、术语策略、public surface 边界** | **CSU** |
 | 架构层 | 模块划分、依赖方向、分层 | 架构 lint（更高层，CSU 不覆盖）|
 
-语义风格层的典型问题，formatter 一个都解决不了：
+语义风格层的典型问题，formatter、compiler、普通 linter 都不会稳定解决：
 
 - 模块 A 把公开 API 写成详细中文契约，模块 B 却只有英文短句；
 - 模块 A 用 `is_ready` 表示布尔语义，模块 B 用 `ready_flag`，模块 C 用 `check_ready`；
@@ -54,17 +68,23 @@
 
 ### 1.4 CSU 的定位
 
-CSU 针对的正是这一层——**语义级风格统一**。它不重新发明格式化，而是在 formatter 之上，用可校准的规则契约检查那些"格式对、但语义不一致"的问题。
+CSU 针对的正是这一层——**语义级风格统一**。它不重新发明格式化，也不试图替代架构审查；它做的是一件更窄的事：用可复现、可追溯、可校准的规则契约，检查那些“格式对、程序也能跑，但语义风格正在漂移”的问题。
+
+CSU 的定位是传统工具与 agent 的中间层：底层用确定性的扫描与规则引擎建立事实，输出结构化 findings；上层让 agent 或人基于这些 findings 做修正、校准或复核。这样一来，agent 不需要凭印象在整个项目里“猜”哪里不一致，而是可以从具体 evidence、rule、path、range 开始工作。
 
 ---
 
 ## 2. CSU 是什么
 
-CSU（Code Style Unifier）是一个面向多模块代码库的**语义级风格检查器**：它扫描 Python / Rust / C / C++ 源码，建立**统一证据层**，依据可校准的规则契约产出结构化问题（issue），并以机器可读 JSON 输出，供 agent 和开发者调度。
+CSU（Code Style Unifier）是一个面向多模块代码库的**语义级风格检查器**。它扫描 Python / Rust / C / C++ 源码，建立**统一 evidence layer**，再让规则只基于这层证据进行判断，而不是反复读取源码。每一条 finding 都记录它依据的 evidence、违反的 rule、所在文件与范围，并通过 blake3 为文件和 workspace 生成指纹，方便人或 agent 反向核对。
 
-一句话概括：**56 条规则**（Core 28 / Python 8 / Rust 10 / C/C++ 10），覆盖 Python、Rust、C、C++ 四种语言；纯 Rust 实现，二进制名 `csu`；输出 JSON / JSONL 供 agent 调度；每条规则都支持人工标注交叉验证。
+一句话概括：**56 条规则**（Core 28 / Python 8 / Rust 10 / C/C++ 10），覆盖 Python、Rust、C、C++ 四种语言；二进制名 `csu`；输出 JSON / JSONL 供 agent 调度；每条规则都支持人工标注交叉验证。
 
-**v1.1 边界更新**：Core009 只在同一语义导入块内检查排序，避免把顶层导入、延迟导入、`TYPE_CHECKING` 和条件导入混排；Core014 对 Python Qt/PySide override 采用三态判定——确定框架 override 不报，Qt 类中的未知 camelCase 进入 `under_review`，非 Qt 上下文仍保持 `hard_violation`。这次更新不以减少发现数量为目标，而是收紧 hard 的契约纯度。
+我选择 Rust 实现 CSU，不只是因为它有挑战性，而是因为它的语言特性适合这类工具：单二进制分发方便，启动和扫描性能稳定；类型系统、枚举和 `Result` 能把 evidence、issue kind、规则边界表达得更明确；内存安全和所有权模型也适合写一个需要长期演进、反复扫大项目的基础工具。CSU 要处理的是“信任边界”，实现语言本身也应该尽量减少隐式状态和运行时不确定性。
+
+目前只支持 Python、Rust、C、C++，原因也很朴素：这些是我自己常用、也相对理解其工程习惯的语言。语义风格规则不是“按语法树找几个节点”那么简单，它要求对语言生态、命名传统、文档习惯、FFI/ABI/类型边界有足够直觉。对我不了解的语言，我很难形成可信的个人风格判断；与其做一个看起来覆盖广、实际不懂边界的规则集，不如先把熟悉语言里的规则做扎实。
+
+**v1.1.1 文档更新**：README 重新组织了 CSU 的设计动机、个人背景与边界说明。功能层面的 v1.1 更新包括：Core009 只在同一语义导入块内检查排序，避免把顶层导入、延迟导入、`TYPE_CHECKING` 和条件导入混排；Core014 对 Python Qt/PySide override 采用三态判定——确定框架 override 不报，Qt 类中的未知 camelCase 进入 `under_review`，非 Qt 上下文仍保持 `hard_violation`。这次更新不以减少发现数量为目标，而是收紧 hard 的契约纯度。
 
 ---
 
@@ -131,8 +151,8 @@ JSON / JSONL（agent 可读输出）
 
 ### 4.3 扫描加速设计
 
-- **纯 Rust 实现**，启动成本低，适合大项目递归扫描；
-- **按扩展名过滤**：只处理 Python / Rust / C / C++ 源文件，其余跳过；
+- **纯 Rust 实现**：单二进制分发，启动成本低；类型系统、枚举和 `Result` 让 evidence、issue kind、规则边界更容易保持显式，适合大项目递归扫描；
+- **按扩展名过滤**：只处理 Python / Rust / C / C++ 源文件，其余跳过。当前语言覆盖来自作者实际维护经验；不了解语言生态时不强行写语义风格规则；
 - **排除目录**：通过 profile 配置，默认排除 `.git` / `.venv` / `build` / `dist` / `target` / `vendor`；
 - **C/C++ 生成文件判定**：对 C/C++ 文件仅读取前 **8192 字节** 判断是否为生成代码（匹配 `do not edit`、`automatically generated`、`.pb.cc`/`.pb.h`、`amalgamation` 等标记），避免对整文件做无意义检测；
 - **blake3 指纹**：为每个文件生成 `blake3:{hex}` 指纹，并聚合为 workspace 指纹，保证扫描记录可追溯。
@@ -309,7 +329,7 @@ cargo build --release
 发布包结构保持解压即用：
 
 ```
-csu-1.1.0-<platform>/
+csu-1.1.1-<platform>/
   bin/csu(.exe)
   profiles/default.toml
   agent-skills/csu/SKILL.md
@@ -426,6 +446,7 @@ src/
       cpp.rs           # C/C++ 规则（10）
     issue.rs           # Issue / IssueKind / Scope / Domain / Language
     profile.rs         # profile · 阈值 · 术语策略
+    python_qt.rs       # Python Qt/PySide override 上下文与名单
     calibration.rs     # 校准样本 · 交叉验证 · 数量约束
     history.rs         # 扫描历史读写与保留
     rules.rs           # 规则目录 TOML 解析
