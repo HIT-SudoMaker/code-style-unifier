@@ -42,10 +42,14 @@ fn python_module_and_typing_rules_emit_expected_findings() {
         source: "__future__".to_string(),
         imported: "annotations".to_string(),
         alias: None,
+        block_id: "module".to_string(),
         range: "5:1-5:35".to_string(),
         is_glob: false,
         is_public: false,
         is_relative: false,
+        is_deferred: false,
+        is_type_checking: false,
+        is_conditional: false,
     });
     store.dependency_edges.push(DependencyEdgeFact {
         id: "dep:typing".to_string(),
@@ -55,10 +59,14 @@ fn python_module_and_typing_rules_emit_expected_findings() {
         source: "typing".to_string(),
         imported: "Iterable".to_string(),
         alias: None,
+        block_id: "module".to_string(),
         range: "1:1-1:28".to_string(),
         is_glob: false,
         is_public: false,
         is_relative: false,
+        is_deferred: false,
+        is_type_checking: false,
+        is_conditional: false,
     });
     store.dependency_edges.push(DependencyEdgeFact {
         id: "dep:typing_multi".to_string(),
@@ -68,10 +76,14 @@ fn python_module_and_typing_rules_emit_expected_findings() {
         source: "typing".to_string(),
         imported: "Mapping, Sequence".to_string(),
         alias: None,
+        block_id: "module".to_string(),
         range: "2:1-2:37".to_string(),
         is_glob: false,
         is_public: false,
         is_relative: false,
+        is_deferred: false,
+        is_type_checking: false,
+        is_conditional: false,
     });
     store.symbols.push(SymbolFact {
         id: "symbol:run".to_string(),

@@ -9,6 +9,13 @@ use unifier::core::frontend::extract_text_evidence;
 use unifier::core::profile::Profile;
 use unifier::core::scanner::scan_workspace;
 
+fn has_attribute(symbol: &unifier::core::evidence::SymbolFact, expected: &str) -> bool {
+    symbol
+        .attributes
+        .iter()
+        .any(|attribute| attribute == expected)
+}
+
 fn store_from_python_source(source: &str) -> EvidenceStore {
     store_from_python_file("module.py", source)
 }
@@ -542,6 +549,101 @@ from typing import Any\n",
             .any(|issue| issue.rule == "Core008" && issue.path.as_deref() == Some("module.py")),
         "Python standard library imports should remain in the standard group"
     );
+}
+
+#[test]
+fn python_dependency_edges_record_import_block_contexts() {
+    let store = store_from_python_source(concat!(
+        "from beta import Beta\n",
+        "from alpha import Alpha\n",
+        "\n",
+        "if TYPE_CHECKING:\n",
+        "    from delta import Delta\n",
+        "    from charlie import Charlie\n",
+        "\n",
+        "def load_model():\n",
+        "    import torch\n",
+        "    import timm\n",
+    ));
+
+    let beta = store
+        .dependency_edges
+        .iter()
+        .find(|edge| edge.source == "beta")
+        .unwrap();
+    let alpha = store
+        .dependency_edges
+        .iter()
+        .find(|edge| edge.source == "alpha")
+        .unwrap();
+    let delta = store
+        .dependency_edges
+        .iter()
+        .find(|edge| edge.source == "delta")
+        .unwrap();
+    let charlie = store
+        .dependency_edges
+        .iter()
+        .find(|edge| edge.source == "charlie")
+        .unwrap();
+    let torch = store
+        .dependency_edges
+        .iter()
+        .find(|edge| edge.source == "torch")
+        .unwrap();
+    let timm = store
+        .dependency_edges
+        .iter()
+        .find(|edge| edge.source == "timm")
+        .unwrap();
+
+    assert_eq!(beta.block_id, alpha.block_id);
+    assert!(!beta.is_deferred);
+    assert!(!beta.is_type_checking);
+    assert!(!beta.is_conditional);
+
+    assert_eq!(delta.block_id, charlie.block_id);
+    assert_ne!(beta.block_id, delta.block_id);
+    assert!(delta.is_type_checking);
+    assert!(delta.is_conditional);
+    assert!(!delta.is_deferred);
+
+    assert_eq!(torch.block_id, timm.block_id);
+    assert_ne!(beta.block_id, torch.block_id);
+    assert!(torch.is_deferred);
+    assert!(!torch.is_type_checking);
+    assert!(!torch.is_conditional);
+}
+
+#[test]
+fn python_qt_members_record_class_and_override_context_attributes() {
+    let store = store_from_python_source(concat!(
+        "class Rows(QAbstractTableModel):\n",
+        "    def rowCount(self, parent: QModelIndex) -> int:\n",
+        "        return 0\n",
+        "\n",
+        "    def refreshPreviewPane(self) -> None:\n",
+        "        pass\n",
+    ));
+
+    let row_count = store
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "rowCount")
+        .unwrap();
+    let refresh_preview = store
+        .symbols
+        .iter()
+        .find(|symbol| symbol.name == "refreshPreviewPane")
+        .unwrap();
+
+    assert!(has_attribute(row_count, "python.qt_class_context"));
+    assert!(has_attribute(row_count, "python.qt_override_context"));
+    assert!(has_attribute(refresh_preview, "python.qt_class_context"));
+    assert!(!has_attribute(
+        refresh_preview,
+        "python.qt_override_context"
+    ));
 }
 
 #[test]

@@ -44,9 +44,13 @@ fn typed_facts_round_trip_as_json() {
         imported: "List".to_string(),
         alias: None,
         range: "1:1-1:25".to_string(),
+        block_id: "module".to_string(),
         is_glob: false,
         is_public: false,
         is_relative: false,
+        is_deferred: false,
+        is_type_checking: false,
+        is_conditional: false,
     };
     let expression = ExpressionFact {
         id: "expr:1".to_string(),

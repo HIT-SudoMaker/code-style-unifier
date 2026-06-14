@@ -16,6 +16,7 @@ pub mod history;
 pub mod issue;
 /// 读取 profile 中的阈值与术语策略
 pub mod profile;
+pub(crate) mod python_qt;
 /// 读取并验证规则目录契约
 pub mod rules;
 /// 工作区文件清单

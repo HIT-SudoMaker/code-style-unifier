@@ -285,6 +285,8 @@ pub struct DependencyEdgeFact {
     pub imported: String,
     /// 导入别名
     pub alias: Option<String>,
+    #[serde(default)]
+    pub block_id: String,
     /// 源码范围
     pub range: String,
     /// 是否为 glob 导入
@@ -293,6 +295,12 @@ pub struct DependencyEdgeFact {
     pub is_public: bool,
     /// 是否相对导入
     pub is_relative: bool,
+    #[serde(default)]
+    pub is_deferred: bool,
+    #[serde(default)]
+    pub is_type_checking: bool,
+    #[serde(default)]
+    pub is_conditional: bool,
 }
 
 /// 符号事实

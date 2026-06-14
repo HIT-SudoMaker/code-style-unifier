@@ -61,10 +61,14 @@ fn cpp_rules_emit_expected_findings() {
             source: (*imported).to_string(),
             imported: (*imported).to_string(),
             alias: None,
+            block_id: "module".to_string(),
             range: format!("{}:1-{}:20", index + 2, index + 2),
             is_glob: false,
             is_public: true,
             is_relative: false,
+            is_deferred: false,
+            is_type_checking: false,
+            is_conditional: false,
         });
     }
     store.dependency_edges.push(DependencyEdgeFact {
@@ -75,10 +79,14 @@ fn cpp_rules_emit_expected_findings() {
         source: "std".to_string(),
         imported: "*".to_string(),
         alias: None,
+        block_id: "module".to_string(),
         range: "8:1-8:21".to_string(),
         is_glob: true,
         is_public: true,
         is_relative: false,
+        is_deferred: false,
+        is_type_checking: false,
+        is_conditional: false,
     });
     store.symbols.push(SymbolFact {
         id: "symbol:abi".to_string(),

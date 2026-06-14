@@ -39,10 +39,14 @@ fn rust_rules_emit_expected_findings() {
         source: "crate".to_string(),
         imported: "{run, *}".to_string(),
         alias: None,
+        block_id: "module".to_string(),
         range: "3:1-3:20".to_string(),
         is_glob: true,
         is_public: true,
         is_relative: false,
+        is_deferred: false,
+        is_type_checking: false,
+        is_conditional: false,
     });
     store.symbols.push(SymbolFact {
         id: "symbol:prelude".to_string(),

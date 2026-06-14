@@ -10,6 +10,7 @@ use crate::core::evidence::{
 };
 use crate::core::issue::{Domain, Issue, IssueKind, Language, Scope};
 use crate::core::profile::Profile;
+use crate::core::python_qt;
 
 const IMPLEMENTATION_WORDS: &[&str] = &[
     "call",
@@ -261,11 +262,21 @@ fn evaluate_dependency_grouping(store: &EvidenceStore) -> Vec<Issue> {
 }
 
 fn evaluate_dependency_sorting(store: &EvidenceStore) -> Vec<Issue> {
-    let mut by_module_group: HashMap<(&str, DependencyGroup), Vec<&DependencyEdgeFact>> =
-        HashMap::new();
+    let mut by_module_group: HashMap<
+        (&str, DependencyGroup, &str, bool, bool, bool, bool),
+        Vec<&DependencyEdgeFact>,
+    > = HashMap::new();
     for edge in &store.dependency_edges {
         by_module_group
-            .entry((&edge.module_id, edge.group))
+            .entry((
+                &edge.module_id,
+                edge.group,
+                edge.block_id.as_str(),
+                edge.is_relative,
+                edge.is_deferred,
+                edge.is_type_checking,
+                edge.is_conditional,
+            ))
             .or_default()
             .push(edge);
     }
@@ -370,12 +381,15 @@ fn evaluate_symbol_documentation_rules(store: &EvidenceStore, _profile: &Profile
 fn evaluate_symbol_naming_rules(store: &EvidenceStore, profile: &Profile) -> Vec<Issue> {
     let mut issues = Vec::new();
     for symbol in &store.symbols {
-        if active_file_by_id(store, &symbol.file_id) && violates_case_convention(symbol) {
+        if let Some(kind) = active_file_by_id(store, &symbol.file_id)
+            .then(|| case_convention_issue_kind(symbol))
+            .flatten()
+        {
             issues.push(symbol_issue(
                 store,
                 "Core014",
                 "naming.case_convention",
-                IssueKind::HardViolation,
+                kind,
                 Domain::Naming,
                 "符号命名大小写不符合约定",
                 symbol,
@@ -995,21 +1009,51 @@ fn doc_full_text(store: &EvidenceStore, doc_id: &str) -> Option<String> {
         .map(|text| text.normalized_text.clone())
 }
 
-fn violates_case_convention(symbol: &SymbolFact) -> bool {
+fn case_convention_issue_kind(symbol: &SymbolFact) -> Option<IssueKind> {
     if symbol.language == Language::Rust && has_rust_abi_name_evidence(symbol) {
-        return false;
+        return None;
+    }
+    if symbol.language == Language::Python && has_python_qt_override_evidence(symbol) {
+        return None;
     }
 
-    match symbol.kind {
-        SymbolKind::Function | SymbolKind::Method | SymbolKind::Variable | SymbolKind::Field => {
-            symbol
-                .name
-                .chars()
-                .any(|character| character.is_ascii_uppercase())
-        }
-        SymbolKind::Class | SymbolKind::Struct | SymbolKind::Enum | SymbolKind::Trait => false,
-        _ => false,
+    let checks_case = matches!(
+        symbol.kind,
+        SymbolKind::Function | SymbolKind::Method | SymbolKind::Variable | SymbolKind::Field
+    );
+    if !checks_case
+        || !symbol
+            .name
+            .chars()
+            .any(|character| character.is_ascii_uppercase())
+    {
+        return None;
     }
+
+    if symbol.language == Language::Python
+        && matches!(symbol.kind, SymbolKind::Function | SymbolKind::Method)
+        && has_python_qt_class_context(symbol)
+    {
+        return Some(IssueKind::UnderReview);
+    }
+
+    Some(IssueKind::HardViolation)
+}
+
+fn has_python_qt_class_context(symbol: &SymbolFact) -> bool {
+    symbol
+        .attributes
+        .iter()
+        .any(|attribute| attribute == python_qt::CLASS_CONTEXT_ATTRIBUTE)
+}
+
+fn has_python_qt_override_evidence(symbol: &SymbolFact) -> bool {
+    matches!(symbol.kind, SymbolKind::Function | SymbolKind::Method)
+        && python_qt::is_override_method_name(&symbol.name)
+        && symbol
+            .attributes
+            .iter()
+            .any(|attribute| attribute == python_qt::OVERRIDE_CONTEXT_ATTRIBUTE)
 }
 
 fn has_rust_abi_name_evidence(symbol: &SymbolFact) -> bool {

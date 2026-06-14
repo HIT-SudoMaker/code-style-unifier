@@ -7,6 +7,7 @@ use crate::core::evidence::{
     SymbolFact, SymbolKind, SymbolVisibility, TextRole, TextSpanFact,
 };
 use crate::core::issue::Language;
+use crate::core::python_qt;
 use crate::core::scanner::{FileUnit, WorkspaceState};
 
 /// 从扫描状态提取文本、符号和结构化证据
@@ -317,17 +318,31 @@ fn add_python_docstring(
 fn extract_python_facts(file: &FileUnit, source: &str, module_id: &str, store: &mut EvidenceStore) {
     let lines = source.lines().collect::<Vec<_>>();
     let mut index = 0;
+    let mut scopes = Vec::new();
+    let mut import_blocks = PythonImportBlockTracker::default();
 
     while index < lines.len() {
         let line_number = index + 1;
         let line = lines[index];
         let trimmed = line.trim();
+        let indent = python_indent_width(line);
         if trimmed.starts_with('#') {
+            import_blocks.break_current();
             index += 1;
             continue;
         }
+        if !trimmed.is_empty() {
+            pop_python_scopes(&mut scopes, indent);
+        }
 
         if let Some(signature) = python_signature_at(&lines, index) {
+            let dependency_context = python_dependency_context(
+                trimmed,
+                line_number,
+                indent,
+                &scopes,
+                &mut import_blocks,
+            );
             extract_python_fact_text(
                 store,
                 file,
@@ -336,7 +351,10 @@ fn extract_python_facts(file: &FileUnit, source: &str, module_id: &str, store: &
                 signature.logical_text.as_str(),
                 signature.start_line,
                 signature.start_index,
+                dependency_context,
+                python_symbol_context(&scopes),
             );
+            push_python_scope_if_header(&mut scopes, trimmed, indent, line_number);
             index = signature.end_index + 1;
             continue;
         }
@@ -353,13 +371,28 @@ fn extract_python_facts(file: &FileUnit, source: &str, module_id: &str, store: &
                     segment.text.as_str(),
                     segment.line_number,
                     segment.start_index,
+                    None,
+                    PythonSymbolContext::default(),
                 );
             }
             index = next_index;
             continue;
         }
 
-        extract_python_fact_text(store, file, module_id, &lines, trimmed, line_number, index);
+        let dependency_context =
+            python_dependency_context(trimmed, line_number, indent, &scopes, &mut import_blocks);
+        extract_python_fact_text(
+            store,
+            file,
+            module_id,
+            &lines,
+            trimmed,
+            line_number,
+            index,
+            dependency_context,
+            python_symbol_context(&scopes),
+        );
+        push_python_scope_if_header(&mut scopes, trimmed, indent, line_number);
         index += 1;
     }
 }
@@ -368,6 +401,214 @@ struct PythonFactSegment {
     text: String,
     line_number: usize,
     start_index: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PythonDependencyContext {
+    block_id: String,
+    is_deferred: bool,
+    is_type_checking: bool,
+    is_conditional: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PythonImportBlockKey {
+    indent: usize,
+    is_deferred: bool,
+    is_type_checking: bool,
+    is_conditional: bool,
+}
+
+#[derive(Default)]
+struct PythonImportBlockTracker {
+    next_block_number: usize,
+    current_key: Option<PythonImportBlockKey>,
+    current_block_id: Option<String>,
+    previous_import_line: Option<usize>,
+}
+
+impl PythonImportBlockTracker {
+    fn context_for(
+        &mut self,
+        line_number: usize,
+        indent: usize,
+        scope: PythonScopeContext,
+    ) -> PythonDependencyContext {
+        let key = PythonImportBlockKey {
+            indent,
+            is_deferred: scope.is_deferred,
+            is_type_checking: scope.is_type_checking,
+            is_conditional: scope.is_conditional,
+        };
+        let same_block = self.current_key.as_ref() == Some(&key)
+            && self
+                .previous_import_line
+                .is_some_and(|previous| previous + 1 == line_number);
+        if !same_block {
+            self.next_block_number += 1;
+            self.current_key = Some(key);
+            self.current_block_id = Some(format!("python-import-block-{}", self.next_block_number));
+        }
+        self.previous_import_line = Some(line_number);
+
+        PythonDependencyContext {
+            block_id: self
+                .current_block_id
+                .clone()
+                .unwrap_or_else(|| "python-import-block-0".to_string()),
+            is_deferred: scope.is_deferred,
+            is_type_checking: scope.is_type_checking,
+            is_conditional: scope.is_conditional,
+        }
+    }
+
+    fn break_current(&mut self) {
+        self.current_key = None;
+        self.current_block_id = None;
+        self.previous_import_line = None;
+    }
+}
+
+#[derive(Clone, Copy)]
+struct PythonScope {
+    indent: usize,
+    kind: PythonScopeKind,
+}
+
+#[derive(Clone, Copy)]
+enum PythonScopeKind {
+    Deferred,
+    QtClass,
+    Conditional,
+    TypeChecking,
+}
+
+#[derive(Clone, Copy, Default)]
+struct PythonSymbolContext {
+    is_qt_class_member: bool,
+}
+
+#[derive(Clone, Copy)]
+struct PythonScopeContext {
+    is_deferred: bool,
+    is_type_checking: bool,
+    is_conditional: bool,
+}
+
+fn python_dependency_context(
+    fact_text: &str,
+    line_number: usize,
+    indent: usize,
+    scopes: &[PythonScope],
+    import_blocks: &mut PythonImportBlockTracker,
+) -> Option<PythonDependencyContext> {
+    if python_dependency(fact_text).is_none() {
+        import_blocks.break_current();
+        return None;
+    }
+    Some(import_blocks.context_for(line_number, indent, python_scope_context(scopes)))
+}
+
+fn python_indent_width(line: &str) -> usize {
+    line.chars()
+        .take_while(|character| character.is_whitespace())
+        .count()
+}
+
+fn pop_python_scopes(scopes: &mut Vec<PythonScope>, indent: usize) {
+    while scopes.last().is_some_and(|scope| indent <= scope.indent) {
+        scopes.pop();
+    }
+}
+
+fn push_python_scope_if_header(
+    scopes: &mut Vec<PythonScope>,
+    trimmed: &str,
+    indent: usize,
+    _line_number: usize,
+) {
+    let Some(kind) = python_scope_kind(trimmed) else {
+        return;
+    };
+    scopes.push(PythonScope { indent, kind });
+}
+
+fn python_scope_kind(trimmed: &str) -> Option<PythonScopeKind> {
+    if !trimmed.ends_with(':') {
+        return None;
+    }
+    if trimmed == "if TYPE_CHECKING:" || trimmed == "if typing.TYPE_CHECKING:" {
+        return Some(PythonScopeKind::TypeChecking);
+    }
+    if trimmed.starts_with("def ") || trimmed.starts_with("async def ") {
+        return Some(PythonScopeKind::Deferred);
+    }
+    if trimmed.starts_with("class ") {
+        return Some(if python_class_has_qt_base(trimmed) {
+            PythonScopeKind::QtClass
+        } else {
+            PythonScopeKind::Deferred
+        });
+    }
+    if trimmed.starts_with("if ")
+        || trimmed.starts_with("elif ")
+        || trimmed == "else:"
+        || trimmed.starts_with("try:")
+        || trimmed.starts_with("except")
+        || trimmed == "finally:"
+        || trimmed.starts_with("for ")
+        || trimmed.starts_with("async for ")
+        || trimmed.starts_with("while ")
+        || trimmed.starts_with("with ")
+        || trimmed.starts_with("async with ")
+        || trimmed.starts_with("match ")
+        || trimmed.starts_with("case ")
+    {
+        return Some(PythonScopeKind::Conditional);
+    }
+    None
+}
+
+fn python_scope_context(scopes: &[PythonScope]) -> PythonScopeContext {
+    let is_deferred = scopes.iter().any(|scope| {
+        matches!(
+            scope.kind,
+            PythonScopeKind::Deferred | PythonScopeKind::QtClass
+        )
+    });
+    let is_type_checking = scopes
+        .iter()
+        .any(|scope| matches!(scope.kind, PythonScopeKind::TypeChecking));
+    let is_conditional = scopes.iter().any(|scope| {
+        matches!(
+            scope.kind,
+            PythonScopeKind::Conditional | PythonScopeKind::TypeChecking
+        )
+    });
+    PythonScopeContext {
+        is_deferred,
+        is_type_checking,
+        is_conditional,
+    }
+}
+
+fn python_symbol_context(scopes: &[PythonScope]) -> PythonSymbolContext {
+    PythonSymbolContext {
+        is_qt_class_member: scopes
+            .iter()
+            .any(|scope| matches!(scope.kind, PythonScopeKind::QtClass)),
+    }
+}
+
+fn python_class_has_qt_base(trimmed: &str) -> bool {
+    let Some((_, tail)) = trimmed.split_once('(') else {
+        return false;
+    };
+    let bases = tail.split(')').next().unwrap_or_default();
+    bases
+        .split(',')
+        .map(|base| base.trim().rsplit('.').next().unwrap_or(base.trim()))
+        .any(python_qt::is_class_base_name)
 }
 
 fn python_fact_segments_skipping_triple_strings(
@@ -530,10 +771,18 @@ fn extract_python_fact_text(
     fact_text: &str,
     fact_line: usize,
     fact_start_index: usize,
+    dependency_context: Option<PythonDependencyContext>,
+    symbol_context: PythonSymbolContext,
 ) {
     if let Some((source_name, imported, alias, group, is_relative, is_glob)) =
         python_dependency(fact_text)
     {
+        let context = dependency_context.unwrap_or_else(|| PythonDependencyContext {
+            block_id: "python-import-block-0".to_string(),
+            is_deferred: false,
+            is_type_checking: false,
+            is_conditional: false,
+        });
         add_dependency(
             store,
             DependencyInput {
@@ -543,15 +792,21 @@ fn extract_python_fact_text(
                 source: source_name,
                 imported,
                 alias,
+                block_id: context.block_id,
                 line_number: fact_line,
                 is_glob,
                 is_public: false,
                 is_relative,
+                is_deferred: context.is_deferred,
+                is_type_checking: context.is_type_checking,
+                is_conditional: context.is_conditional,
             },
         );
     }
 
-    if let Some(symbol) = python_symbol(fact_text, file, module_id, fact_line, store) {
+    if let Some(symbol) =
+        python_symbol(fact_text, file, module_id, fact_line, store, symbol_context)
+    {
         add_symbol(store, symbol);
     }
     for symbol in python_parameter_symbols(
@@ -663,10 +918,14 @@ fn extract_rust_facts(file: &FileUnit, source: &str, module_id: &str, store: &mu
                     source: source_name,
                     imported,
                     alias: None,
+                    block_id: "module".to_string(),
                     line_number,
                     is_glob: trimmed.contains("::*") || trimmed.ends_with("::*;"),
                     is_public,
                     is_relative: trimmed.contains("crate::") || trimmed.contains("super::"),
+                    is_deferred: false,
+                    is_type_checking: false,
+                    is_conditional: false,
                 },
             );
         }
@@ -784,10 +1043,14 @@ fn extract_c_family_facts(
                     source: source_name.clone(),
                     imported: source_name,
                     alias: None,
+                    block_id: "module".to_string(),
                     line_number,
                     is_glob: false,
                     is_public: is_header_path(&file.relative_path),
                     is_relative: trimmed.contains('"'),
+                    is_deferred: false,
+                    is_type_checking: false,
+                    is_conditional: false,
                 },
             );
         }
@@ -802,10 +1065,14 @@ fn extract_c_family_facts(
                     source: namespace,
                     imported: "*".to_string(),
                     alias: None,
+                    block_id: "module".to_string(),
                     line_number,
                     is_glob: true,
                     is_public: is_header_path(&file.relative_path),
                     is_relative: false,
+                    is_deferred: false,
+                    is_type_checking: false,
+                    is_conditional: false,
                 },
             );
         }
@@ -1944,6 +2211,7 @@ fn python_symbol(
     module_id: &str,
     line_number: usize,
     store: &EvidenceStore,
+    context: PythonSymbolContext,
 ) -> Option<SymbolFact> {
     if let Some(rest) = trimmed.strip_prefix("class ") {
         let name = rest.split(['(', ':']).next()?.trim();
@@ -2000,6 +2268,13 @@ fn python_symbol(
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_string);
+    let mut attributes = Vec::new();
+    if context.is_qt_class_member {
+        attributes.push(python_qt::CLASS_CONTEXT_ATTRIBUTE.to_string());
+        if python_qt::is_override_method_name(name) {
+            attributes.push(python_qt::OVERRIDE_CONTEXT_ATTRIBUTE.to_string());
+        }
+    }
 
     Some(symbol_fact(
         SymbolInput {
@@ -2018,6 +2293,7 @@ fn python_symbol(
                 .contains(':')
                 .then(|| parameters.trim().to_string()),
             is_async,
+            attributes,
             ..SymbolOptions::default()
         },
     ))
@@ -2620,10 +2896,14 @@ struct DependencyInput<'a> {
     source: String,
     imported: String,
     alias: Option<String>,
+    block_id: String,
     line_number: usize,
     is_glob: bool,
     is_public: bool,
     is_relative: bool,
+    is_deferred: bool,
+    is_type_checking: bool,
+    is_conditional: bool,
 }
 
 fn add_dependency(store: &mut EvidenceStore, input: DependencyInput<'_>) {
@@ -2646,10 +2926,14 @@ fn add_dependency(store: &mut EvidenceStore, input: DependencyInput<'_>) {
         source: input.source,
         imported: input.imported,
         alias: input.alias,
+        block_id: input.block_id,
         range: line_range(input.line_number),
         is_glob: input.is_glob,
         is_public: input.is_public,
         is_relative: input.is_relative,
+        is_deferred: input.is_deferred,
+        is_type_checking: input.is_type_checking,
+        is_conditional: input.is_conditional,
     });
 }
 

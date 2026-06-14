@@ -114,9 +114,13 @@ fn core_project_file_and_dependency_rules_emit_expected_findings() {
         imported: "b".to_string(),
         alias: None,
         range: "1:1-1:9".to_string(),
+        block_id: "module".to_string(),
         is_glob: false,
         is_public: false,
         is_relative: false,
+        is_deferred: false,
+        is_type_checking: false,
+        is_conditional: false,
     });
     store.dependency_edges.push(DependencyEdgeFact {
         id: "dep:3".to_string(),
@@ -127,9 +131,13 @@ fn core_project_file_and_dependency_rules_emit_expected_findings() {
         imported: "module:py".to_string(),
         alias: None,
         range: "3:1-3:18".to_string(),
+        block_id: "module".to_string(),
         is_glob: false,
         is_public: false,
         is_relative: false,
+        is_deferred: false,
+        is_type_checking: false,
+        is_conditional: false,
     });
     store.dependency_edges.push(DependencyEdgeFact {
         id: "dep:4".to_string(),
@@ -140,9 +148,13 @@ fn core_project_file_and_dependency_rules_emit_expected_findings() {
         imported: "parent".to_string(),
         alias: None,
         range: "4:1-4:20".to_string(),
+        block_id: "module".to_string(),
         is_glob: false,
         is_public: false,
         is_relative: true,
+        is_deferred: false,
+        is_type_checking: false,
+        is_conditional: false,
     });
     store.dependency_edges.push(DependencyEdgeFact {
         id: "dep:2".to_string(),
@@ -153,9 +165,13 @@ fn core_project_file_and_dependency_rules_emit_expected_findings() {
         imported: "*".to_string(),
         alias: None,
         range: "2:1-2:16".to_string(),
+        block_id: "module".to_string(),
         is_glob: true,
         is_public: false,
         is_relative: false,
+        is_deferred: false,
+        is_type_checking: false,
+        is_conditional: false,
     });
 
     let issues = evaluate(&store, &profile());
@@ -183,6 +199,64 @@ fn core_project_file_and_dependency_rules_emit_expected_findings() {
     assert!(issues
         .iter()
         .any(|issue| issue.rule == "Core005" && issue.kind == IssueKind::SoftFriction));
+}
+
+#[test]
+fn core009_sorts_only_within_same_python_import_block() {
+    let store = store_from_source(
+        "module.py",
+        concat!(
+            "from zeta import Zeta\n",
+            "\n",
+            "def build_runtime():\n",
+            "    from alpha import Alpha\n",
+            "    return Alpha\n",
+        ),
+    );
+
+    let issues = evaluate_all(&store, &profile());
+
+    assert!(
+        !issues.iter().any(|issue| issue.rule == "Core009"),
+        "deferred imports must not be sorted against top-level imports"
+    );
+}
+
+#[test]
+fn core009_ignores_python_type_checking_import_boundary() {
+    let store = store_from_source(
+        "module.py",
+        concat!(
+            "from zeta import Zeta\n",
+            "from typing import TYPE_CHECKING\n",
+            "\n",
+            "if TYPE_CHECKING:\n",
+            "    from alpha import Alpha\n",
+        ),
+    );
+
+    let issues = evaluate_all(&store, &profile());
+
+    assert!(
+        !issues.iter().any(|issue| issue.rule == "Core009"),
+        "TYPE_CHECKING imports must not be sorted against runtime imports"
+    );
+}
+
+#[test]
+fn core009_still_reports_unsorted_python_imports_in_same_block() {
+    let store = store_from_source(
+        "module.py",
+        "from zeta import Zeta\n\
+from alpha import Alpha\n",
+    );
+
+    let issues = evaluate_all(&store, &profile());
+
+    assert!(
+        issues.iter().any(|issue| issue.rule == "Core009"),
+        "imports in the same block remain subject to deterministic sorting"
+    );
 }
 
 #[test]

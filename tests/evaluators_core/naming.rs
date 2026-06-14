@@ -4,7 +4,7 @@ use unifier::core::evaluators::evaluate_all;
 use unifier::core::evidence::{
     EvidenceStore, FileUnitFact, SymbolFact, SymbolKind, SymbolVisibility,
 };
-use unifier::core::issue::Language;
+use unifier::core::issue::{IssueKind, Language};
 
 fn store_with_core014_function(
     language: Language,
@@ -129,6 +129,90 @@ fn core014_reports_incomplete_or_irrelevant_abi_evidence() {
             "{message}"
         );
     }
+}
+
+#[test]
+fn core014_allows_python_qt_override_methods_with_qt_class_context() {
+    let store = store_from_source(
+        "widget.py",
+        concat!(
+            "class PreviewWidget(QWidget):\n",
+            "    def paintEvent(self, event: QPaintEvent) -> None:\n",
+            "        pass\n",
+            "\n",
+            "    def closeEvent(self, event: QCloseEvent) -> None:\n",
+            "        pass\n",
+        ),
+    );
+
+    let issues = evaluate_all(&store, &profile());
+
+    assert!(
+        !issues.iter().any(|issue| issue.rule == "Core014"),
+        "Qt framework override methods must not be treated as Python case violations"
+    );
+}
+
+#[test]
+fn core014_still_reports_qt_named_method_without_qt_context() {
+    let store = store_from_source(
+        "plain.py",
+        concat!(
+            "class PlainWidget:\n",
+            "    def paintEvent(self, event: object) -> None:\n",
+            "        pass\n",
+        ),
+    );
+
+    let issues = evaluate_all(&store, &profile());
+
+    assert!(
+        issues.iter().any(|issue| issue.rule == "Core014"),
+        "Qt override names only receive an exemption when Qt class context is present"
+    );
+}
+
+#[test]
+fn core014_reviews_unknown_camel_case_method_inside_qt_class() {
+    let store = store_from_source(
+        "widget.py",
+        concat!(
+            "class PreviewWidget(QWidget):\n",
+            "    def refreshPreviewPane(self) -> None:\n",
+            "        pass\n",
+        ),
+    );
+
+    let issues = evaluate_all(&store, &profile());
+    let core014 = issues
+        .iter()
+        .find(|issue| issue.rule == "Core014")
+        .expect("Qt class camelCase method outside the known override set needs review");
+
+    assert_eq!(core014.kind, IssueKind::UnderReview);
+}
+
+#[test]
+fn core014_recognizes_common_qt_model_and_delegate_overrides() {
+    let store = store_from_source(
+        "model.py",
+        concat!(
+            "class Rows(QAbstractTableModel):\n",
+            "    def rowCount(self, parent: QModelIndex) -> int:\n",
+            "        return 0\n",
+            "\n",
+            "class ItemDelegate(QStyledItemDelegate):\n",
+            "    def sizeHint(self, option: QStyleOptionViewItem, index: QModelIndex) -> QSize:\n",
+            "        return QSize(1, 1)\n",
+        ),
+    );
+
+    let issues = evaluate_all(&store, &profile());
+
+    assert!(
+        !issues.iter().any(|issue| issue.rule == "Core014"),
+        "common Qt model and delegate override methods must not become naming findings"
+    );
 }
 
 #[test]
