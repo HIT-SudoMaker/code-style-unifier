@@ -64,6 +64,8 @@ CSU（Code Style Unifier）是一个面向多模块代码库的**语义级风格
 
 一句话概括：**56 条规则**（Core 28 / Python 8 / Rust 10 / C/C++ 10），覆盖 Python、Rust、C、C++ 四种语言；纯 Rust 实现，二进制名 `csu`；输出 JSON / JSONL 供 agent 调度；每条规则都支持人工标注交叉验证。
 
+**v1.1 边界更新**：Core009 只在同一语义导入块内检查排序，避免把顶层导入、延迟导入、`TYPE_CHECKING` 和条件导入混排；Core014 对 Python Qt/PySide override 采用三态判定——确定框架 override 不报，Qt 类中的未知 camelCase 进入 `under_review`，非 Qt 上下文仍保持 `hard_violation`。这次更新不以减少发现数量为目标，而是收紧 hard 的契约纯度。
+
 ---
 
 ## 3. 快速开始
@@ -109,7 +111,7 @@ JSON / JSONL（agent 可读输出）
 | `workspace` | 整个工作区的元信息（语言边界、指纹）| Core001 语言边界 · Core005 history 健康 |
 | `file_unit` | 单个文件的单元信息 | Core006 文件命名 · Core007 文件角色 |
 | `module_unit` | 模块/文件级结构（import、prelude）| Core008 依赖分组 · Rust003 pub prelude |
-| `dependency_edge` | 依赖边（import / include / use）| Core003 依赖环 · Core010 宽导入 |
+| `dependency_edge` | 依赖边（import / include / use，含导入块与条件/延迟上下文）| Core003 依赖环 · Core010 宽导入 |
 | `doc_region` | 文档区域（docstring / doc comment）| Core011 公开面文档 · Core012 字段覆盖 |
 | `comment_region` | 注释区域 | Core017 块意图注释 |
 | `text_span` | 文本片段（摘要、术语）| Core023 中文句号 · Core026 术语策略 |
@@ -216,15 +218,15 @@ CSU 当前默认面向**机器可读输出**：`check` 命令支持 `json`（JSO
 
 每个 issue 有一个 `kind`，决定它如何被处理：
 
-- **`hard_violation`**：硬违规，契约明确被破坏（如 Core014 命名大小写、Core018 suppression 缺原因）；
-- **`under_review`**：需复核，判定有依据但需 agent 或人确认（如 Core016 布尔谓词命名、Core027 内部文本疑似英文）；
+- **`hard_violation`**：硬违规，契约明确被破坏（如普通符号的 Core014 命名大小写、Core018 suppression 缺原因）；
+- **`under_review`**：需复核，判定有依据但需 agent 或人确认（如 Core016 布尔谓词命名、Qt 类中未知 camelCase 方法、Core027 内部文本疑似英文）；
 - **`soft_friction`**：轻摩擦，建议关注但不强制（如 Core001 语言边界、Rust002 cfg 复杂度）。
 
 ### 5.4 规则示例
 
 按 `kind` 举例，展示三种严重级别各自长什么样：
 
-- **Core014 `naming.case_convention`**（`hard_violation`）：符号名必须遵循大小写约定。捕获 `is_ready` / `ready_flag` / `check_ready` 这类同一语义、不同命名的分叉。
+- **Core014 `naming.case_convention`**（通常为 `hard_violation`）：普通符号名必须遵循大小写约定。Python Qt/PySide 框架 override 是例外：确定 override 不报，Qt 类里的未知 camelCase 方法进入 `under_review`，避免把框架回调误当成可机械修复的 hard。
 - **Core018 `suppression.reason_required`**（`hard_violation`）：抑制标记必须带原因。裸 `// csu:allow` 会触发；必须写 `// csu:allow reason = "..."`。
 - **Core016 `naming.boolean_predicate`**（`under_review`）：布尔谓词命名需要审查——规则能识别"疑似布尔但命名不规范"的符号，但是否真要改交给 agent 或人判断。
 - **Core026 `text.term_policy`**（`hard_violation`）：文本必须遵循确定性术语策略。`cfg` / `ABI` / `SSIM` 等专业术语在术语白名单内不报，否则按禁用缩写映射处理。
@@ -307,7 +309,7 @@ cargo build --release
 发布包结构保持解压即用：
 
 ```
-csu-1.0.0-<platform>/
+csu-1.1.0-<platform>/
   bin/csu(.exe)
   profiles/default.toml
   agent-skills/csu/SKILL.md
@@ -398,7 +400,7 @@ csu calibrate --issues .csu/csu.json --cases calibration/cases.jsonl --output .c
 
 CSU 的价值建立在**明确的边界**和**可校准机制**上。
 
-- **不是 formatter**：CSU 不处理空格、换行、缩进、括号、导入排序。这些交给 black / rustfmt / clang-format。CSU 检查的是它们之上的语义层。
+- **不是 formatter**：CSU 不处理空格、换行、缩进、括号；导入排序只检查同一语义导入块内的契约，不跨延迟导入、`TYPE_CHECKING` 或条件边界替 formatter 重排。CSU 检查的是 formatter 之上的语义层。
 - **当前不把并行扫描 / 增量缓存作为核心能力**：架构（统一证据层 + 单次扫描）天然适合后续扩展到缓存与并行，但目前未落地为已实现能力，不当作既成事实陈述。
 - **`check` 输出仅 JSON / JSONL**：没有人类友好 report 格式。CSU 假设输出由 agent 或脚本消费。
 - **阈值与术语依赖 profile 配置**：CSU 不内置"默认裁决"，行长限制、术语白名单等都由 profile 决定，项目可定制。
