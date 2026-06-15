@@ -26,6 +26,11 @@ impl Profile {
         profile.term_policy.normalize_tokens();
         Ok(profile)
     }
+
+    /// 判断规则是否在当前 profile 中启用
+    pub fn is_rule_enabled(&self, rule: &str) -> bool {
+        self.enabled_rules.iter().any(|enabled| enabled == rule)
+    }
 }
 
 /// 保存规则评估使用的数值阈值

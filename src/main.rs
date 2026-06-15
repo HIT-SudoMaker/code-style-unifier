@@ -83,7 +83,10 @@ fn run_check(
         store.history_health = Some(read_history_health(history_root)?);
     }
 
-    let issues: Vec<Issue> = evaluate_all(&store, &profile);
+    let issues: Vec<Issue> = evaluate_all(&store, &profile)
+        .into_iter()
+        .filter(|issue| profile.is_rule_enabled(&issue.rule))
+        .collect();
 
     write_check_output(&issues, format, output)?;
 
