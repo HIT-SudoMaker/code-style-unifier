@@ -838,6 +838,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter-typescript"
+version = "0.23.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c5f76ed8d947a75cc446d5fccd8b602ebf0cde64ccf2ffa434d873d7a575eff"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -878,6 +888,7 @@ dependencies = [
  "tree-sitter-cpp",
  "tree-sitter-python",
  "tree-sitter-rust",
+ "tree-sitter-typescript",
  "unicode-width",
 ]
 

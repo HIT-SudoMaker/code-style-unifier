@@ -1,4 +1,4 @@
-use tree_sitter::{Language, Parser, Tree};
+use tree_sitter::{Language, Node, Parser, Tree};
 
 use crate::core::error::{CoreError, Result};
 
@@ -13,6 +13,8 @@ pub enum SyntaxLanguage {
     C,
     /// C++ 源码
     Cpp,
+    /// TypeScript 源码
+    Typescript,
 }
 
 /// 已解析源码
@@ -29,6 +31,11 @@ impl ParsedSource {
     /// 返回语法树是否包含错误节点
     pub fn has_error(&self) -> bool {
         self.tree.root_node().has_error()
+    }
+
+    /// 返回语法树根节点
+    pub fn root_node(&self) -> Node<'_> {
+        self.tree.root_node()
     }
 }
 
@@ -51,5 +58,7 @@ fn grammar_for(language: SyntaxLanguage) -> Language {
         SyntaxLanguage::Rust => tree_sitter_rust::LANGUAGE.into(),
         SyntaxLanguage::C => tree_sitter_c::LANGUAGE.into(),
         SyntaxLanguage::Cpp => tree_sitter_cpp::LANGUAGE.into(),
+        // TSX is a superset of TS; one parser handles both .ts and .tsx.
+        SyntaxLanguage::Typescript => Language::new(tree_sitter_typescript::LANGUAGE_TSX),
     }
 }

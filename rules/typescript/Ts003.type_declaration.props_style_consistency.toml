@@ -1,0 +1,12 @@
+id = "Ts003"
+name = "type_declaration.props_style_consistency"
+kind = "under_review"
+scope = "symbol"
+domain = "typing"
+languages = ["typescript"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["symbol"]
+message = "Props and State object shapes should use a consistent declaration style."
+notes = "Among *Props / *State object shapes, flags the minority interface-vs-type style; union and string-literal type aliases are never flagged."

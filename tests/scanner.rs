@@ -58,6 +58,33 @@ fn scans_single_file_target() {
 }
 
 #[test]
+fn detects_typescript_extensions_and_flags_declaration_files() {
+    let dir = tempdir().unwrap();
+    fs::write(dir.path().join("app.ts"), "export const a = 1;\n").unwrap();
+    fs::write(dir.path().join("view.tsx"), "export const B = () => null;\n").unwrap();
+    fs::write(dir.path().join("types.d.ts"), "export declare const c: number;\n").unwrap();
+
+    let state = scan_workspace(dir.path(), &[]).unwrap();
+
+    assert!(state
+        .files
+        .iter()
+        .all(|file| file.language == Language::Typescript));
+    assert_eq!(state.files.len(), 3);
+    let declaration = state
+        .files
+        .iter()
+        .find(|file| file.relative_path == "types.d.ts")
+        .expect("declaration file");
+    assert!(declaration.generated, ".d.ts must be flagged generated");
+    assert!(state
+        .files
+        .iter()
+        .find(|file| file.relative_path == "app.ts")
+        .is_some_and(|file| !file.generated));
+}
+
+#[test]
 fn filters_unsupported_files() {
     let dir = tempdir().unwrap();
     fs::write(dir.path().join("README.md"), "# ignored\n").unwrap();

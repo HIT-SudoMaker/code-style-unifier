@@ -1,0 +1,12 @@
+id = "Ts001"
+name = "export.style_consistency"
+kind = "under_review"
+scope = "module"
+domain = "project"
+languages = ["typescript"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["module_unit", "public_surface", "symbol"]
+message = "Export style should be consistent within a directory."
+notes = "Flags the minority default/named export style among sibling modules in a directory; framework-mandated files (Next.js page/layout/route/...) are exempt."

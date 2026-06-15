@@ -53,3 +53,34 @@ fn check_reports_rust_and_cpp_rules() {
         .stdout(predicate::str::contains("\"rule\":\"Cpp003\""))
         .stdout(predicate::str::contains("\"rule\":\"Cpp004\""));
 }
+
+#[test]
+fn check_reports_typescript_core_and_ts_specific_rules() {
+    let dir = tempdir().unwrap();
+    // Mixed export styles in one directory → Ts001; snake_case function → Core014 hard.
+    fs::write(
+        dir.path().join("Alpha.tsx"),
+        "export default function Alpha() {\n  return null;\n}\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("beta.ts"),
+        "export function compute_total(): number {\n  return 1;\n}\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("gamma.ts"),
+        "export function gammaValue(): number {\n  return 2;\n}\n",
+    )
+    .unwrap();
+
+    let mut cmd = Command::cargo_bin("csu").unwrap();
+    cmd.arg("check")
+        .arg(dir.path())
+        .arg("--no-history")
+        .assert()
+        .failure()
+        .stdout(predicate::str::contains("\"rule\":\"Core014\""))
+        .stdout(predicate::str::contains("\"rule\":\"Ts001\""))
+        .stdout(predicate::str::contains("\"language\":\"typescript\""));
+}

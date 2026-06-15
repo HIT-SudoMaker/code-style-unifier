@@ -127,8 +127,10 @@ fn collect_file(root: &Path, path: &Path, files: &mut Vec<FileUnit>) -> Result<(
         return Ok(());
     };
 
-    let generated = matches!(language, Language::C | Language::Cpp) && generated_file_marker(path)?;
     let relative_path = relative_path(root, path);
+    let generated = (matches!(language, Language::C | Language::Cpp)
+        && generated_file_marker(path)?)
+        || (language == Language::Typescript && is_generated_typescript(&relative_path));
     let fingerprint = fingerprint_file(path)?;
     let id = format!("file:{}", blake3::hash(relative_path.as_bytes()).to_hex());
 
@@ -187,8 +189,14 @@ fn language_for_path(path: &Path) -> Option<Language> {
         "rs" => Some(Language::Rust),
         "c" | "h" => Some(Language::C),
         "cc" | "cpp" | "cxx" | "hpp" | "hh" | "hxx" => Some(Language::Cpp),
+        "ts" | "tsx" | "mts" | "cts" => Some(Language::Typescript),
         _ => None,
     }
+}
+
+/// 判断 TypeScript 文件是否为声明文件等生成产物
+fn is_generated_typescript(relative_path: &str) -> bool {
+    relative_path.ends_with(".d.ts")
 }
 
 fn is_excluded_dir(path: &Path, exclude_dirs: &[&str]) -> bool {

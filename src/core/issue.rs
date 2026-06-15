@@ -81,6 +81,8 @@ pub enum Language {
     C,
     /// C++ 源码
     Cpp,
+    /// TypeScript 源码
+    Typescript,
 }
 
 /// 描述一条规则评估产生的问题

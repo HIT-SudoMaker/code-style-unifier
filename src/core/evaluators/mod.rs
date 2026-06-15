@@ -6,6 +6,8 @@ pub mod cpp;
 pub mod python;
 /// 实现 Rust 专属规则评估
 pub mod rust;
+/// 实现 TypeScript 专属规则评估
+pub mod typescript;
 
 use crate::core::evidence::EvidenceStore;
 use crate::core::issue::Issue;
@@ -23,6 +25,7 @@ pub fn implemented_rule_ids() -> Vec<&'static str> {
     ids.extend(python::implemented_rule_ids());
     ids.extend(rust::implemented_rule_ids());
     ids.extend(cpp::implemented_rule_ids());
+    ids.extend(typescript::implemented_rule_ids());
     ids
 }
 
@@ -33,5 +36,6 @@ pub fn evaluate_all(store: &EvidenceStore, profile: &Profile) -> Vec<Issue> {
     issues.extend(python::evaluate(store, profile));
     issues.extend(rust::evaluate(store, profile));
     issues.extend(cpp::evaluate(store, profile));
+    issues.extend(typescript::evaluate(store, profile));
     issues
 }

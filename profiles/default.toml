@@ -9,6 +9,7 @@ enabled_rules = [
   "Rust008", "Rust009", "Rust010",
   "Cpp001", "Cpp002", "Cpp003", "Cpp004", "Cpp005", "Cpp006", "Cpp007",
   "Cpp008", "Cpp009", "Cpp010",
+  "Ts001", "Ts002", "Ts003",
 ]
 exclude_dirs = [".git", ".venv", "build", "dist", "target", "vendor"]
 exclude_file_patterns = []

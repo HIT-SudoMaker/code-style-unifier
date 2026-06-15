@@ -103,7 +103,7 @@ fn every_per_rule_definition_matches_catalog_contract_and_filename() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("rules");
     let mut definition_ids = BTreeSet::new();
 
-    for family in ["core", "python", "rust", "cpp"] {
+    for family in ["core", "python", "rust", "cpp", "typescript"] {
         for entry in fs::read_dir(root.join(family)).unwrap() {
             let path = entry.unwrap().path();
             if path.extension().and_then(|extension| extension.to_str()) != Some("toml") {
@@ -244,6 +244,8 @@ fn family_dir(id: &str) -> &'static str {
         "rust"
     } else if id.starts_with("Cpp") {
         "cpp"
+    } else if id.starts_with("Ts") {
+        "typescript"
     } else {
         panic!("unknown rule family: {id}");
     }

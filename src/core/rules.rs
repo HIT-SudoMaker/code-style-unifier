@@ -124,6 +124,7 @@ impl RuleContract {
             ]),
             RuleFamily::Py => self.validate_languages(&[Language::Python]),
             RuleFamily::Rust => self.validate_languages(&[Language::Rust]),
+            RuleFamily::Ts => self.validate_languages(&[Language::Typescript]),
             RuleFamily::Cpp => {
                 if self
                     .languages
@@ -163,6 +164,7 @@ enum RuleFamily {
     Py,
     Rust,
     Cpp,
+    Ts,
 }
 
 impl RuleFamily {
@@ -172,6 +174,7 @@ impl RuleFamily {
             ("Rust", Self::Rust),
             ("Cpp", Self::Cpp),
             ("Py", Self::Py),
+            ("Ts", Self::Ts),
         ] {
             if let Some(suffix) = id.strip_prefix(prefix) {
                 return if suffix.len() == 3 && suffix.bytes().all(|byte| byte.is_ascii_digit()) {

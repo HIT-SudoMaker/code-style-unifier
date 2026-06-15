@@ -1,0 +1,12 @@
+id = "Ts002"
+name = "comment.language_consistency"
+kind = "under_review"
+scope = "text"
+domain = "style"
+languages = ["typescript"]
+default_enabled = true
+origin = "new"
+source_ids = []
+evidence_types = ["text_span", "comment_region"]
+message = "Comment language should be consistent with the project's dominant language."
+notes = "Flags comment and doc-summary spans whose language differs from the project-dominant comment language; only applies when one language is a clear majority."

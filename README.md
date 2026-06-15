@@ -1,6 +1,6 @@
 # CSU — 语义级代码风格检查器
 
-> **CSU**（Code Style Unifier）是一个面向 agent 时代大型代码库的语义级代码风格检查器。它不处理空格、换行和缩进，而是检查更高一层的问题：命名是否统一，公开 API 是否有契约文档，术语是否漂移，注释语言是否混乱，依赖和安全边界是否仍然可维护。CSU 用 Rust 实现，先把 Python / Rust / C / C++ 源码提取成统一 evidence layer，再基于 **56 条规则契约** 输出机器可读 JSON，供 Codex、Claude Code 或其他 agent 继续修正、校准与复核。
+> **CSU**（Code Style Unifier）是一个面向 agent 时代大型代码库的语义级代码风格检查器。它不处理空格、换行和缩进，而是检查更高一层的问题：命名是否统一，公开 API 是否有契约文档，术语是否漂移，注释语言是否混乱，依赖和安全边界是否仍然可维护。CSU 用 Rust 实现，先把 Python / Rust / C / C++ / TypeScript 源码提取成统一 evidence layer，再基于 **59 条规则契约** 输出机器可读 JSON，供 Codex、Claude Code 或其他 agent 继续修正、校准与复核。
 
 ---
 
@@ -76,13 +76,13 @@ CSU 的定位是传统工具与 agent 的中间层：底层用确定性的扫描
 
 ## 2. CSU 是什么
 
-CSU（Code Style Unifier）是一个面向多模块代码库的**语义级风格检查器**。它扫描 Python / Rust / C / C++ 源码，建立**统一 evidence layer**，再让规则只基于这层证据进行判断，而不是反复读取源码。每一条 finding 都记录它依据的 evidence、违反的 rule、所在文件与范围，并通过 blake3 为文件和 workspace 生成指纹，方便人或 agent 反向核对。
+CSU（Code Style Unifier）是一个面向多模块代码库的**语义级风格检查器**。它扫描 Python / Rust / C / C++ / TypeScript 源码，建立**统一 evidence layer**，再让规则只基于这层证据进行判断，而不是反复读取源码。每一条 finding 都记录它依据的 evidence、违反的 rule、所在文件与范围，并通过 blake3 为文件和 workspace 生成指纹，方便人或 agent 反向核对。
 
-一句话概括：**56 条规则**（Core 28 / Python 8 / Rust 10 / C/C++ 10），覆盖 Python、Rust、C、C++ 四种语言；二进制名 `csu`；输出 JSON / JSONL 供 agent 调度；每条规则都支持人工标注交叉验证。
+一句话概括：**59 条规则**（Core 28 / Python 8 / Rust 10 / C/C++ 10 / TypeScript 3），覆盖 Python、Rust、C、C++、TypeScript 五种语言；二进制名 `csu`；输出 JSON / JSONL 供 agent 调度；每条规则都支持人工标注交叉验证。
 
 我选择 Rust 实现 CSU，不只是因为它有挑战性，而是因为它的语言特性适合这类工具：单二进制分发方便，启动和扫描性能稳定；类型系统、枚举和 `Result` 能把 evidence、issue kind、规则边界表达得更明确；内存安全和所有权模型也适合写一个需要长期演进、反复扫大项目的基础工具。CSU 要处理的是“信任边界”，实现语言本身也应该尽量减少隐式状态和运行时不确定性。
 
-目前只支持 Python、Rust、C、C++，原因也很朴素：这些是我自己常用、也相对理解其工程习惯的语言。语义风格规则不是“按语法树找几个节点”那么简单，它要求对语言生态、命名传统、文档习惯、FFI/ABI/类型边界有足够直觉。对我不了解的语言，我很难形成可信的个人风格判断；与其做一个看起来覆盖广、实际不懂边界的规则集，不如先把熟悉语言里的规则做扎实。
+目前支持 Python、Rust、C、C++、TypeScript，原因也很朴素：这些是我自己常用、也相对理解其工程习惯的语言。TypeScript 的接入策略和其他几门略有不同——它故意不重复 ESLint/tsc 的工作，只补 CSU 独有的跨模块一致性漂移；命名等共性检查由语言感知后的 Core 规则复用。语义风格规则不是“按语法树找几个节点”那么简单，它要求对语言生态、命名传统、文档习惯、FFI/ABI/类型边界有足够直觉。对我不了解的语言，我很难形成可信的个人风格判断；与其做一个看起来覆盖广、实际不懂边界的规则集，不如先把熟悉语言里的规则做扎实。
 
 **v1.1.1 文档更新**：README 重新组织了 CSU 的设计动机、个人背景与边界说明。功能层面的 v1.1 更新包括：Core009 只在同一语义导入块内检查排序，避免把顶层导入、延迟导入、`TYPE_CHECKING` 和条件导入混排；Core014 对 Python Qt/PySide override 采用三态判定——确定框架 override 不报，Qt 类中的未知 camelCase 进入 `under_review`，非 Qt 上下文仍保持 `hard_violation`。这次更新不以减少发现数量为目标，而是收紧 hard 的契约纯度。
 
@@ -107,7 +107,7 @@ CSU 的可靠来自架构本身，而不是口号。
 ### 4.1 处理管线
 
 ```
-源码文件（.py / .rs / .c / .h / .cc / .cpp / .hpp / ...）
+源码文件（.py / .rs / .c / .h / .cc / .cpp / .hpp / .ts / .tsx / .mts / .cts / ...）
    │  scanner   按扩展名过滤 · 排除目录 · blake3 指纹 · C/C++ 生成标记判定
    ▼
 WorkspaceState（文件单元）
@@ -152,7 +152,7 @@ JSON / JSONL（agent 可读输出）
 ### 4.3 扫描加速设计
 
 - **纯 Rust 实现**：单二进制分发，启动成本低；类型系统、枚举和 `Result` 让 evidence、issue kind、规则边界更容易保持显式，适合大项目递归扫描；
-- **按扩展名过滤**：只处理 Python / Rust / C / C++ 源文件，其余跳过。当前语言覆盖来自作者实际维护经验；不了解语言生态时不强行写语义风格规则；
+- **按扩展名过滤**：只处理 Python / Rust / C / C++ / TypeScript 源文件，其余跳过（TS 的 `.d.ts` 声明文件按生成代码处理）。当前语言覆盖来自作者实际维护经验；不了解语言生态时不强行写语义风格规则；
 - **排除目录**：通过 profile 配置，默认排除 `.git` / `.venv` / `build` / `dist` / `target` / `vendor`；
 - **C/C++ 生成文件判定**：对 C/C++ 文件仅读取前 **8192 字节** 判断是否为生成代码（匹配 `do not edit`、`automatically generated`、`.pb.cc`/`.pb.h`、`amalgamation` 等标记），避免对整文件做无意义检测；
 - **blake3 指纹**：为每个文件生成 `blake3:{hex}` 指纹，并聚合为 workspace 指纹，保证扫描记录可追溯。
@@ -204,7 +204,7 @@ CSU 当前默认面向**机器可读输出**：`check` 命令支持 `json`（JSO
 
 ## 5. 规则体系
 
-### 5.1 四规则族概览
+### 5.1 五规则族概览
 
 | 规则族 | 条数 | 覆盖范围 | 代表规则 |
 |--------|------|----------|----------|
@@ -212,13 +212,16 @@ CSU 当前默认面向**机器可读输出**：`check` 命令支持 `json`（JSO
 | **Python** | 8 | Python 特定（docstring、future、typing、logging）| Py005 注解完整性 · Py008 lazy formatting |
 | **Rust** | 10 | Rust 特定（FFI、unsafe、async、cfg、panic）| Rust005 FFI 边界 · Rust007 unsafe 契约 |
 | **C/C++** | 10 | C/C++ 特定（ABI、宏、include、模板、所有权）| Cpp005 ABI 边界 · Cpp006 宏契约 |
-| **合计** | **56** | | |
+| **TypeScript** | 3 | TS 特定漂移（导出风格、注释语言、Props 声明）| Ts001 导出风格 · Ts002 注释语言 · Ts003 Props 声明 |
+| **合计** | **59** | | |
 
 > C/C++ 规则族的目录名为 `cpp`，但规则覆盖 **C 与 C++** 两种语言（少数规则仅 C++，如 Cpp004、Cpp007）。每条规则的契约是一个独立 `.toml` 文件（见 [§9](#9-项目结构)），并汇总于 `rules/catalog.toml`。
+>
+> TypeScript 规则族（前缀 `Ts`，目录 `rules/typescript/`）只收录 **跨模块一致性漂移** 规则——故意不重复 ESLint / tsc / Prettier 已覆盖的检查（如 `no-explicit-any`、`ban-ts-comment`、行宽）。TS 的命名、文档契约、术语、注释语言等仍由 Core 规则在语言感知调优后复用：Core014 对 TS 接受 camelCase（函数/Hook）、PascalCase（组件/类型/工厂/Next 路由处理器）、UPPER_SNAKE（常量），只把 snake_case 等判为违规。TS 源码通过 tree-sitter 精确解析提取证据。
 
 ### 5.2 规则领域
 
-56 条规则覆盖 11 个领域：
+59 条规则覆盖 11 个领域：
 
 | 领域 | 关心的问题 | 代表规则 |
 |------|-----------|----------|
@@ -424,7 +427,7 @@ CSU 的价值建立在**明确的边界**和**可校准机制**上。
 - **当前不把并行扫描 / 增量缓存作为核心能力**：架构（统一证据层 + 单次扫描）天然适合后续扩展到缓存与并行，但目前未落地为已实现能力，不当作既成事实陈述。
 - **`check` 输出仅 JSON / JSONL**：没有人类友好 report 格式。CSU 假设输出由 agent 或脚本消费。
 - **阈值与术语依赖 profile 配置**：CSU 不内置"默认裁决"，行长限制、术语白名单等都由 profile 决定，项目可定制。
-- **判定与阻塞分离**：56 条规则中既有明确阻断项（`hard_violation`），也有复核项（`under_review`）与轻摩擦项（`soft_friction`）；`under_review` 与 `soft_friction` 默认不阻塞，流程是否失败由 `blocks` 决定。CSU 提供结构化判断，不把所有发现都等同于失败。
+- **判定与阻塞分离**：59 条规则中既有明确阻断项（`hard_violation`），也有复核项（`under_review`）与轻摩擦项（`soft_friction`）；`under_review` 与 `soft_friction` 默认不阻塞，流程是否失败由 `blocks` 决定。CSU 提供结构化判断，不把所有发现都等同于失败。
 
 ---
 
@@ -440,10 +443,11 @@ src/
     evidence.rs        # EvidenceStore 统一证据层（13 类事实）
     evaluators/
       mod.rs           # evaluate_all 入口
-      core.rs          # Core 规则（28）
+      core.rs          # Core 规则（28，含 TS 语言感知调优）
       python.rs        # Python 规则（8）
       rust.rs          # Rust 规则（10）
       cpp.rs           # C/C++ 规则（10）
+      typescript.rs    # TypeScript 规则（3）
     issue.rs           # Issue / IssueKind / Scope / Domain / Language
     profile.rs         # profile · 阈值 · 术语策略
     python_qt.rs       # Python Qt/PySide override 上下文与名单
@@ -454,13 +458,15 @@ src/
     syntax.rs          # tree-sitter 语法入口
     error.rs           # 统一错误类型
 rules/
-  catalog.toml         # 56 条规则契约汇总
+  catalog.toml         # 59 条规则契约汇总
   core/                # Core001–Core028，每条一个 .toml
   python/              # Py001–Py008
   rust/                # Rust001–Rust010
   cpp/                 # Cpp001–Cpp010
+  typescript/          # Ts001–Ts003
 profiles/
   default.toml         # 默认 profile
+  aitutor.toml         # training-booster (aitutor) 项目级 profile 示例
 agent-skills/
   csu/SKILL.md         # CSU 的 agent skill 定义
 scripts/

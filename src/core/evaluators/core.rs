@@ -187,6 +187,8 @@ fn evaluate_file_specific_names(store: &EvidenceStore) -> Vec<Issue> {
         .file_units
         .iter()
         .filter(|file| active_file(file))
+        // utils.ts / helpers.ts are idiomatic module names in TypeScript (e.g. shadcn).
+        .filter(|file| file.language != Language::Typescript)
         .filter(|file| {
             let stem = file_stem(&file.path);
             matches!(
@@ -1010,6 +1012,9 @@ fn doc_full_text(store: &EvidenceStore, doc_id: &str) -> Option<String> {
 }
 
 fn case_convention_issue_kind(symbol: &SymbolFact) -> Option<IssueKind> {
+    if symbol.language == Language::Typescript {
+        return typescript_case_convention(symbol);
+    }
     if symbol.language == Language::Rust && has_rust_abi_name_evidence(symbol) {
         return None;
     }
@@ -1038,6 +1043,61 @@ fn case_convention_issue_kind(symbol: &SymbolFact) -> Option<IssueKind> {
     }
 
     Some(IssueKind::HardViolation)
+}
+
+/// 按 TypeScript/React 约定判定符号命名是否违规
+fn typescript_case_convention(symbol: &SymbolFact) -> Option<IssueKind> {
+    let name = symbol.name.as_str();
+    match symbol.kind {
+        // 类型层：类 / 接口 / 类型别名 / 枚举 → PascalCase
+        SymbolKind::Class | SymbolKind::TypeAlias | SymbolKind::Enum => {
+            ts_violation(is_pascal_case(name))
+        }
+        // 函数/方法：camelCase（普通函数、Hook）与 PascalCase（组件、工厂、
+        // Next 路由处理器 GET/POST 等）都是惯例，snake_case 等才是违规。
+        SymbolKind::Function | SymbolKind::Method => {
+            ts_violation(is_camel_case(name) || is_pascal_case(name))
+        }
+        // 变量可为 camelCase、常量大写或组件/上下文绑定的 PascalCase
+        SymbolKind::Variable => {
+            ts_violation(is_camel_case(name) || is_upper_snake_case(name) || is_pascal_case(name))
+        }
+        SymbolKind::Constant => ts_violation(is_upper_snake_case(name) || is_camel_case(name)),
+        SymbolKind::Field => ts_violation(is_camel_case(name) || is_upper_snake_case(name)),
+        _ => None,
+    }
+}
+
+/// 命名合规返回 None，否则返回硬违规
+fn ts_violation(is_valid: bool) -> Option<IssueKind> {
+    (!is_valid).then_some(IssueKind::HardViolation)
+}
+
+/// 判定名称是否为 camelCase
+fn is_camel_case(name: &str) -> bool {
+    let body = name.trim_start_matches(['_', '$']);
+    let Some(first) = body.chars().next() else {
+        return true;
+    };
+    !first.is_ascii_uppercase()
+        && !body.contains('_')
+        && body.chars().all(|c| c.is_ascii_alphanumeric() || c == '$')
+}
+
+/// 判定名称是否为 PascalCase
+fn is_pascal_case(name: &str) -> bool {
+    let mut chars = name.chars();
+    matches!(chars.next(), Some(first) if first.is_ascii_uppercase())
+        && name.chars().all(|c| c.is_ascii_alphanumeric())
+}
+
+/// 判定名称是否为全大写下划线常量
+fn is_upper_snake_case(name: &str) -> bool {
+    !name.is_empty()
+        && name.chars().any(|c| c.is_ascii_uppercase())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
 }
 
 fn has_python_qt_class_context(symbol: &SymbolFact) -> bool {
@@ -1184,17 +1244,25 @@ fn is_bool_text(value: &str) -> bool {
 }
 
 fn has_boolean_prefix(name: &str) -> bool {
-    [
-        "is_",
-        "has_",
-        "can_",
-        "needs_",
-        "requires_",
-        "allows_",
-        "uses_",
-    ]
-    .iter()
-    .any(|prefix| name.starts_with(prefix))
+    const PREFIXES: &[&str] = &["is", "has", "can", "needs", "requires", "allows", "uses"];
+    PREFIXES
+        .iter()
+        .any(|prefix| boolean_prefix_matches(name, prefix))
+}
+
+/// 判定名称是否以布尔谓词前缀开头，兼容 snake_case（`is_ready`）与 camelCase（`isReady`）
+fn boolean_prefix_matches(name: &str, prefix: &str) -> bool {
+    let Some(rest) = name.strip_prefix(prefix) else {
+        return false;
+    };
+    match rest.chars().next() {
+        // 仅前缀本身（如 `is`）不算谓词
+        None => false,
+        // snake_case 边界：is_ready
+        Some('_') => true,
+        // camelCase 边界：isReady
+        Some(next) => next.is_ascii_uppercase(),
+    }
 }
 
 fn has_non_empty_suppression_reason(suppression: &str) -> bool {

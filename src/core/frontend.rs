@@ -9,6 +9,8 @@ use crate::core::evidence::{
 use crate::core::issue::Language;
 use crate::core::python_qt;
 use crate::core::scanner::{FileUnit, WorkspaceState};
+use crate::core::syntax::{parse_source, SyntaxLanguage};
+use tree_sitter::Node;
 
 /// 从扫描状态提取文本、符号和结构化证据
 pub fn extract_text_evidence(state: &WorkspaceState) -> Result<EvidenceStore> {
@@ -52,6 +54,10 @@ fn extract_language_facts(
         Language::C | Language::Cpp => {
             extract_c_family_text(file.id.as_str(), source, store);
             extract_c_family_facts(file, source, module_id, store);
+            link_preceding_docs(file, store);
+        }
+        Language::Typescript => {
+            extract_typescript(file, source, module_id, store);
             link_preceding_docs(file, store);
         }
     }
@@ -3168,7 +3174,53 @@ fn dependency_group_for(source: &str, language: Language) -> DependencyGroup {
                 DependencyGroup::Unknown
             }
         }
+        Language::Typescript => {
+            if is_typescript_node_builtin(source) {
+                DependencyGroup::Standard
+            } else if source.starts_with('.') || source.starts_with("@/") {
+                DependencyGroup::Local
+            } else {
+                DependencyGroup::ThirdParty
+            }
+        }
     }
+}
+
+/// 判断 TypeScript 导入来源是否为 Node 内建模块
+fn is_typescript_node_builtin(source: &str) -> bool {
+    let bare = source.strip_prefix("node:").unwrap_or(source);
+    source.starts_with("node:")
+        || matches!(
+            bare,
+            "assert"
+                | "buffer"
+                | "child_process"
+                | "cluster"
+                | "crypto"
+                | "dns"
+                | "events"
+                | "fs"
+                | "http"
+                | "http2"
+                | "https"
+                | "net"
+                | "os"
+                | "path"
+                | "perf_hooks"
+                | "process"
+                | "querystring"
+                | "readline"
+                | "stream"
+                | "string_decoder"
+                | "timers"
+                | "tls"
+                | "tty"
+                | "url"
+                | "util"
+                | "vm"
+                | "worker_threads"
+                | "zlib"
+        )
 }
 
 fn is_python_standard_dependency(source: &str) -> bool {
@@ -3612,6 +3664,10 @@ fn qualified_name(path: &str, name: &str) -> String {
         .trim_end_matches(".cpp")
         .trim_end_matches(".hpp")
         .trim_end_matches(".h")
+        .trim_end_matches(".tsx")
+        .trim_end_matches(".mts")
+        .trim_end_matches(".cts")
+        .trim_end_matches(".ts")
         .replace('/', ".");
     format!("{module}.{name}")
 }
@@ -3731,4 +3787,654 @@ struct CommentSpan {
     text_end_line: usize,
     text_end_col: usize,
     text: String,
+}
+
+// ===================== TypeScript extraction (tree-sitter) =====================
+//
+// Unlike the hand-written Python/Rust/C paths, TypeScript evidence is extracted
+// by walking the tree-sitter-typescript (TSX) syntax tree. Facts are funneled
+// through the same shared constructors (`symbol_fact`/`add_symbol`,
+// `add_dependency`, `add_comment_or_doc_text`) so every existing Core rule sees
+// identical fact shapes. Doc/symbol binding reuses `link_preceding_docs`, which
+// the dispatch in `extract_language_facts` calls after this function returns.
+
+/// 承载 TypeScript 提取过程中的只读上下文
+struct TypescriptContext<'a> {
+    file: &'a FileUnit,
+    module_id: &'a str,
+    lines: Vec<&'a str>,
+}
+
+fn extract_typescript(file: &FileUnit, source: &str, module_id: &str, store: &mut EvidenceStore) {
+    let Ok(parsed) = parse_source(SyntaxLanguage::Typescript, source) else {
+        return;
+    };
+    let root = parsed.root_node();
+    let bytes = source.as_bytes();
+    let ctx = TypescriptContext {
+        file,
+        module_id,
+        lines: source.lines().collect(),
+    };
+
+    let mut cursor = root.walk();
+    for child in root.named_children(&mut cursor) {
+        ts_visit_statement(child, &ctx, bytes, store);
+    }
+    ts_collect_text(root, &ctx, bytes, store);
+}
+
+fn ts_visit_statement(node: Node, ctx: &TypescriptContext, bytes: &[u8], store: &mut EvidenceStore) {
+    match node.kind() {
+        "import_statement" => ts_import(node, ctx, bytes, store),
+        "export_statement" => ts_export(node, ctx, bytes, store),
+        "function_declaration"
+        | "generator_function_declaration"
+        | "lexical_declaration"
+        | "variable_declaration"
+        | "class_declaration"
+        | "abstract_class_declaration"
+        | "interface_declaration"
+        | "type_alias_declaration"
+        | "enum_declaration" => ts_visit_declaration(node, false, false, &[], ctx, bytes, store),
+        "expression_statement" => {
+            if let Some(inner) = node.named_child(0) {
+                if matches!(inner.kind(), "internal_module" | "module") {
+                    if let Some(body) = ts_field(inner, "body") {
+                        let mut cursor = body.walk();
+                        for statement in body.named_children(&mut cursor) {
+                            ts_visit_statement(statement, ctx, bytes, store);
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn ts_export(node: Node, ctx: &TypescriptContext, bytes: &[u8], store: &mut EvidenceStore) {
+    // `export ... from "..."` is a re-export → dependency edge, not a declaration.
+    if let Some(source) = ts_field(node, "source") {
+        ts_reexport(node, source, ctx, bytes, store);
+        return;
+    }
+
+    let is_default = ts_has_token(node, "default");
+    if let Some(declaration) = ts_field(node, "declaration") {
+        let mut decorators = Vec::new();
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() == "decorator" {
+                decorators.push(ts_text(child, bytes));
+            }
+        }
+        ts_visit_declaration(declaration, true, is_default, &decorators, ctx, bytes, store);
+        return;
+    }
+
+    // `export default <expression>` (e.g. `export default clientPromise`) carries no
+    // declaration node. Record a private marker symbol so export-style rules can see
+    // that this module uses a default export, without creating a public surface.
+    if is_default {
+        ts_push_symbol(
+            ctx,
+            store,
+            "default",
+            SymbolKind::Variable,
+            SymbolVisibility::Private,
+            ts_line(node),
+            SymbolOptions {
+                attributes: vec!["export_default".to_string()],
+                ..SymbolOptions::default()
+            },
+        );
+    }
+    // `export { a, b };` with no source only re-exports existing local bindings — no fact.
+}
+
+fn ts_visit_declaration(
+    node: Node,
+    exported: bool,
+    is_default: bool,
+    decorators: &[String],
+    ctx: &TypescriptContext,
+    bytes: &[u8],
+    store: &mut EvidenceStore,
+) {
+    match node.kind() {
+        "function_declaration" | "generator_function_declaration" => {
+            ts_emit_function(node, exported, is_default, decorators, ctx, bytes, store);
+        }
+        "lexical_declaration" | "variable_declaration" => {
+            ts_variable_decl(node, exported, is_default, decorators, ctx, bytes, store);
+        }
+        "class_declaration" | "abstract_class_declaration" => {
+            ts_emit_class(node, exported, is_default, decorators, ctx, bytes, store);
+        }
+        "interface_declaration" => {
+            ts_emit_named_type(node, exported, "interface", ctx, bytes, store);
+        }
+        "type_alias_declaration" => ts_emit_type_alias(node, exported, ctx, bytes, store),
+        "enum_declaration" => ts_emit_enum(node, exported, ctx, bytes, store),
+        _ => {}
+    }
+}
+
+fn ts_emit_function(
+    node: Node,
+    exported: bool,
+    is_default: bool,
+    decorators: &[String],
+    ctx: &TypescriptContext,
+    bytes: &[u8],
+    store: &mut EvidenceStore,
+) {
+    let Some(name_node) = ts_field(node, "name") else {
+        return;
+    };
+    let name = ts_text(name_node, bytes);
+    let line = ts_line(node);
+    let mut attributes = decorators.to_vec();
+    if is_default {
+        attributes.push("export_default".to_string());
+    }
+    ts_push_symbol(
+        ctx,
+        store,
+        &name,
+        SymbolKind::Function,
+        ts_visibility(exported),
+        line,
+        SymbolOptions {
+            return_annotation: ts_field(node, "return_type").map(|n| ts_clean_annotation(n, bytes)),
+            type_text: ts_field(node, "parameters").map(|n| ts_text(n, bytes)),
+            is_async: ts_has_token(node, "async"),
+            attributes,
+            ..SymbolOptions::default()
+        },
+    );
+}
+
+fn ts_variable_decl(
+    node: Node,
+    exported: bool,
+    is_default: bool,
+    decorators: &[String],
+    ctx: &TypescriptContext,
+    bytes: &[u8],
+    store: &mut EvidenceStore,
+) {
+    let is_const = ts_has_token(node, "const");
+    let mut cursor = node.walk();
+    for declarator in node
+        .named_children(&mut cursor)
+        .filter(|child| child.kind() == "variable_declarator")
+    {
+        let Some(name_node) = ts_field(declarator, "name") else {
+            continue;
+        };
+        // Skip destructuring patterns; only simple bindings become symbols.
+        if name_node.kind() != "identifier" {
+            continue;
+        }
+        let name = ts_text(name_node, bytes);
+        let line = ts_line(declarator);
+        let value = ts_field(declarator, "value");
+        let annotation = ts_field(declarator, "type").map(|n| ts_clean_annotation(n, bytes));
+
+        if let Some(value) = value {
+            if matches!(
+                value.kind(),
+                "arrow_function" | "function" | "function_expression"
+            ) {
+                let mut attributes = decorators.to_vec();
+                if is_default {
+                    attributes.push("export_default".to_string());
+                }
+                ts_push_symbol(
+                    ctx,
+                    store,
+                    &name,
+                    SymbolKind::Function,
+                    ts_visibility(exported),
+                    line,
+                    SymbolOptions {
+                        return_annotation: ts_field(value, "return_type")
+                            .map(|n| ts_clean_annotation(n, bytes)),
+                        type_text: ts_field(value, "parameters").map(|n| ts_text(n, bytes)),
+                        is_async: ts_has_token(value, "async"),
+                        attributes,
+                        ..SymbolOptions::default()
+                    },
+                );
+                continue;
+            }
+        }
+
+        let kind = if is_const && ts_is_upper_snake(&name) {
+            SymbolKind::Constant
+        } else {
+            SymbolKind::Variable
+        };
+        let mut attributes = Vec::new();
+        if is_default {
+            attributes.push("export_default".to_string());
+        }
+        ts_push_symbol(
+            ctx,
+            store,
+            &name,
+            kind,
+            ts_visibility(exported),
+            line,
+            SymbolOptions {
+                type_text: annotation,
+                attributes,
+                ..SymbolOptions::default()
+            },
+        );
+    }
+}
+
+fn ts_emit_class(
+    node: Node,
+    exported: bool,
+    is_default: bool,
+    decorators: &[String],
+    ctx: &TypescriptContext,
+    bytes: &[u8],
+    store: &mut EvidenceStore,
+) {
+    let Some(name_node) = ts_field(node, "name") else {
+        return;
+    };
+    let name = ts_text(name_node, bytes);
+    let mut attributes = decorators.to_vec();
+    if is_default {
+        attributes.push("export_default".to_string());
+    }
+    ts_push_symbol(
+        ctx,
+        store,
+        &name,
+        SymbolKind::Class,
+        ts_visibility(exported),
+        ts_line(node),
+        SymbolOptions {
+            attributes,
+            ..SymbolOptions::default()
+        },
+    );
+
+    // Methods are emitted as Private symbols: their names are checked for
+    // naming consistency, but they do not create public-surface doc obligations.
+    if let Some(body) = ts_field(node, "body") {
+        let mut cursor = body.walk();
+        for member in body.named_children(&mut cursor) {
+            if member.kind() != "method_definition" {
+                continue;
+            }
+            let Some(member_name) = ts_field(member, "name") else {
+                continue;
+            };
+            ts_push_symbol(
+                ctx,
+                store,
+                &ts_text(member_name, bytes),
+                SymbolKind::Method,
+                SymbolVisibility::Private,
+                ts_line(member),
+                SymbolOptions {
+                    return_annotation: ts_field(member, "return_type")
+                        .map(|n| ts_clean_annotation(n, bytes)),
+                    is_async: ts_has_token(member, "async"),
+                    ..SymbolOptions::default()
+                },
+            );
+        }
+    }
+}
+
+fn ts_emit_named_type(
+    node: Node,
+    exported: bool,
+    marker: &str,
+    ctx: &TypescriptContext,
+    bytes: &[u8],
+    store: &mut EvidenceStore,
+) {
+    let Some(name_node) = ts_field(node, "name") else {
+        return;
+    };
+    ts_push_symbol(
+        ctx,
+        store,
+        &ts_text(name_node, bytes),
+        SymbolKind::TypeAlias,
+        ts_visibility(exported),
+        ts_line(node),
+        SymbolOptions {
+            attributes: vec![marker.to_string()],
+            ..SymbolOptions::default()
+        },
+    );
+}
+
+fn ts_emit_type_alias(
+    node: Node,
+    exported: bool,
+    ctx: &TypescriptContext,
+    bytes: &[u8],
+    store: &mut EvidenceStore,
+) {
+    let Some(name_node) = ts_field(node, "name") else {
+        return;
+    };
+    let value = ts_field(node, "value");
+    let mut attributes = vec!["type".to_string()];
+    if value.is_some_and(|node| node.kind() == "object_type") {
+        attributes.push("type_object".to_string());
+    }
+    ts_push_symbol(
+        ctx,
+        store,
+        &ts_text(name_node, bytes),
+        SymbolKind::TypeAlias,
+        ts_visibility(exported),
+        ts_line(node),
+        SymbolOptions {
+            type_text: value.map(|node| ts_text(node, bytes)),
+            attributes,
+            ..SymbolOptions::default()
+        },
+    );
+}
+
+fn ts_emit_enum(
+    node: Node,
+    exported: bool,
+    ctx: &TypescriptContext,
+    bytes: &[u8],
+    store: &mut EvidenceStore,
+) {
+    let Some(name_node) = ts_field(node, "name") else {
+        return;
+    };
+    ts_push_symbol(
+        ctx,
+        store,
+        &ts_text(name_node, bytes),
+        SymbolKind::Enum,
+        ts_visibility(exported),
+        ts_line(node),
+        SymbolOptions::default(),
+    );
+}
+
+fn ts_import(node: Node, ctx: &TypescriptContext, bytes: &[u8], store: &mut EvidenceStore) {
+    let Some(source_node) = ts_field(node, "source") else {
+        return;
+    };
+    let source = ts_string_value(source_node, bytes);
+    if source.is_empty() {
+        return;
+    }
+    let line = ts_line(node);
+    let group = dependency_group_for(&source, Language::Typescript);
+    let is_relative = ts_is_relative_specifier(&source);
+    let statement_type_only = ts_has_token(node, "type");
+
+    let mut emitted = false;
+    if let Some(clause) = ts_child_of_kind(node, "import_clause") {
+        let mut cursor = clause.walk();
+        for child in clause.named_children(&mut cursor) {
+            match child.kind() {
+                "identifier" => {
+                    ts_add_dependency(ctx, store, group, &source, ts_text(child, bytes), None, line, false, false, is_relative, statement_type_only);
+                    emitted = true;
+                }
+                "named_imports" => {
+                    let mut spec_cursor = child.walk();
+                    for spec in child
+                        .named_children(&mut spec_cursor)
+                        .filter(|spec| spec.kind() == "import_specifier")
+                    {
+                        let Some(name_node) = ts_field(spec, "name") else {
+                            continue;
+                        };
+                        let type_only = statement_type_only || ts_has_token(spec, "type");
+                        ts_add_dependency(ctx, store, group, &source, ts_text(name_node, bytes), ts_field(spec, "alias").map(|n| ts_text(n, bytes)), line, false, false, is_relative, type_only);
+                        emitted = true;
+                    }
+                }
+                "namespace_import" => {
+                    let binding = child.named_child(0).map(|n| ts_text(n, bytes)).unwrap_or_default();
+                    ts_add_dependency(ctx, store, group, &source, binding, None, line, false, false, is_relative, statement_type_only);
+                    emitted = true;
+                }
+                _ => {}
+            }
+        }
+    }
+    if !emitted {
+        ts_add_dependency(ctx, store, group, &source, String::new(), None, line, false, false, is_relative, statement_type_only);
+    }
+}
+
+fn ts_reexport(
+    node: Node,
+    source_node: Node,
+    ctx: &TypescriptContext,
+    bytes: &[u8],
+    store: &mut EvidenceStore,
+) {
+    let source = ts_string_value(source_node, bytes);
+    if source.is_empty() {
+        return;
+    }
+    let line = ts_line(node);
+    let group = dependency_group_for(&source, Language::Typescript);
+    let is_relative = ts_is_relative_specifier(&source);
+    let type_only = ts_has_token(node, "type");
+
+    if let Some(clause) = ts_child_of_kind(node, "export_clause") {
+        let mut cursor = clause.walk();
+        for spec in clause
+            .named_children(&mut cursor)
+            .filter(|spec| spec.kind() == "export_specifier")
+        {
+            let Some(name_node) = ts_field(spec, "name") else {
+                continue;
+            };
+            ts_add_dependency(ctx, store, group, &source, ts_text(name_node, bytes), ts_field(spec, "alias").map(|n| ts_text(n, bytes)), line, false, true, is_relative, type_only);
+        }
+    } else {
+        // `export * from "./x"` is an idiomatic TS barrel re-export, not a broad glob
+        // import. Record it as a public re-export (is_public) with no named binding so
+        // the broad-import rule (which targets `*` imports into local scope) skips it.
+        ts_add_dependency(ctx, store, group, &source, String::new(), None, line, false, true, is_relative, type_only);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn ts_add_dependency(
+    ctx: &TypescriptContext,
+    store: &mut EvidenceStore,
+    group: DependencyGroup,
+    source: &str,
+    imported: String,
+    alias: Option<String>,
+    line: usize,
+    is_glob: bool,
+    is_public: bool,
+    is_relative: bool,
+    is_type_checking: bool,
+) {
+    add_dependency(
+        store,
+        DependencyInput {
+            file: ctx.file,
+            module_id: ctx.module_id,
+            group,
+            source: source.to_string(),
+            imported,
+            alias,
+            block_id: "module".to_string(),
+            line_number: line,
+            is_glob,
+            is_public,
+            is_relative,
+            is_deferred: false,
+            is_type_checking,
+            is_conditional: false,
+        },
+    );
+}
+
+fn ts_collect_text(node: Node, ctx: &TypescriptContext, bytes: &[u8], store: &mut EvidenceStore) {
+    if node.kind() == "comment" {
+        ts_emit_comment(node, ctx, bytes, store);
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        ts_collect_text(child, ctx, bytes, store);
+    }
+}
+
+fn ts_emit_comment(node: Node, ctx: &TypescriptContext, bytes: &[u8], store: &mut EvidenceStore) {
+    let text = node.utf8_text(bytes).unwrap_or("");
+    let is_doc = text.starts_with("/**") && !text.starts_with("/**/");
+    let Some(content) = ts_comment_summary(text, is_doc) else {
+        return;
+    };
+    let start = node.start_position();
+    let end = node.end_position();
+    add_comment_or_doc_text(
+        store,
+        TextFactInput {
+            file_id: &ctx.file.id,
+            is_doc,
+            module_doc: false,
+            span: SourceRange {
+                start_line: start.row + 1,
+                start_col: ts_col(&ctx.lines, start.row, start.column),
+                end_line: end.row + 1,
+                end_col: ts_col(&ctx.lines, end.row, end.column),
+            },
+            content: &content,
+        },
+    );
+}
+
+fn ts_comment_summary(text: &str, is_doc: bool) -> Option<String> {
+    let trimmed = text.trim();
+    if trimmed.starts_with("//") {
+        let content = trimmed.trim_start_matches('/').trim();
+        return (!content.is_empty()).then(|| content.to_string());
+    }
+    let opener = if is_doc { "/**" } else { "/*" };
+    for (index, raw) in trimmed.lines().enumerate() {
+        let line = raw.trim();
+        let line = if index == 0 {
+            line.trim_start_matches(opener)
+        } else {
+            line
+        };
+        let cleaned = clean_block_doc_line(line);
+        if !cleaned.is_empty() {
+            return Some(cleaned.to_string());
+        }
+    }
+    None
+}
+
+fn ts_push_symbol(
+    ctx: &TypescriptContext,
+    store: &mut EvidenceStore,
+    name: &str,
+    kind: SymbolKind,
+    visibility: SymbolVisibility,
+    line: usize,
+    options: SymbolOptions,
+) {
+    let symbol = symbol_fact(
+        SymbolInput {
+            file: ctx.file,
+            module_id: ctx.module_id,
+            name,
+            kind,
+            visibility,
+            line_number: line,
+        },
+        store,
+        options,
+    );
+    add_symbol(store, symbol);
+}
+
+fn ts_visibility(exported: bool) -> SymbolVisibility {
+    if exported {
+        SymbolVisibility::Public
+    } else {
+        SymbolVisibility::Private
+    }
+}
+
+fn ts_is_relative_specifier(source: &str) -> bool {
+    source.starts_with('.') || source.starts_with("@/")
+}
+
+fn ts_clean_annotation(node: Node, bytes: &[u8]) -> String {
+    ts_text(node, bytes)
+        .trim_start_matches(':')
+        .trim()
+        .to_string()
+}
+
+fn ts_text(node: Node, bytes: &[u8]) -> String {
+    node.utf8_text(bytes).unwrap_or("").to_string()
+}
+
+fn ts_string_value(node: Node, bytes: &[u8]) -> String {
+    ts_text(node, bytes)
+        .trim_matches(|c| c == '"' || c == '\'' || c == '`')
+        .to_string()
+}
+
+fn ts_field<'t>(node: Node<'t>, name: &str) -> Option<Node<'t>> {
+    node.child_by_field_name(name)
+}
+
+fn ts_child_of_kind<'t>(node: Node<'t>, kind: &str) -> Option<Node<'t>> {
+    let mut cursor = node.walk();
+    let found = node
+        .named_children(&mut cursor)
+        .find(|child| child.kind() == kind);
+    found
+}
+
+fn ts_has_token(node: Node, kind: &str) -> bool {
+    let mut cursor = node.walk();
+    let found = node.children(&mut cursor).any(|child| child.kind() == kind);
+    found
+}
+
+fn ts_line(node: Node) -> usize {
+    node.start_position().row + 1
+}
+
+fn ts_col(lines: &[&str], row: usize, col_bytes: usize) -> usize {
+    match lines.get(row) {
+        Some(line) => char_col(line, col_bytes.min(line.len())),
+        None => col_bytes + 1,
+    }
+}
+
+fn ts_is_upper_snake(name: &str) -> bool {
+    !name.is_empty()
+        && name.chars().any(|c| c.is_ascii_uppercase())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
 }
