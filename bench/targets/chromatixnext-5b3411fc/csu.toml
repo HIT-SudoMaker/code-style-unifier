@@ -1,0 +1,46 @@
+name = "chromatix-next"
+enabled_rules = [
+  "Core001", "Core002", "Core003", "Core004", "Core005", "Core006",
+  "Core007", "Core008", "Core010", "Core012", "Core015", "Core017",
+  "Core018", "Core019", "Core020", "Core022", "Core023", "Core026",
+  "Py001", "Py002", "Py003", "Py004", "Py006", "Py007",
+  "Py008",
+]
+exclude_dirs = [
+  ".git", ".pytest_cache", ".scratch", ".venv", "build", "csu", "dist",
+  "reference", "target", "vendor",
+]
+exclude_file_patterns = []
+
+[thresholds]
+line_length_limit = 88
+doc_summary_max_chars = 80
+history_max_runs = 30
+history_max_days = 14
+history_max_bytes = 536870912
+
+[term_policy]
+allowed_abbreviation_tokens = [
+  "api", "args", "cfg", "cpu", "csv", "cuda", "dag", "fft",
+  "fps", "gpu", "http", "id", "init", "json", "kwargs", "meta", "ms",
+  "nn", "np", "npz", "oom", "opd", "psf", "rgb", "ssim", "uuid",
+]
+allowed_abbreviation_names = []
+allowed_technical_fragments = [
+  "API", "ASM", "CUDA", "DAG", "FFT", "HTTP", "NCHW", "OOM", "OPD",
+  "PSF", "SSIM", "[B, C, H, W]",
+]
+
+[term_policy.banned_abbreviation_tokens]
+cfg = "configuration"
+ctx = "context"
+desc = "description"
+fh = "file_handle"
+fmt = "format"
+meta = "metadata"
+msg = "message"
+obj = "object"
+pth = "path"
+sig = "signature"
+temp = "temporary"
+vid = "violation_id"

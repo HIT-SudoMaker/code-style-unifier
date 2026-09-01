@@ -1,0 +1,35 @@
+[package]
+name = "code-style-unifier"
+version = "2.0.0"
+edition = "2024"
+license = "MIT"
+description = "High-performance semantic code style unification across Python, Rust, C, and C++ for next-generation scientific software engineering"
+repository = "https://github.com/HIT-SudoMaker/code-style-unifier"
+readme = "README.md"
+
+[lib]
+name = "csu"
+path = "src/lib.rs"
+
+[[bin]]
+name = "csu"
+path = "src/main.rs"
+
+[dependencies]
+blake3 = "1.8.7"
+clap = { version = "4.6.6", features = ["derive"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.145"
+tree-sitter = "0.26.13"
+tree-sitter-c = "0.24.2"
+tree-sitter-cpp = { git = "https://github.com/tree-sitter/tree-sitter-cpp.git", rev = "8b5b49eb196bec7040441bee33b2c9a4838d6967" }
+tree-sitter-python = "0.25.0"
+tree-sitter-rust = "0.24.2"
+walkdir = "2.5.0"
+
+[dev-dependencies]
+tempfile = "3.23.0"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

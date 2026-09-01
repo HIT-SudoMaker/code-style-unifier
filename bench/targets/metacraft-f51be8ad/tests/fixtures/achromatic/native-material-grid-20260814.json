@@ -1,0 +1,27 @@
+{
+  "schema_identifier": "metacraft.witness.metalens.achromatic_material_grid",
+  "values": {
+    "adapter": "ProductProbe.sample_materials",
+    "admitted_to_authority": false,
+    "atom": {
+      "family": "amorphous titanium dioxide",
+      "native_name": "TiO2 (Titanium Dioxide) - Siefke"
+    },
+    "observed_at": "2026-08-14",
+    "points": [
+      {"atom_extinction_coefficient": "0.000003775739037506777", "atom_refractive_index": "2.5187038102461474", "substrate_extinction_coefficient": "0.0", "substrate_refractive_index": "1.464146991228955", "wavelength_nm": 470},
+      {"atom_extinction_coefficient": "0.0000015293730649126308", "atom_refractive_index": "2.4983460838267177", "substrate_extinction_coefficient": "0.0", "substrate_refractive_index": "1.4631992354845114", "wavelength_nm": 485},
+      {"atom_extinction_coefficient": "0.0000006526933741873336", "atom_refractive_index": "2.4807057821982164", "substrate_extinction_coefficient": "0.0", "substrate_refractive_index": "1.46233845156763", "wavelength_nm": 500},
+      {"atom_extinction_coefficient": "0.000000292933511468259", "atom_refractive_index": "2.4652740607605828", "substrate_extinction_coefficient": "0.0", "substrate_refractive_index": "1.461545256343417", "wavelength_nm": 515},
+      {"atom_extinction_coefficient": "0.00000013792505477575533", "atom_refractive_index": "2.4516651079038816", "substrate_extinction_coefficient": "0.0", "substrate_refractive_index": "1.4608166820484452", "wavelength_nm": 530},
+      {"atom_extinction_coefficient": "0.00000006775482573055749", "atom_refractive_index": "2.439577369728237", "substrate_extinction_coefficient": "0.0", "substrate_refractive_index": "1.4601278786833334", "wavelength_nm": 545},
+      {"atom_extinction_coefficient": "0.000000034596708848271814", "atom_refractive_index": "2.4287717048809707", "substrate_extinction_coefficient": "0.0", "substrate_refractive_index": "1.4595087281506836", "wavelength_nm": 560},
+      {"atom_extinction_coefficient": "0.000000018274885742969457", "atom_refractive_index": "2.419057670715064", "substrate_extinction_coefficient": "0.0", "substrate_refractive_index": "1.4589241220817486", "wavelength_nm": 575},
+      {"atom_extinction_coefficient": "0.00000000997525232877429", "atom_refractive_index": "2.410286959353707", "substrate_extinction_coefficient": "0.0", "substrate_refractive_index": "1.4583849323758995", "wavelength_nm": 590}
+    ],
+    "substrate": {
+      "family": "glass",
+      "native_name": "SiO2 (Glass) - Palik"
+    }
+  }
+}

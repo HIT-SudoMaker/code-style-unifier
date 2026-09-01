@@ -1,0 +1,11 @@
+include CONTEXT.md
+include MISSION.md
+include README.md
+include README.zh-CN.md
+include setup.py
+include docs/architecture.md
+include docs/history.md
+recursive-include docs/adr *.md
+recursive-include examples *.py *.md
+prune tests
+global-exclude *.py[cod]

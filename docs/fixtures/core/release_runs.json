@@ -1,0 +1,322 @@
+{
+  "schema_version": 2,
+  "executable_sha256": "a5a873a0b4e0700956aeb3460d3f98cea2c39425270f9b9d6880870977979c0e",
+  "authority_sha256": "c8f9c99a2d4083bc9fef2bb7df3a11951583a06eb62e644e0878b37265c173f3",
+  "workspace": "E:\\Year2026_Project_CSU\\code\\target\\csu-release-corpus-200k",
+  "corpus_files": 617,
+  "corpus_physical_lines": 200000.0,
+  "corpus_digest": "fdcfa14e65efc32bc25587efe9ee6a6aa5453ba2e3eeb8b4a2b4ead5f8441703",
+  "inventory_sha256": "b4d11370ba223527523a1bff366164f23562377940c9c5dd6007a65ffe1afe54",
+  "runs": 30,
+  "warmup_runs": 1,
+  "p95_method": "nearest_rank_ceiling_0.95_times_n",
+  "p95_elapsed_ms": 1756.1124,
+  "maximum_peak_working_set_bytes": 61071360.0,
+  "deterministic_projection": true,
+  "diagnostic_incomplete": false,
+  "projection_digests": [
+    "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+  ],
+  "measurements": [
+    {
+      "run": 1,
+      "elapsed_ms": 1363.9911,
+      "peak_working_set_bytes": 59658240,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 2,
+      "elapsed_ms": 1337.5467,
+      "peak_working_set_bytes": 59670528,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 3,
+      "elapsed_ms": 1278.4795,
+      "peak_working_set_bytes": 60600320,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 4,
+      "elapsed_ms": 1371.4553,
+      "peak_working_set_bytes": 59654144,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 5,
+      "elapsed_ms": 1326.113,
+      "peak_working_set_bytes": 59695104,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 6,
+      "elapsed_ms": 1309.5199,
+      "peak_working_set_bytes": 59650048,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 7,
+      "elapsed_ms": 1301.3916,
+      "peak_working_set_bytes": 61071360,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 8,
+      "elapsed_ms": 1301.7271,
+      "peak_working_set_bytes": 60473344,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 9,
+      "elapsed_ms": 1298.6859,
+      "peak_working_set_bytes": 60469248,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 10,
+      "elapsed_ms": 1352.2657,
+      "peak_working_set_bytes": 60465152,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 11,
+      "elapsed_ms": 1280.0747,
+      "peak_working_set_bytes": 60416000,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 12,
+      "elapsed_ms": 1284.9599,
+      "peak_working_set_bytes": 59650048,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 13,
+      "elapsed_ms": 1297.153,
+      "peak_working_set_bytes": 59625472,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 14,
+      "elapsed_ms": 1339.4504,
+      "peak_working_set_bytes": 60485632,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 15,
+      "elapsed_ms": 1565.9743,
+      "peak_working_set_bytes": 59678720,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 16,
+      "elapsed_ms": 1326.6136,
+      "peak_working_set_bytes": 59707392,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 17,
+      "elapsed_ms": 1352.5529,
+      "peak_working_set_bytes": 59686912,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 18,
+      "elapsed_ms": 1260.0708,
+      "peak_working_set_bytes": 58269696,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 19,
+      "elapsed_ms": 1307.5988,
+      "peak_working_set_bytes": 60420096,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 20,
+      "elapsed_ms": 1319.0003,
+      "peak_working_set_bytes": 60764160,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 21,
+      "elapsed_ms": 1355.9136,
+      "peak_working_set_bytes": 60395520,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 22,
+      "elapsed_ms": 1621.3196,
+      "peak_working_set_bytes": 60448768,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 23,
+      "elapsed_ms": 1518.3572,
+      "peak_working_set_bytes": 60502016,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 24,
+      "elapsed_ms": 1900.3115,
+      "peak_working_set_bytes": 60428288,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 25,
+      "elapsed_ms": 1505.3514,
+      "peak_working_set_bytes": 59604992,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 26,
+      "elapsed_ms": 1756.1124,
+      "peak_working_set_bytes": 60932096,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 27,
+      "elapsed_ms": 1740.5747,
+      "peak_working_set_bytes": 59719680,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 28,
+      "elapsed_ms": 1337.2973,
+      "peak_working_set_bytes": 59662336,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 29,
+      "elapsed_ms": 1736.87,
+      "peak_working_set_bytes": 59715584,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    },
+    {
+      "run": 30,
+      "elapsed_ms": 1507.7174,
+      "peak_working_set_bytes": 59666432,
+      "exit_code": 1,
+      "terminal": "sealed",
+      "disposition": "findings",
+      "stdout_bytes": 18628970,
+      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    }
+  ]
+}

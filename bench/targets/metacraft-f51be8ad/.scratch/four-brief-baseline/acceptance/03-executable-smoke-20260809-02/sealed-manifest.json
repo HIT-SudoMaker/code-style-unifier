@@ -1,0 +1,81 @@
+{
+  "files": [
+    {
+      "path": "capsule/.agents/skills/metacraft-design/SKILL.md",
+      "sha256": "sha256:6997a59673d7b20bd924748b142abb9a830a4f5336303dbbad3f950bfcc048c4"
+    },
+    {
+      "path": "capsule/blind-brief.json",
+      "sha256": "sha256:cdadcbdc50d531dd906bc53a3dde74eee628f0a26eca82a3ec01eb2358584023"
+    },
+    {
+      "path": "capsule/metacraft.exe",
+      "sha256": "sha256:6611ace6c79d0f38ac675117ceafb4eab8eda489246f310bcf9e1843cabf8904"
+    },
+    {
+      "path": "capsule/opening-prompt.txt",
+      "sha256": "sha256:ea1fc41aa9084c2de89d34793ffe9184ff803b1a8d365316e8f8df221dfddb51"
+    },
+    {
+      "path": "capsule/prepared-application-root/authority/workspace.marker",
+      "sha256": "sha256:cf117c3b21a18af2f8446770d7018adb586c05850d2e94e0dd032c333a0126ba"
+    },
+    {
+      "path": "capsule/prepared-application-root/authority/workspace.sqlite3",
+      "sha256": "sha256:86aa15e436fa919ef55bb030591bc545aecc689f2911676d75ace5ba035ab26c"
+    },
+    {
+      "path": "capsule/prepared-application-root/authority/workspace.writer.lock",
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "capsule/prepared-application-root/runs/.conduct.lock",
+      "sha256": "sha256:6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+    },
+    {
+      "path": "capsule/reviewed-material-observation-index.json",
+      "sha256": "sha256:e71e445bba5f627a9df99baae4d9ac72e426e47b18b4356a740bbead3383ac9e"
+    },
+    {
+      "path": "capsule/reviewed-material-observation.json",
+      "sha256": "sha256:801b07b01b9e879628b9af321c35b8e54b729ddf85811c2e64056b230e7d64fa"
+    },
+    {
+      "path": "capsule/reviewed-material-product-sample.json",
+      "sha256": "sha256:71214e67ff11a2da4f332823169b42e6003911d3f92550825d26bfc33528038d"
+    },
+    {
+      "path": "capsule/reviewed-material-selection-01.json",
+      "sha256": "sha256:fa43eaea6505915aa92c0d852781368441e8d95481c8e594d1e506657dbbe29a"
+    },
+    {
+      "path": "capsule/reviewed-material-selection-02.json",
+      "sha256": "sha256:6492761b61cebec4f269f33ebeb18461fab4030269a344150878ab11ba70d6bb"
+    },
+    {
+      "path": "capsule/reviewed-material-solver-binding.json",
+      "sha256": "sha256:b72921795d84af92a37f78fd1fe0f1ac860e9d43ba884089bce5a5a13e46cad3"
+    },
+    {
+      "path": "capsule/reviewed-materials.toml",
+      "sha256": "sha256:fc7455f4738ef79b30cdee3668d40a480384b52698f297a0f7f0640d16f18393"
+    },
+    {
+      "path": "outcome.json",
+      "sha256": "sha256:93783e503fd8ad5f5183012019e21edc062c93f8716bc6b73075f4655c2c068d"
+    },
+    {
+      "path": "preflight.json",
+      "sha256": "sha256:f6f931142723cb977ce324399e95245642eb4078cca3f2e5e3d1a55f7b9c66cb"
+    },
+    {
+      "path": "stderr.txt",
+      "sha256": "sha256:df87f12bf3222bcfd4a858b13f484a4f18b4255aacf09426f8956154ac79d30f"
+    },
+    {
+      "path": "transcript.jsonl",
+      "sha256": "sha256:2ffb6830b3bb55892c5184abe56d2b0566c2ec44538fc3f34a9ac4c5a54f0ded"
+    }
+  ],
+  "schema": "metacraft.acceptance.ticket03_codex_executable_smoke_seal"
+}

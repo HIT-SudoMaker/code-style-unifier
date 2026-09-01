@@ -1,0 +1,29 @@
+{
+  "schema_version": "1",
+  "case_count": 2,
+  "findings_count_is_optimization_goal": false,
+  "actionable_case_ids": [
+    "ticket09-relative-import-order",
+    "ticket09-private-local-operation"
+  ],
+  "by_rule": {
+    "Core009": {
+      "case_count": 1,
+      "label_counts": {
+        "false_positive": 1
+      },
+      "action_counts": {
+        "narrow_rule_contract": 1
+      }
+    },
+    "Core011": {
+      "case_count": 1,
+      "label_counts": {
+        "false_positive": 1
+      },
+      "action_counts": {
+        "narrow_rule_contract": 1
+      }
+    }
+  }
+}

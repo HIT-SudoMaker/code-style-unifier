@@ -1,0 +1,1 @@
+2026-08-09T09:37:27.130153Z ERROR codex_core::tools::router: error=`"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command ".\\metacraft.exe conduct --help"` rejected: blocked by policy

@@ -1,0 +1,56 @@
+{
+  "schema_identifier": "metacraft.witness.metalens.achromatic_periodic_spot",
+  "values": {
+    "adapter": "LumericalPeriodicResponse",
+    "admitted_to_scratch_authority": true,
+    "cell": {
+      "height_nm": 600,
+      "long_side_nm": 220,
+      "period_nm": 320,
+      "short_side_nm": 170
+    },
+    "derived": {
+      "converted_coefficient_magnitude_squared": "0.025896108341418183",
+      "converted_power": "0.0177271444525846",
+      "power_normalization": "0.684548590037827",
+      "retained_coefficient_magnitude_squared": "1.0961670464385638",
+      "retained_power": "0.750379606085448",
+      "total_zeroth_order_power": "0.768106750538032"
+    },
+    "interpretation": {
+      "chen_cell_conversion_gate": "0.05",
+      "outcome": "this_geometry_below_conversion_gate",
+      "scope": "one reference-wavelength geometry; not a spectral-library verdict"
+    },
+    "observed_at": "2026-08-14",
+    "phase_planes": "metamaterial_surfaces",
+    "responses": {
+      "x_input": {
+        "incident_reference_power": "1",
+        "output_x": {
+          "imaginary_part": "0.7990845849754331",
+          "real_part": "0.8995272635089694"
+        },
+        "output_y": {
+          "imaginary_part": "0.00000000031596691671092394",
+          "real_part": "-0.0000000006484352452425308"
+        },
+        "transmitted_power": "0.99101104849874966"
+      },
+      "y_input": {
+        "incident_reference_power": "1",
+        "output_x": {
+          "imaginary_part": "0.000000003897930447449549",
+          "real_part": "0.000000004602384733327707"
+        },
+        "output_y": {
+          "imaginary_part": "0.5368934733272421",
+          "real_part": "0.7128718220183138"
+        },
+        "transmitted_power": "0.54520245155763336"
+      }
+    },
+    "run_identity": "f7f3c62a09222f16",
+    "wavelength_nm": 530
+  }
+}

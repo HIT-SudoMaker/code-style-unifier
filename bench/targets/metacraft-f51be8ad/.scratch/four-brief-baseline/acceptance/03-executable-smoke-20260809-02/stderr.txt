@@ -1,0 +1,1 @@
+2026-08-09T11:49:46.270500Z ERROR codex_core::tools::router: error=`"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -Command ".\\metacraft.exe conduct --brief blind-brief.json --application-root prepared-application-root --material-library reviewed-materials.toml"` rejected: blocked by policy

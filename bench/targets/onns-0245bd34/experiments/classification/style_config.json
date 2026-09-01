@@ -1,0 +1,153 @@
+{
+  "font": {
+    "figure_title": 11,
+    "axis_title": 9,
+    "axis_label": 8,
+    "tick_label": 7,
+    "legend": 7,
+    "annotation": 7,
+    "matrix_cell": 5
+  },
+  "export": {
+    "dpi": 500,
+    "formats": ["png", "svg"],
+    "bbox_inches": "tight",
+    "facecolor": "#ffffff"
+  },
+  "palette": {
+    "paper_text": "#202326",
+    "muted_text": "#6f777d",
+    "grid": "#d9dee2",
+    "panel_bg": "#ffffff",
+    "train_line": "#486a80",
+    "validation_line": "#b65a4a",
+    "report_bar": "#6f8fa3",
+    "report_bar_edge": "#304858",
+    "topology_secondary": "#c8d1d8",
+    "timing_bar": "#8a989f",
+    "detector_red": "#b65a4a",
+    "detector_halo": "#f4f6f7",
+    "max_energy": "#ffffff",
+    "intensity_low": "#000000",
+    "intensity_high": "#ffffff",
+    "confusion_low": "#f7f9fb",
+    "confusion_mid": "#c4d3dc",
+    "confusion_high": "#486a80",
+    "energy_low": "#eef3f6",
+    "energy_mid": "#93aebe",
+    "energy_high": "#486a80",
+    "phase_low": "#30123b",
+    "phase_mid": "#2ab7ca",
+    "phase_high": "#f5e960"
+  },
+  "colormaps": {
+    "confusion_matrix": {
+      "name": "classification_confusion_bluegray",
+      "colors": ["confusion_low", "confusion_mid", "confusion_high"]
+    },
+    "energy_distribution": {
+      "name": "classification_energy_bluegray",
+      "colors": ["energy_low", "energy_mid", "energy_high"]
+    },
+    "phase": {
+      "name": "twilight",
+      "colors": []
+    },
+    "intensity": {
+      "name": "gray",
+      "colors": ["intensity_low", "intensity_high"]
+    }
+  },
+  "lines": {
+    "axis_spine": {"width": 0.6},
+    "grid": {"width": 0.4, "alpha": 0.35},
+    "training_curve": {"width": 1.2},
+    "best_epoch": {"width": 0.8, "linestyle": "--"},
+    "bar_edge": {"width": 0.5}
+  },
+  "overlays": {
+    "detector_region": {
+      "color": "detector_red",
+      "linewidth": 0.7,
+      "linestyle": "--",
+      "alpha": 0.85
+    },
+    "max_detector_region": {
+      "color": "max_energy",
+      "linewidth": 1.0,
+      "linestyle": "-",
+      "alpha": 1.0
+    }
+  },
+  "figures": {
+    "training_dynamics": {
+      "filename": "01_training_dynamics",
+      "title": "Training dynamics",
+      "figsize": [6.8, 3.2],
+      "style": "report",
+      "accuracy_ymin": 0.8,
+      "legend_columns": 2,
+      "uses_gap_annotation": false
+    },
+    "confusion_matrix": {
+      "filename": "02_confusion_matrix",
+      "title": "Confusion matrix",
+      "figsize": [4.3, 3.7],
+      "style": "report"
+    },
+    "per_class_accuracy": {
+      "filename": "03_per_class_accuracy",
+      "title": "Per-class accuracy",
+      "figsize": [4.8, 2.7],
+      "style": "report",
+      "accuracy_ymin": 0.88
+    },
+    "optical_readout_examples": {
+      "filename": "04_optical_readout_examples",
+      "title": "Optical readout examples",
+      "figsize": [7.2, 7.6],
+      "style": "optical_evidence",
+      "row_height": 1.04,
+      "column_width_ratios": [1.0, 1.0, 1.0, 1.55],
+      "detector_column_gap": 0.16,
+      "column_wspace": 0.15,
+      "row_hspace": 0.32,
+      "grid_left": 0.055,
+      "grid_right": 0.98,
+      "grid_top": 0.91,
+      "grid_bottom": 0.045,
+      "bbox_inches": null,
+      "uses_detector_xlabel": false
+    },
+    "topology_comparison": {
+      "filename": "05_topology_comparison",
+      "title": "Topology comparison",
+      "figsize": [6.8, 2.9],
+      "style": "report"
+    },
+    "phase_mask": {
+      "filename": "phase_mask",
+      "title": "Phase mask",
+      "figsize": [4.0, 3.5],
+      "style": "optical_evidence"
+    },
+    "detector_layout": {
+      "filename": "detector_layout",
+      "title": "Detector layout",
+      "figsize": [4.0, 4.0],
+      "style": "optical_evidence"
+    },
+    "prediction_example": {
+      "filename": "prediction_example",
+      "title": "Prediction example",
+      "figsize": [9.0, 3.0],
+      "style": "optical_evidence"
+    },
+    "optimization_history": {
+      "filename": "optimization_history",
+      "title": "Optuna optimization history",
+      "figsize": [4.8, 3.0],
+      "style": "report"
+    }
+  }
+}

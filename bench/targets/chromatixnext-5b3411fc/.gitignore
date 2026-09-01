@@ -1,0 +1,34 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+.*.staging-*/
+workstation.toml
+
+# 本地工作区：规划 spec/issue、CSU 缓存、日志、上游环境与源码副本等只读产物。
+# 它们可复现且与本仓库演进无关，不进版本库；请勿用 git clean -x 删除。
+.scratch/
+reference/
+
+# 工具运行时与本地环境：Serena / spec-workflow MCP 元数据、CSU 工具缓存、
+# 虚拟环境。永不入版本库，亦作为 isort `.` gate 的双保险。
+.serena/
+.spec-workflow/
+.csu/
+.venv/
+
+# uv.lock 是无主产物（setuptools 后端、AGENTS.md 禁 uv run，见 8d28c72）；
+# 偶发由工具重新生成时不应入版本库。
+uv.lock
+
+# 嵌套外部 git 仓库（用户本地技能库，自带 .git，约 76MB）：与仓库演进无关，
+# 不入版本库，防止 git add -A 误录为 gitlink。
+nature-skills/
+
+# Superpowers SDD 计划工作区（ledger/brief/review 包）：会话本地执行产物，
+# 与 .serena/、.spec-workflow/ 同类，永不入版本库。
+.superpowers/

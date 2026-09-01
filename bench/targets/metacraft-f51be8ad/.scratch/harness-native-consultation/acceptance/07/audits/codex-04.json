@@ -1,0 +1,62 @@
+{
+  "answer_write_paths": [],
+  "commands": [
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw '$CAPSULE\\\\.agents\\\\skills\\\\metacraft-design\\\\SKILL.md'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw '$CAPSULE\\\\.agents\\\\skills\\\\metacraft-design\\\\SKILL.md'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"rg --files -g 'blind-brief.json' -g 'prepared-application-root/**' -g 'reviewed-materials.toml' -g 'AGENTS.md' -g 'README*' -g '*guidance*' -g '*metacraft*'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"rg --files -g 'blind-brief.json' -g 'prepared-application-root/**' -g 'reviewed-materials.toml' -g 'AGENTS.md' -g 'README*' -g '*guidance*' -g '*metacraft*'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw '.\\\\blind-brief.json'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw '.\\\\reviewed-materials.toml'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \".\\\\metacraft.exe conduct --help\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \".\\\\metacraft.exe conduct --help\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw '.\\\\reviewed-materials.toml'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw '.\\\\blind-brief.json'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-ChildItem -Recurse -Force '.\\\\prepared-application-root' | Select-Object FullName,Length,LastWriteTime\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-ChildItem -Recurse -Force '.\\\\prepared-application-root' | Select-Object FullName,Length,LastWriteTime\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw '.\\\\blind-brief.json'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw '.\\\\blind-brief.json'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw '.\\\\reviewed-materials.toml'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw '.\\\\reviewed-materials.toml'\""
+  ],
+  "event_count": 23,
+  "is_confined": true,
+  "paths": [
+    "$CAPSULE\\.agents\\skills\\metacraft-design\\SKILL.md",
+    "$CAPSULE\\.agents\\skills\\metacraft-design\\SKILL.md",
+    ".\\blind-brief.json",
+    ".\\reviewed-materials.toml",
+    ".\\metacraft.exe",
+    ".\\metacraft.exe",
+    ".\\reviewed-materials.toml",
+    ".\\blind-brief.json",
+    ".\\prepared-application-root",
+    ".\\prepared-application-root",
+    ".\\blind-brief.json",
+    ".\\blind-brief.json",
+    ".\\reviewed-materials.toml",
+    ".\\reviewed-materials.toml"
+  ],
+  "read_paths": [
+    "$CAPSULE\\.agents\\skills\\metacraft-design\\SKILL.md",
+    "$CAPSULE\\.agents\\skills\\metacraft-design\\SKILL.md",
+    ".\\blind-brief.json",
+    ".\\reviewed-materials.toml",
+    ".\\metacraft.exe",
+    ".\\metacraft.exe",
+    ".\\reviewed-materials.toml",
+    ".\\blind-brief.json",
+    ".\\prepared-application-root",
+    ".\\prepared-application-root",
+    ".\\blind-brief.json",
+    ".\\blind-brief.json",
+    ".\\reviewed-materials.toml",
+    ".\\reviewed-materials.toml"
+  ],
+  "violations": {
+    "forbidden_events": [],
+    "invalid_commands": [],
+    "invalid_jsonl_lines": [],
+    "invalid_write_paths": [],
+    "outside_capsule_paths": []
+  }
+}

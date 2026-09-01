@@ -1,0 +1,14 @@
+# Build and generated review output
+/target/
+/dist/
+/.csu/runs/
+
+# Agent process state
+/.superpowers/
+/.spec-workflow/
+
+# Root process output
+/*.output
+
+# Operating-system metadata
+.DS_Store

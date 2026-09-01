@@ -1,0 +1,11 @@
+{
+  "fixed_point": "c46e663f1f6841830994de5e5198dae25b4d1082",
+  "focal_region_document": {
+    "byte_length": 2417,
+    "sha256": "dab15e54fbb3168a40c09ff6e2884d303af86f94ea781b65f0035eca007beadc"
+  },
+  "pointwise_propagation_result_document": {
+    "byte_length": 20473,
+    "sha256": "7dbc14895ac1cad90ad3dc89611219d5ab7c39c05463f2fcdaed076e6c01a8ac"
+  }
+}

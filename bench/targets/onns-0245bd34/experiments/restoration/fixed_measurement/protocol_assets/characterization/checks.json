@@ -1,0 +1,91 @@
+[
+  {
+    "details": {},
+    "name": "finite_fields",
+    "status": "PASS"
+  },
+  {
+    "details": {
+      "excludes": "image_interference_term",
+      "minimum": 0.0
+    },
+    "name": "nonnegative_intensities",
+    "status": "PASS"
+  },
+  {
+    "details": {
+      "maximum_error": 0.0
+    },
+    "name": "identity_intensity_contract",
+    "status": "PASS"
+  },
+  {
+    "details": {
+      "expected_ratio": 0.5,
+      "maximum_error": 5.960464477539063e-08
+    },
+    "name": "reference_only_energy_stable",
+    "status": "PASS"
+  },
+  {
+    "details": {
+      "minimum_ratio": 0.41003990173339844
+    },
+    "name": "process_arm_cutoff_measured",
+    "status": "PASS"
+  },
+  {
+    "details": {
+      "atol": 1e-05,
+      "maximum_error": 0.0,
+      "rtol": 1e-05
+    },
+    "name": "interference_reconstruction_matches_full",
+    "status": "PASS"
+  },
+  {
+    "details": {
+      "metric_name": "edge_mtf50_cycles_per_pixel",
+      "row_count": 3
+    },
+    "name": "edge_mtf_available",
+    "status": "PASS"
+  },
+  {
+    "details": {
+      "metric_name": "grating_ctf",
+      "row_count": 24
+    },
+    "name": "grating_ctf_available",
+    "status": "PASS"
+  },
+  {
+    "details": {
+      "metric_name": "point_response_peak_sidelobe_ratio",
+      "row_count": 1
+    },
+    "name": "point_response_diagnostic_available",
+    "status": "PASS"
+  },
+  {
+    "details": {
+      "row_count": 164
+    },
+    "name": "dense_binned_metrics_available",
+    "status": "PASS"
+  },
+  {
+    "details": {
+      "hash": "64a69f90ed86c84390686d7cfa9030f06532b8aee5d627678895abe99021b43f"
+    },
+    "name": "geometry_hash_written",
+    "status": "PASS"
+  },
+  {
+    "details": {
+      "path": "results\\restoration\\characterization\\fixed_measurement_protocol_v2\\operating_point.json"
+    },
+    "name": "operating_point_written",
+    "status": "PASS"
+  }
+]

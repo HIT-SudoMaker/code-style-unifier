@@ -1,0 +1,102 @@
+{
+  "schema_version": 2,
+  "authority": {
+    "path": "authority.json",
+    "sha256": "44638b746af7a64f36649286d0ef66f43e2d311791937b4d06049252168cd792"
+  },
+  "scenario_contracts": {
+    "valid": {
+      "terminal": "sealed",
+      "completion": "complete",
+      "disposition": "clean",
+      "findings": [],
+      "blocked_families": []
+    },
+    "ordinary_comment": {
+      "terminal": "sealed",
+      "completion": "complete",
+      "disposition": "findings",
+      "findings": [
+        {
+          "rule": "documentation.carrier",
+          "grade": "hard_violation",
+          "subject": "calculate_velocity"
+        }
+      ],
+      "blocked_families": []
+    },
+    "missing_field": {
+      "terminal": "sealed",
+      "completion": "complete",
+      "disposition": "findings",
+      "findings": [
+        {
+          "rule": "documentation.public_contract",
+          "grade": "hard_violation",
+          "subject": "calculate_velocity"
+        }
+      ],
+      "blocked_families": []
+    },
+    "short_symbol": {
+      "terminal": "sealed",
+      "completion": "complete",
+      "disposition": "findings",
+      "findings": [
+        {
+          "rule": "identifier.candidate",
+          "grade": "review_required",
+          "subject": "d"
+        }
+      ],
+      "blocked_families": []
+    },
+    "syntax_damaged": {
+      "terminal": "sealed",
+      "completion": "incomplete",
+      "disposition": "incomplete",
+      "findings": [],
+      "blocked_families": [
+        "documentation",
+        "identifier",
+        "structure"
+      ],
+      "parse_anchors": {
+        "python": {
+          "reason": "observation method tree-sitter-python@0.25.0+direct-source-facts-v1 rejected source at 1:1: pinned grammar reported an ERROR node"
+        },
+        "rust": {
+          "reason": "observation method tree-sitter-rust@0.24.2+direct-source-facts-v1 rejected source at 5:2: pinned grammar reported an ERROR node"
+        },
+        "c": {
+          "reason": "observation method tree-sitter-c@0.24.2+direct-source-facts-v1 rejected source at 6:22: pinned grammar reported a MISSING node"
+        },
+        "cpp": {
+          "reason": "observation method tree-sitter-cpp@8b5b49eb+direct-source-facts-v1 rejected source at 6:22: pinned grammar reported a MISSING node"
+        }
+      }
+    }
+  },
+  "documents": [
+    {"scenario": "valid", "language": "python", "path": "documents/valid/python/calculate_velocity.py", "sha256": "14da01302937c75b33373064cef34a2e4fc874b06ec2addf978458b070d776b6"},
+    {"scenario": "valid", "language": "rust", "path": "documents/valid/rust/calculate_velocity.rs", "sha256": "5b59d37805c07ff378c3045bd22925ba4350a968b0140b7f763a3f86b1a66f16"},
+    {"scenario": "valid", "language": "c", "path": "documents/valid/c/calculate_velocity.h", "sha256": "a31c7d6b55a4f87453487490fe0506b0b1ab21e4239afe7e24818d01afedf651"},
+    {"scenario": "valid", "language": "cpp", "path": "documents/valid/cpp/calculate_velocity.hpp", "sha256": "7e7f7f37c8c9bbc86cdd49464a4eb719aaed4cd4b2abbd6cf4ec5439d5c7acd3"},
+    {"scenario": "ordinary_comment", "language": "python", "path": "documents/ordinary_comment/python/calculate_velocity.py", "sha256": "ee1b7a9d57fba4f55334f314267a9b076061362315bfe6a56efdaeef003b7af0"},
+    {"scenario": "ordinary_comment", "language": "rust", "path": "documents/ordinary_comment/rust/calculate_velocity.rs", "sha256": "1dc90d96197727f4cd133efaf1f48d83d94d0aa8df1cbba8863c388b2b868fb1"},
+    {"scenario": "ordinary_comment", "language": "c", "path": "documents/ordinary_comment/c/calculate_velocity.h", "sha256": "97280162e5217a88c13a8a9d0903d6b2ca468a8976613f688a944250f53909ec"},
+    {"scenario": "ordinary_comment", "language": "cpp", "path": "documents/ordinary_comment/cpp/calculate_velocity.hpp", "sha256": "fe1b162501eaf7b6e95cc0fccd81bc6ac1e4f7bdf0a2f63de48ab22256654c1a"},
+    {"scenario": "missing_field", "language": "python", "path": "documents/missing_field/python/calculate_velocity.py", "sha256": "d9d6b9853fc5b380a6f48e9ceede5f3b61f351c8855b181b0946a7feebac2e43"},
+    {"scenario": "missing_field", "language": "rust", "path": "documents/missing_field/rust/calculate_velocity.rs", "sha256": "3e420241adb4a11f11c7ca5c7143afb4713399c07b5ca1bba6893d439e323c7b"},
+    {"scenario": "missing_field", "language": "c", "path": "documents/missing_field/c/calculate_velocity.h", "sha256": "8e924067ba395d4fb9dfcba00668fb484803511b145f70b29b759061686bc226"},
+    {"scenario": "missing_field", "language": "cpp", "path": "documents/missing_field/cpp/calculate_velocity.hpp", "sha256": "b05ce56f02a14561c82e5e15940c475446e3108b15fad106c0ac916c9b8c6621"},
+    {"scenario": "short_symbol", "language": "python", "path": "documents/short_symbol/python/calculate_velocity.py", "sha256": "25382b71a84af5341adfab17fa6f3bd19cd3b7da5b521dd7d28cb9b792c04e86"},
+    {"scenario": "short_symbol", "language": "rust", "path": "documents/short_symbol/rust/calculate_velocity.rs", "sha256": "70d95107bc4e0ea7558d41d8510349602f999c6017bf8fcc057a33301789c998"},
+    {"scenario": "short_symbol", "language": "c", "path": "documents/short_symbol/c/calculate_velocity.h", "sha256": "65caae3fa7d8b2a44101aadcb6b360aadf2ef5dc77f8e7858b1d8197c6364f39"},
+    {"scenario": "short_symbol", "language": "cpp", "path": "documents/short_symbol/cpp/calculate_velocity.hpp", "sha256": "3da54bb49bbb1ae5b8aeb128828c99cacbf9d8e16ed63414dcdc5913a9752fd2"},
+    {"scenario": "syntax_damaged", "language": "python", "path": "documents/syntax_damaged/python/calculate_velocity.py", "sha256": "e32d5cf31302ecb3f125ae5b70158e38deb8b5224814ce59dbbb1c1ffa33abb9"},
+    {"scenario": "syntax_damaged", "language": "rust", "path": "documents/syntax_damaged/rust/calculate_velocity.rs", "sha256": "86896c0edeab1d5c12f981a34db9781c54ac73a060d15724350d87cf18ce3067"},
+    {"scenario": "syntax_damaged", "language": "c", "path": "documents/syntax_damaged/c/calculate_velocity.h", "sha256": "cee24677ac2a231cbca6792ec5c7308877b6c5bec96a3648fd5d2a97eaf69cd0"},
+    {"scenario": "syntax_damaged", "language": "cpp", "path": "documents/syntax_damaged/cpp/calculate_velocity.hpp", "sha256": "cee24677ac2a231cbca6792ec5c7308877b6c5bec96a3648fd5d2a97eaf69cd0"}
+  ]
+}

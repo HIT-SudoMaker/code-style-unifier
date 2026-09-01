@@ -1,0 +1,1 @@
+Verify only the capsule-local executable boundary. Run exactly once: .\metacraft.exe conduct --brief blind-brief.json --application-root prepared-application-root --material-library reviewed-materials.toml. Do not create an answer file, do not retry, do not use the network, and do not inspect or modify anything outside this directory. Report the command outcome and stop.

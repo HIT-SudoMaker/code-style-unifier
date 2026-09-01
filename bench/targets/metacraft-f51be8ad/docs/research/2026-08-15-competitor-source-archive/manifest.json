@@ -1,0 +1,376 @@
+{
+  "schema": "metacraft.research.competitor_source_manifest.v1",
+  "accessed_on": "2026-08-15",
+  "authority_status": "research_context_only",
+  "identity_rule": "Use DOI when assigned; otherwise use the version-independent arXiv identifier.",
+  "bibliography_path": "docs/research/2026-08-15-wayfinder-agentic-metasurface-and-achromatic-materials.bib",
+  "tree_hash_rule": {
+    "algorithm": "sha256",
+    "canonical_line": "relative-posix-path<TAB>byte-size<TAB>lowercase-file-sha256",
+    "line_order": "ascending relative POSIX path",
+    "line_separator": "LF",
+    "trailing_line_separator": false,
+    "excluded": [
+      ".git/**",
+      "**/.DS_Store",
+      "**/__pycache__/**",
+      "**/*.pyc",
+      "**/*.pyo"
+    ]
+  },
+  "durable_archive_exclusions": [
+    {
+      "category": "temporary_downloads",
+      "examples": [
+        ".codex_tmp/**"
+      ],
+      "reason": "Transient acquisition bytes cannot satisfy a durable source entry."
+    },
+    {
+      "category": "runtime_reports",
+      "examples": [
+        "runtime report directories and generated execution reports"
+      ],
+      "reason": "Run output is not an original competitor source artifact."
+    },
+    {
+      "category": "bytecode_caches",
+      "examples": [
+        "**/__pycache__/**",
+        "**/*.pyc",
+        "**/*.pyo"
+      ],
+      "reason": "Interpreter caches are derived and machine-specific."
+    },
+    {
+      "category": "run_projections",
+      "examples": [
+        ".scratch/** and other projected run trees"
+      ],
+      "reason": "Project/run projections are MetaCraft state, not upstream evidence."
+    },
+    {
+      "category": "derived_research_outputs",
+      "examples": [
+        "docs/research/2026-08-15-agentic-metasurface-paper-card/**"
+      ],
+      "reason": "Extracted text, audits, and rendered pages derive from an original and cannot replace it."
+    }
+  ],
+  "competitors": [
+    {
+      "competitor_id": "self_evolving_agentic_framework",
+      "title": "A Self-Evolving Agentic Framework for Metasurface Inverse Design",
+      "article_identity": {
+        "kind": "doi",
+        "value": "10.1002/lpor.71739",
+        "canonical": "doi:10.1002/lpor.71739",
+        "aliases": [
+          "arxiv:2604.01480"
+        ]
+      },
+      "artifacts": [
+        {
+          "artifact_id": "self_evolving.article",
+          "kind": "article",
+          "status": "retained_local",
+          "source_locator": "https://doi.org/10.1002/lpor.71739",
+          "version": "publisher version of record; article e71739 (2026)",
+          "accessed_on": "2026-08-15",
+          "local_path": "reference/Laser   Photonics Reviews - 2026 - Huang - A Self‐Evolving Agentic Framework for Metasurface Inverse Design.pdf",
+          "content_kind": "file",
+          "byte_size": 1132735,
+          "sha256": "sha256:bc40ae651fa6c93bc530c228fc6ea4a19e3a106faaac979ad698aa851fd5dbdc",
+          "license": {
+            "declared": "Creative Commons Attribution; exact licence version is not printed in the retained PDF notice",
+            "redistribution_status": "permitted_with_attribution_per_article_notice",
+            "evidence": "retained article, page 1 open-access notice"
+          }
+        },
+        {
+          "artifact_id": "self_evolving.supporting_information",
+          "kind": "supporting_information",
+          "status": "typed_missing",
+          "source_locator": "https://doi.org/10.1002/lpor.71739",
+          "expected_name": "lpor71739-sup-0001-SuppMat.tex",
+          "version": "supporting file named by the publisher article",
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "missing_reason": "The local article names this supporting file, but no durable copy is present; acquisition is paused at the user's explicit Supporting Information gate.",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_assessed_without_original",
+            "evidence": "supporting file not retained"
+          }
+        },
+        {
+          "artifact_id": "self_evolving.code",
+          "kind": "code",
+          "status": "linked_only",
+          "source_locator": "https://github.com/yi-huang-1/evo-metaoptics",
+          "version": "official repository state observed 2026-08-15; local version not retained",
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "not_copied_reason": "The official repository locator and release boundary are sufficient for this offline manifest pass; no new network copy was made and existing user sources were left untouched.",
+          "license": {
+            "declared": "MIT on the official repository page observed 2026-08-15",
+            "redistribution_status": "permitted_by_upstream_mit_declaration",
+            "evidence": "official repository metadata recorded in the associated primary-source research note"
+          }
+        },
+        {
+          "artifact_id": "self_evolving.data",
+          "kind": "data",
+          "status": "typed_missing",
+          "source_locator": "https://github.com/yi-huang-1/evo-metaoptics",
+          "version": "paper release scope as observed 2026-08-15",
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "missing_reason": "The public release exposes an IID split but explicitly excludes the complete paper experiment/OOD suite; partial IID material must not be represented as the complete dataset.",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_established_for_complete_dataset",
+            "evidence": "complete dataset is not released"
+          }
+        },
+        {
+          "artifact_id": "self_evolving.weights",
+          "kind": "weights",
+          "status": "not_applicable",
+          "source_locator": null,
+          "version": null,
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "not_applicable_reason": "The reported system calls a fixed hosted base model and evolves text skills rather than releasing trained model weights.",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_applicable",
+            "evidence": "no released weight artifact is part of the reported method"
+          }
+        }
+      ]
+    },
+    {
+      "competitor_id": "metachat",
+      "title": "A multi-agentic framework for real-time, autonomous freeform metasurface design",
+      "article_identity": {
+        "kind": "doi",
+        "value": "10.1126/sciadv.adx8006",
+        "canonical": "doi:10.1126/sciadv.adx8006",
+        "aliases": [
+          "arxiv:2503.20479"
+        ]
+      },
+      "artifacts": [
+        {
+          "artifact_id": "metachat.article",
+          "kind": "article",
+          "status": "typed_missing",
+          "source_locator": "https://doi.org/10.1126/sciadv.adx8006",
+          "alternate_locator": "https://arxiv.org/abs/2503.20479",
+          "version": "published Science Advances article; arXiv identity 2503.20479",
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "missing_reason": "No article PDF is present under reference/; the official locators are recorded but full-text acquisition is paused at the user's gate.",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_assessed_without_retained_original",
+            "evidence": "article bytes not retained"
+          }
+        },
+        {
+          "artifact_id": "metachat.supporting_information",
+          "kind": "supporting_information",
+          "status": "typed_missing",
+          "source_locator": "https://doi.org/10.1126/sciadv.adx8006",
+          "version": "publisher supplementary-material set, if selected",
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "missing_reason": "No publisher supporting-information artifact is retained; direct attachment selection and acquisition await user confirmation.",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_assessed_without_original",
+            "evidence": "supporting files not retained"
+          }
+        },
+        {
+          "artifact_id": "metachat.code",
+          "kind": "code",
+          "status": "retained_local",
+          "source_locator": "https://github.com/jonfanlab/metachat",
+          "version": "git:e66deddbc96e4fe3e78837e069c44a4d15cf558c",
+          "accessed_on": "2026-08-15",
+          "local_path": "reference/metachat-main",
+          "content_kind": "directory_tree",
+          "file_count": 86,
+          "byte_size": 17446501,
+          "sha256": "sha256:eb94a7f22059244d72a9fa0791f02360f7a3e9e499e8233d965f2542a7dcbf9a",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_established",
+            "evidence": "No LICENSE, COPYING, or NOTICE file is present in the retained tree; public GitHub access does not itself grant redistribution rights."
+          }
+        },
+        {
+          "artifact_id": "metachat.data",
+          "kind": "data",
+          "status": "linked_only",
+          "source_locator": "https://purl.stanford.edu/dq123fg9049",
+          "version": "official training and validation data record linked by the authors",
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "not_copied_reason": "The dataset is a separately hosted, large external artifact; the official repository locator is retained and no data download was authorized for this ticket.",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_verified",
+            "evidence": "licence terms were not captured in the existing local source set"
+          }
+        },
+        {
+          "artifact_id": "metachat.weights",
+          "kind": "weights",
+          "status": "linked_only",
+          "source_locator": "https://doi.org/10.5281/zenodo.15802727",
+          "version": "Zenodo record 15802727; pretrained best_model.pt",
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "not_copied_reason": "The pretrained checkpoint is a separately hosted binary; the official DOI is retained and no weight download was authorized for this ticket.",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_verified",
+            "evidence": "record identity was verified previously, but licence terms and file bytes are not part of the retained source set"
+          }
+        }
+      ]
+    },
+    {
+      "competitor_id": "metadesigner",
+      "title": "Agentic metasurface design with self-correcting language-model systems",
+      "article_identity": {
+        "kind": "arxiv",
+        "value": "2605.22647",
+        "canonical": "arxiv:2605.22647",
+        "aliases": []
+      },
+      "artifacts": [
+        {
+          "artifact_id": "metadesigner.article",
+          "kind": "article",
+          "status": "typed_missing",
+          "source_locator": "https://arxiv.org/abs/2605.22647",
+          "version": "arXiv:2605.22647v2",
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "missing_reason": "Only a temporary copy was observed under .codex_tmp; temporary downloads are excluded and no article original is retained under reference/.",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_assessed_for_durable_copy",
+            "evidence": "temporary bytes are not promoted to a durable source artifact"
+          }
+        },
+        {
+          "artifact_id": "metadesigner.supporting_information",
+          "kind": "supporting_information",
+          "status": "typed_missing",
+          "source_locator": "https://arxiv.org/abs/2605.22647",
+          "version": "arXiv v2 source record inspected 2026-08-15",
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "missing_reason": "No distinct author-designated supporting-information artifact or durable local original was identified in the existing research audit.",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_established",
+            "evidence": "no separate supporting artifact identified"
+          }
+        },
+        {
+          "artifact_id": "metadesigner.code",
+          "kind": "code",
+          "status": "typed_missing",
+          "source_locator": null,
+          "version": "availability audit as of 2026-08-15",
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "missing_reason": "The arXiv v2 paper/record and exact-title author search in the existing audit did not identify an official code repository; this does not assert that none can be released later.",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_established",
+            "evidence": "no official artifact located"
+          }
+        },
+        {
+          "artifact_id": "metadesigner.data",
+          "kind": "data",
+          "status": "typed_missing",
+          "source_locator": null,
+          "version": "availability audit as of 2026-08-15",
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "missing_reason": "No official data release was identified by the existing primary-source audit; future release remains possible.",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_established",
+            "evidence": "no official artifact located"
+          }
+        },
+        {
+          "artifact_id": "metadesigner.weights",
+          "kind": "weights",
+          "status": "typed_missing",
+          "source_locator": null,
+          "version": "availability audit as of 2026-08-15",
+          "accessed_on": "2026-08-15",
+          "local_path": null,
+          "byte_size": null,
+          "sha256": null,
+          "missing_reason": "No official weight release was identified by the existing primary-source audit; the paper's use of hosted language models is not a released weight artifact.",
+          "license": {
+            "declared": null,
+            "redistribution_status": "not_established",
+            "evidence": "no official artifact located"
+          }
+        }
+      ]
+    }
+  ],
+  "non_durable_observations": [
+    {
+      "path": ".codex_tmp/2605.22647.pdf",
+      "observed_kind": "temporary MetaDesigner arXiv v2 PDF",
+      "byte_size": 6891997,
+      "sha256": "sha256:a4ca585bf31576aaca115b221b74041644f927b41d19d8761b1d38ed2901cf01",
+      "exclusion_reason": "Temporary downloads are not durable source artifacts and must not satisfy metadesigner.article."
+    },
+    {
+      "path": "docs/research/2026-08-15-agentic-metasurface-paper-card",
+      "observed_kind": "derived extraction, audit, and rendered-page bundle",
+      "byte_size": null,
+      "sha256": null,
+      "exclusion_reason": "Derived research outputs are not original competitor source artifacts."
+    }
+  ]
+}

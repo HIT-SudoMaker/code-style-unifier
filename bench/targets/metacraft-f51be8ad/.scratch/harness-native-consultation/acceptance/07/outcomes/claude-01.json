@@ -1,0 +1,26 @@
+{
+  "acceptance": {
+    "audit": "accepted",
+    "state": "process failed before advice"
+  },
+  "accepted_answer_files": [],
+  "blind_slot": 1,
+  "explanation": "Failed to authenticate: OAuth session expired and could not be refreshed",
+  "harness": "claude",
+  "harness_version": "2.1.220 (Claude Code)",
+  "is_confined": true,
+  "process_exit_code": 1,
+  "process_status": "failed",
+  "run_id": "claude-01",
+  "scientific": {
+    "advice": [],
+    "answers": [],
+    "current_question": "period",
+    "current_request_identity": "sha256:9d15b6f701274d61a4bd44531428c405b118575d46f7a50ef984d9d4882d17c4",
+    "outcome": "ConsultationRequired",
+    "selected": {}
+  },
+  "stderr_sha256": "sha256:2933ba311ad26e5ff48f5a6954f4371f84407b8aa1756facc87b80dc8e60333f",
+  "timed_out": false,
+  "transcript_sha256": "sha256:b03a1e7088445252495dd1eaa230164642055d20c2f8a63faa83fcacf6676fc5"
+}

@@ -1,0 +1,1 @@
+{"schema_identifier":"metacraft.material.solver_material","values":{"family":"silicon","native_name":"Si (Silicon) - Palik","provenance":"confirmed at 850 and 1550 nm against local Lumerical 25v2","solver":"lumerical fdtd"}}

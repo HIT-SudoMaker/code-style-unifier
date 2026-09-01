@@ -1,0 +1,62 @@
+{
+  "answer_write_paths": [],
+  "commands": [
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw '$CAPSULE\\\\.agents\\\\skills\\\\metacraft-design\\\\SKILL.md'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw '$CAPSULE\\\\.agents\\\\skills\\\\metacraft-design\\\\SKILL.md'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"rg --files -g '*'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"rg --files -g '*'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw 'fixture-provenance.json'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw 'blind-brief.json'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw 'reviewed-materials.toml'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw 'opening-prompt.txt'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw 'reviewed-materials.toml'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw 'fixture-provenance.json'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw 'opening-prompt.txt'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Get-Content -Raw 'blind-brief.json'\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \".\\\\metacraft.exe --help\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \".\\\\metacraft.exe --help\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"& (Resolve-Path '.\\\\metacraft.exe') --help\"",
+    "\"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"& (Resolve-Path '.\\\\metacraft.exe') --help\""
+  ],
+  "event_count": 23,
+  "is_confined": true,
+  "paths": [
+    "$CAPSULE\\.agents\\skills\\metacraft-design\\SKILL.md",
+    "$CAPSULE\\.agents\\skills\\metacraft-design\\SKILL.md",
+    "fixture-provenance.json",
+    "blind-brief.json",
+    "reviewed-materials.toml",
+    "opening-prompt.txt",
+    "reviewed-materials.toml",
+    "fixture-provenance.json",
+    "opening-prompt.txt",
+    "blind-brief.json",
+    ".\\metacraft.exe",
+    ".\\metacraft.exe",
+    ".\\metacraft.exe",
+    ".\\metacraft.exe"
+  ],
+  "read_paths": [
+    "$CAPSULE\\.agents\\skills\\metacraft-design\\SKILL.md",
+    "$CAPSULE\\.agents\\skills\\metacraft-design\\SKILL.md",
+    "fixture-provenance.json",
+    "blind-brief.json",
+    "reviewed-materials.toml",
+    "opening-prompt.txt",
+    "reviewed-materials.toml",
+    "fixture-provenance.json",
+    "opening-prompt.txt",
+    "blind-brief.json",
+    ".\\metacraft.exe",
+    ".\\metacraft.exe",
+    ".\\metacraft.exe",
+    ".\\metacraft.exe"
+  ],
+  "violations": {
+    "forbidden_events": [],
+    "invalid_commands": [],
+    "invalid_jsonl_lines": [],
+    "invalid_write_paths": [],
+    "outside_capsule_paths": []
+  }
+}

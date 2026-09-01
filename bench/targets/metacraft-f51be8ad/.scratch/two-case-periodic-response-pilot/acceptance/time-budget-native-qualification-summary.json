@@ -1,0 +1,26 @@
+{
+  "autoshutoff_threshold": "0.00001",
+  "fixtures": {
+    "polarization_x_input": {
+      "native_status": 2,
+      "outcome": "autoshutoff",
+      "simulated_time_fs": "303.170868699623",
+      "terminal_autoshutoff": "0.000009980738140096373"
+    },
+    "polarization_y_input": {
+      "native_status": 2,
+      "outcome": "autoshutoff",
+      "simulated_time_fs": "424.53534645888533",
+      "terminal_autoshutoff": "0.000009850047295551026"
+    },
+    "transmission": {
+      "native_status": 2,
+      "outcome": "autoshutoff",
+      "simulated_time_fs": "506.4563689463875",
+      "terminal_autoshutoff": "0.000009584704202747715"
+    }
+  },
+  "maximum_time_fs": 1000,
+  "qualification_run": "lumerical-qualification-20260810T080559368900Z",
+  "solve_count": 3
+}

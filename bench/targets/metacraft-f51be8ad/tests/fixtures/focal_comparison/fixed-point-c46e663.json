@@ -1,0 +1,32 @@
+{
+  "benchmark_case_identities": {
+    "arbabi-2015-high-na-propagation": "sha256:f29c6cb1b94d9a67d57fbbe82c27dd372b84eeb9d5f8b8dae09536bb0c4a75ab",
+    "khorasaninejad-2016-high-na-geometric": "sha256:fb93cb2bb6e3bf819eb8befbbcc22da0f258c2cc641245f9f29d299600eb17ae",
+    "mcclung-2024-low-na-propagation": "sha256:07fad14521605e54e6e03ec6737af0ae5ff89d18d7caa8b4518e6bd0db682adc",
+    "yang-2018-low-na-geometric": "sha256:5986ebb039339cf92883c29b667c9fd46185ec6f0a91b4bf6a699459854f1311"
+  },
+  "comparison_document": {
+    "schema_identifier": "metacraft.science.metalens.focal_field_comparison",
+    "values": {
+      "aligned_complex_error": "0.125",
+      "ideal_binding_reference": {"content_hash": "sha256:0964f814d3cc0ae763feb30371f4fb968bcae5cd8ff027fbac1017b58d9dd4ae", "media_type": "application/json", "metadata_content_hash": "sha256:0e789df418135ca9b2583c3798e0f7f977432ec7da9ce0c201e898cd79f77e14", "size_bytes": 25},
+      "ideal_field_reference": {"content_hash": "sha256:6cdbb64a66947441151940e9396751d03a278091e1be1ad1abeb91113f6ff3ac", "media_type": "application/json", "metadata_content_hash": "sha256:47042fd3b7d4bec79ea079c66a1cc315757a248453db7cae0d9e69f291883a77", "size_bytes": 23},
+      "ideal_method": "CZT Richards--Wolf",
+      "input_longitudinal_power_w": "1",
+      "normalized_intensity_error": "0.25",
+      "observed_binding_reference": {"content_hash": "sha256:33f04cc835a998a3c030843ebe2d1593ec32154b0da8ec4336de73f8719c30e0", "media_type": "application/json", "metadata_content_hash": "sha256:699a42ba2772ff4a5facf817b674429b7c1d96cd24c47aa5e7e1d0a5c5ed07f2", "size_bytes": 26},
+      "observed_field_reference": {"content_hash": "sha256:864d4c82602009e8094a3b5954e2ada2854badf2411357586997d6d4c83a31d3", "media_type": "application/json", "metadata_content_hash": "sha256:d6bfecb7c384b204b3f1d8981ff03f319ae39c4b7bea28291a5bf1eca5e75bc9", "size_bytes": 24},
+      "observed_method": "vector angular spectrum",
+      "observed_to_ideal_scale": {"imaginary": "0.125", "real": "0.75"},
+      "output_longitudinal_power_w": "0.875"
+    }
+  },
+  "comparison_document_sha256": "9396b88fed02b412e5f04224139096f2db61816bcdcb431bcbed4ed00bd4078e",
+  "fixed_point": "c46e663f1f6841830994de5e5198dae25b4d1082",
+  "result_science_signature_sha256": {
+    "high_na_pb": "865da951c7352e6ece61ad831c2d2d2e6be66e61aaf1ef72833180da0974f60c",
+    "high_na_propagation": "d91007441890043476d41273dad048a919de45a0f82c8f9f54837ca1ab556f63",
+    "low_na_pb": "c0a93773ddd2f295d06bb4aa81e65b346c6af40b577893622756653761afc08d",
+    "low_na_propagation": "ff3c58e7142deb1aa95c324a978b751a77d6a1b3f2186d866e4c1bbbd9d53395"
+  }
+}

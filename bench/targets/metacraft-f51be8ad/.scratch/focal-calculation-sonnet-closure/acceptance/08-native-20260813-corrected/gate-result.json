@@ -1,0 +1,30 @@
+{
+  "schema": "metacraft.acceptance.focal_calculation_native_delivery.v1",
+  "executed_at": "2026-08-13",
+  "command": "C:/Users/Administrator/miniforge3/envs/research_env/python.exe -m pytest tests/live/test_resumable_delivery_endpoints.py -m lumerical_delivery -q --tb=short -p no:cacheprovider",
+  "duration_seconds": 7.7912642,
+  "exit_code": 1,
+  "summary": "2 failed in 6.79s",
+  "is_corrected_environment_rerun": true,
+  "further_retry_authorized": false,
+  "endpoints": [
+    {
+      "name": "low-na-propagation",
+      "application_root": "E:/Year2026_Project_MetaCraft/work_project/focal-closure-native-low-na-20260813-01",
+      "application_root_was_fresh": true,
+      "adapter_observation_reached": true,
+      "native_execution_reached": false,
+      "status": "failed",
+      "reason": "lumerical_unavailable:configuration_incomplete"
+    },
+    {
+      "name": "high-na-pb",
+      "application_root": "E:/Year2026_Project_MetaCraft/work_project/focal-closure-native-high-pb-20260813-01",
+      "application_root_was_fresh": true,
+      "adapter_observation_reached": true,
+      "native_execution_reached": false,
+      "status": "failed",
+      "reason": "lumerical_unavailable:configuration_incomplete"
+    }
+  ]
+}

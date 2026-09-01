@@ -1,0 +1,88 @@
+{
+  "binding_document": {
+    "schema_identifier": "metacraft.binding.aplanatic_focus_evaluation",
+    "values": {
+      "operations": [
+        "form_ideal_field"
+      ],
+      "qualified": true,
+      "realization": {
+        "complex_dtype": "complex128",
+        "convention": {
+          "angular_quadrature": "composite midpoint",
+          "apodization": "square root cosine",
+          "longitudinal_component_sign": "negative",
+          "propagation_exponent": "positive spatial phase",
+          "pupil_surface": "aplanatic reference sphere",
+          "time_dependence": "negative angular frequency"
+        },
+        "coordinate_convention": "Cartesian points relative to geometric focus",
+        "device": "cpu",
+        "identity": "metacraft.field.czt_debye",
+        "implementation": "torch chirp z-transform",
+        "real_dtype": "float64",
+        "sampling": {
+          "direction_cosine_samples_per_axis": 65
+        },
+        "source_method": "Richards--Wolf Debye",
+        "window": "hard circular pupil"
+      }
+    }
+  },
+  "binding_document_sha256": "88cfc2aa4fcc5f80b8a64c4b42c0d6c5aa4fbf9baccb8c45fbb55df8b7d6a0e7",
+  "compiled_study_sha256": {
+    "pb": "7c51363b508bd78b2146d706839e1d70ee40b7a2f739bbdacfeb86d858fa80f3",
+    "propagation": "d5610d19b7f36f4414aa104380d49dcc7157ea2a1cd72a2cfb68b0075848a67f"
+  },
+  "initiative_fixed_point": "c46e663f1f6841830994de5e5198dae25b4d1082",
+  "historical_ideal_field_evidence": {
+    "binding_reference": {
+      "content_hash": "sha256:e763312a9aecae74133fa41faaa13ce3179066089f35ed112f0efa9fee5fbd8b",
+      "media_type": "application/json",
+      "metadata_content_hash": "sha256:016e996bba811792060854e052040c6cd25c89f46f9b1b3a6c938a3ebd14cbba",
+      "size_bytes": 87
+    },
+    "consultations": {},
+    "obligation": "ideal_field",
+    "reference": {
+      "content_hash": "sha256:100b955b05ed3ce416c63679c1398b9ff653ea5b41784231e7f8c07eceebd898",
+      "media_type": "application/json",
+      "metadata_content_hash": "sha256:1d31ca414beed9f98163587f54d1ec477612bc5d516c772a6b01f2dcb13a68a0",
+      "size_bytes": 83
+    },
+    "schema": "metacraft.science.field",
+    "task_identity": "sha256:a0c4e59a113f61a0863487c40ffd69542a7498a3d2973a3ec473a57f17dbf6ec"
+  },
+  "persisted_studies": {
+    "propagation": {
+      "body_gzip_base64": "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",
+      "sha256": "6b0b6198718fd8d9971e6f3c059312179d0139883b811474b24aa655da8cf520",
+      "size_bytes": 9079
+    }
+  },
+  "pointwise_result_document_sha256": {
+    "pb": "631d0fa8b8957697d37a1f262940be0b1273f2d50a34f1613f8a031f4cf66a8e",
+    "propagation": "2c3c0f1da9d60f9d15d752e53a08c9e8c3b67bbc7a49e56b0567eabfa04ee6d7"
+  },
+  "post_ticket03_single_czt": {
+    "axial_offset_m": 1.0000000000000006e-06,
+    "component_sha256": {
+      "x": "a0fb4b9b0a94cd4ef288907a9da28b0d4179bd91eb577450ab743c37a6f36abd",
+      "y": "be39b413456d2b227d0eff57ee86f4ccf7e814267b115d2e92e9223c323ba491",
+      "z": "b143948d5bd710843b3166dafc22603ccac007d78f705d40bce5822d1d9f9274"
+    },
+    "shape": [
+      5,
+      5
+    ],
+    "source_reference": {
+      "content_hash": "sha256:fbbedc31a377103e99871026fc6798c9a46980aa9adfce70f7358b1734fc7ffa",
+      "media_type": "application/json",
+      "metadata_content_hash": "sha256:fd3df8f5f05692b4f00d603f47e616f849b8e8bad4a9efa80db30f585f132d99",
+      "size_bytes": 21
+    },
+    "spacing_m": 1e-07,
+    "surface_position_m": 1.3e-05,
+    "wavelength_m": 5.32e-07
+  }
+}

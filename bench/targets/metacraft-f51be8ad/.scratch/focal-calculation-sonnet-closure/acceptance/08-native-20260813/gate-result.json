@@ -1,0 +1,29 @@
+{
+  "schema": "metacraft.acceptance.focal_calculation_native_delivery.v1",
+  "executed_at": "2026-08-13",
+  "command": "C:/Users/Administrator/miniforge3/envs/research_env/python.exe -m pytest tests/live/test_resumable_delivery_endpoints.py -m lumerical_delivery -q --tb=short -p no:cacheprovider",
+  "duration_seconds": 5.7721233,
+  "exit_code": 1,
+  "summary": "2 failed in 4.66s",
+  "retried": false,
+  "endpoints": [
+    {
+      "name": "low-na-propagation",
+      "application_root": "E:/Year2026_Project_MetaCraft/work_project/focal-closure-native-low-na-20260813-01",
+      "application_root_was_fresh": true,
+      "status": "failed",
+      "reason": "application_root_parent_absent",
+      "exception": "FileNotFoundError",
+      "native_execution_reached": false
+    },
+    {
+      "name": "high-na-pb",
+      "application_root": "E:/Year2026_Project_MetaCraft/work_project/focal-closure-native-high-pb-20260813-01",
+      "application_root_was_fresh": true,
+      "status": "failed",
+      "reason": "application_root_parent_absent",
+      "exception": "FileNotFoundError",
+      "native_execution_reached": false
+    }
+  ]
+}

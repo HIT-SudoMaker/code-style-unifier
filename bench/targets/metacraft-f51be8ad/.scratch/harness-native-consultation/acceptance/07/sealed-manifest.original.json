@@ -1,0 +1,67 @@
+{
+  "opening_prompt_sha256": "sha256:4625165f68fbb0a9d9c4b4de1e09303d7b02c617734d41686224c1fe7595aa4c",
+  "run_count": 8,
+  "runs": [
+    {
+      "audit_sha256": "sha256:37bf6663b2078256367e289462008656aedadcb5edd88c3d29eb41a37c863373",
+      "blind_slot": 1,
+      "outcome_sha256": "sha256:86e2a5dd7af62bd839976f6224356796b24671a2a6cff599425362e62c6444aa",
+      "run_id": "codex-01",
+      "transcript_sha256": "sha256:01203ffd84137a961e60e3c5bd5cc5e96a7e64ea2dc2c3622928e9cb9ce491f3"
+    },
+    {
+      "audit_sha256": "sha256:65767d8559a13eec125e67e6cbc619402d78d46bf3422e1cc2d4f8f355f4107c",
+      "blind_slot": 1,
+      "outcome_sha256": "sha256:12c16074d4dbfdd3ca528f92d6f170c817bfcbeb048ec108b5056c226d97770e",
+      "run_id": "claude-01",
+      "transcript_sha256": "sha256:1cd9b7a60f0bfd61d5c19cefd18d237574be563223c5ba98a3e0b52b394f79c1"
+    },
+    {
+      "audit_sha256": "sha256:5ac292e7f1bd95423dab43659237575a0ab93a5747fa368a85203d79cd748c4b",
+      "blind_slot": 2,
+      "outcome_sha256": "sha256:3b473f63addae9765148076dfccd9b096d56e31111ca3a61582cb402b23f6f6b",
+      "run_id": "codex-02",
+      "transcript_sha256": "sha256:d48c70bcc8986d5e6ce3cbc1f09fc7c99a9f674089fb400ca9a8219c379a4db1"
+    },
+    {
+      "audit_sha256": "sha256:65767d8559a13eec125e67e6cbc619402d78d46bf3422e1cc2d4f8f355f4107c",
+      "blind_slot": 2,
+      "outcome_sha256": "sha256:c494c4503d5f41704d7ac166fcce10cee399c06bc4179f86bd233039436356a7",
+      "run_id": "claude-02",
+      "transcript_sha256": "sha256:c790cd66b664614a15372f2539c3c15ffbb4440323421c40219ddf39df46f977"
+    },
+    {
+      "audit_sha256": "sha256:2ae50fe136c5c7867e8db705102986bdfbb4da7ffa8bc4f24cd4c10512b1c9cc",
+      "blind_slot": 3,
+      "outcome_sha256": "sha256:971622ede63dd204446024b3d7703704d78928cabfeefb5651063e7dc81f9579",
+      "run_id": "codex-03",
+      "transcript_sha256": "sha256:b1de0f8b22a9de3010723b3d810fb656cae466d3c41ef41bc1c3b20055bb3258"
+    },
+    {
+      "audit_sha256": "sha256:65767d8559a13eec125e67e6cbc619402d78d46bf3422e1cc2d4f8f355f4107c",
+      "blind_slot": 3,
+      "outcome_sha256": "sha256:28122358256d7e725db183edf65bfb1f48bafb6cece8670640febec161a35c1f",
+      "run_id": "claude-03",
+      "transcript_sha256": "sha256:1640daeb72e17c0b9bb41f8fa3e7eff4c2ab583db30d775377af96c31290be3d"
+    },
+    {
+      "audit_sha256": "sha256:bfda1e5647fc7d13052bcdddcae24dcf1abe360425e6888dbe84d95380b05f0b",
+      "blind_slot": 4,
+      "outcome_sha256": "sha256:2e6621654ad5c27ea6850a16c76044e43b137622f1d2c6961d7310215e2d473f",
+      "run_id": "codex-04",
+      "transcript_sha256": "sha256:2849d494e57127cc1749559584a75db3ebf16874468d5e9756f7b53e2f965ee5"
+    },
+    {
+      "audit_sha256": "sha256:65767d8559a13eec125e67e6cbc619402d78d46bf3422e1cc2d4f8f355f4107c",
+      "blind_slot": 4,
+      "outcome_sha256": "sha256:6d4a3158d53632b711fa8aad383106d91a655b91a3373c7cb13e56a4cbee0532",
+      "run_id": "claude-04",
+      "transcript_sha256": "sha256:d2de30c4add1f6a2424e345bebe2a53393346b6659c5d73a99ea33eebfe7bc74"
+    }
+  ],
+  "schema": "metacraft.acceptance.harness_matrix",
+  "versions": {
+    "claude": "2.1.220 (Claude Code)",
+    "codex": "codex-cli 0.146.0"
+  }
+}

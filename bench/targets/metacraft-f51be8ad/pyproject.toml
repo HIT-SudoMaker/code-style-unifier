@@ -1,0 +1,37 @@
+[build-system]
+requires = ["maturin>=1.9,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "metacraft"
+version = "0.0.0"
+description = "Evidence-governed metasurface research"
+requires-python = ">=3.11"
+dependencies = ["numpy>=2.0", "PyYAML>=6.0", "torch>=2.12"]
+
+[project.scripts]
+metacraft = "metacraft.command:main"
+
+[project.optional-dependencies]
+check = ["pyright>=1.1.411,<2"]
+
+[tool.maturin]
+manifest-path = "rust/Cargo.toml"
+module-name = "metacraft._authority"
+python-source = "src"
+features = ["pyo3/extension-module"]
+
+[tool.pytest.ini_options]
+addopts = "-m 'not integration and not lumerical_live and not lumerical_canary and not lumerical_delivery'"
+markers = [
+    "integration: complete brief-to-result scientific process tests",
+    "lumerical_canary: explicitly enabled bounded native receipt canary",
+    "lumerical_delivery: explicitly enabled complete four-brief delivery",
+    "lumerical_live: explicitly enabled checks against local Lumerical 25v2",
+]
+
+[tool.pyright]
+include = ["src/metacraft", "examples"]
+pythonVersion = "3.11"
+pythonPlatform = "Windows"
+typeCheckingMode = "standard"

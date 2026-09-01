@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chromatix-next"
+dynamic = ["version"]
+description = "Reliable PyTorch optical simulation for local workstations"
+readme = {file = "README.md", content-type = "text/markdown"}
+requires-python = ">=3.12"
+dependencies = [
+  "torch>=2.12,<3",
+]
+
+[project.optional-dependencies]
+release = [
+  "build>=1.3,<2",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = false
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["chromatix_next*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+chromatix_next = ["release.toml"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+  "cuda: requires a CUDA-capable PyTorch runtime",
+]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["chromatix_next"]
+force_sort_within_sections = true
+# 让字面命令 `python -m isort --check-only .` 从仓库根通过——排除
+# vendor / 生成 / 本地工作区目录，使 `.` 与既有的显式路径列表
+# （src tests examples tools setup.py）在 managed 源码上等价。managed 源码仍被检查。
+extend_skip_glob = [
+  ".scratch",
+  ".serena",
+  ".spec-workflow",
+  ".csu",
+  ".venv",
+  "reference",
+  "build",
+  "dist",
+]
+
+# Pyright 门禁：生产源码必须零错误；测试中的故意类型负面用定向 `# type: ignore`
+# 注释并附中文理由，使其在最终门禁中不被读作生产类型错误。venv 指向项目文档约定
+# 的 research_env 解释器（见 CONTEXT.md / plan.md），使 pytest/torch 等第三方导入
+# 可被解析，避免环境性 reportMissingImports 噪声。
+[tool.pyright]
+include = ["src", "tests", "examples"]
+exclude = [
+  "**/__pycache__",
+  "**/.pytest_cache",
+  ".scratch",
+  "build",
+  "dist",
+  "reference",
+  "evidence",
+]
+venvPath = "C:/Users/Administrator/miniforge3/envs"
+venv = "research_env"
+pythonVersion = "3.12"
+reportMissingImports = "error"
+reportMissingTypeStubs = "none"
+
+[tool.coverage.run]
+branch = true
+source = ["chromatix_next"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true

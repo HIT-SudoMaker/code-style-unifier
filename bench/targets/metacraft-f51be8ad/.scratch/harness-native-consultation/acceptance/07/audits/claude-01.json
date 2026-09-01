@@ -1,0 +1,15 @@
+{
+  "answer_write_paths": [],
+  "commands": [],
+  "event_count": 3,
+  "is_confined": true,
+  "paths": [],
+  "read_paths": [],
+  "violations": {
+    "forbidden_events": [],
+    "invalid_commands": [],
+    "invalid_jsonl_lines": [],
+    "invalid_write_paths": [],
+    "outside_capsule_paths": []
+  }
+}

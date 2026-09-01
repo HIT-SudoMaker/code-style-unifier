@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "chromatix_comment_instead_of_docstring",
+      "origin": "chromatixnext-5b3411fc/tools/snapshot_public_surface.py:33",
+      "origin_sha256": "b5a0c90cc675a6a954772fc8f3a5aabe76ddacbe5e275fd6e57cf96d4cf0b6f",
+      "source": "def _dotted_module_name(path):\n    # 把路径折算为点号模块名\n    relative = path\n    return relative\n",
+      "expected_rule": "documentation.carrier",
+      "expected_subject": "_dotted_module_name"
+    },
+    {
+      "id": "metacraft_english_single_line_class_docstring",
+      "origin": "metacraft-f51be8ad/.scratch/four-brief-baseline/operations/capture_mcclung_yang_material_evidence.py:96",
+      "origin_sha256": "ac08de0ec7b359b64c75d23c5c1bce52d8091007fbf1a52da3d09790ab87ff40",
+      "source": "class ReadOnlyMaterialEngine:\n    \"\"\"Expose only the six read methods.\"\"\"\n",
+      "expected_rule": "documentation.carrier",
+      "expected_subject": "ReadOnlyMaterialEngine"
+    },
+    {
+      "id": "metacraft_class_doc_does_not_cover_method",
+      "origin": "metacraft-f51be8ad/.scratch/four-brief-baseline/operations/capture_mcclung_yang_material_evidence.py:96",
+      "origin_sha256": "ac08de0ec7b359b64c75d23c5c1bce52d8091007fbf1a52da3d09790ab87ff40",
+      "source": "class ReadOnlyMaterialEngine:\n    \"\"\"Expose only the six read methods.\"\"\"\n\n    def version(self) -> object:\n        return self._engine.version()\n",
+      "expected_rule": "documentation.carrier",
+      "expected_subject": "version"
+    },
+    {
+      "id": "onns_garbled_docstring",
+      "origin": "onns-0245bd34/tests/restoration/test_visualize.py:32",
+      "origin_sha256": "f34143f3b48fe54ee08f4ecd7dcc50b0587c791ae42345a00149c4ffe2860c42",
+      "source": "def test_characterization_figure_names_match_design() -> None:\n    \"\"\"\n    鏍￠獙鍙鍖栧绾?    \"\"\"\n    return None\n",
+      "expected_rule": "documentation.carrier",
+      "expected_subject": "test_characterization_figure_names_match_design"
+    },
+    {
+      "id": "comment_cannot_repair_public_callable",
+      "origin": "adversarial mutation of chromatix_comment_instead_of_docstring",
+      "origin_sha256": "not_applicable",
+      "source": "def calculate_velocity(distance_m, duration_s):\n    # 计算平均速度\n    return distance_m / duration_s\n",
+      "expected_rule": "documentation.carrier",
+      "expected_subject": "calculate_velocity"
+    },
+    {
+      "id": "statement_before_docstring_is_not_a_carrier",
+      "origin": "adversarial mutation of chromatix_comment_instead_of_docstring",
+      "origin_sha256": "not_applicable",
+      "source": "def _calculate_velocity(distance_m, duration_s):\n    value = distance_m / duration_s\n    \"\"\"计算平均速度\"\"\"\n    return value\n",
+      "expected_rule": "documentation.carrier",
+      "expected_subject": "_calculate_velocity"
+    },
+    {
+      "id": "container_string_is_not_a_carrier",
+      "origin": "adversarial mutation of statement_before_docstring_is_not_a_carrier",
+      "origin_sha256": "not_applicable",
+      "source": "def _calculate_velocity():\n    [\"计算平均速度\"]\n    return 1\n",
+      "expected_rule": "documentation.carrier",
+      "expected_subject": "_calculate_velocity"
+    },
+    {
+      "id": "public_summary_cannot_replace_roles",
+      "origin": "adversarial mutation of metacraft_class_doc_does_not_cover_method",
+      "origin_sha256": "not_applicable",
+      "source": "def calculate_velocity(distance_m, duration_s) -> float:\n    \"\"\"\n    计算平均速度\n    \"\"\"\n    return distance_m / duration_s\n",
+      "expected_rule": "documentation.public_contract",
+      "expected_subject": "calculate_velocity"
+    },
+    {
+      "id": "internal_summary_is_sufficient",
+      "origin": "positive control for chromatix_comment_instead_of_docstring",
+      "origin_sha256": "not_applicable",
+      "source": "def _dotted_module_name(path):\n    \"\"\"\n    计算模块名称\n    \"\"\"\n    return path\n",
+      "expected_rule": null,
+      "expected_subject": "_dotted_module_name"
+    }
+  ]
+}

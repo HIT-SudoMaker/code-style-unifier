@@ -1,0 +1,144 @@
+name: release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: package ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            target: windows-x86_64
+          - os: ubuntu-24.04
+            target: linux-x86_64
+          - os: ubuntu-24.04-arm
+            target: linux-aarch64
+          - os: macos-15-intel
+            target: macos-x86_64
+          - os: macos-15
+            target: macos-aarch64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install pinned Rust
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --no-self-update
+          rustup default 1.96.0
+          rustc --version --verbose
+
+      - name: Verify release identity
+        shell: pwsh
+        run: |
+          $metadata = cargo metadata --no-deps --format-version 1 | ConvertFrom-Json
+          $package = @($metadata.packages) | Where-Object { $_.name -eq "code-style-unifier" } | Select-Object -First 1
+          if ($null -eq $package) { throw "code-style-unifier package metadata is missing" }
+          $version = [string]$package.version
+          if ($env:GITHUB_REF_TYPE -eq "tag" -and $env:GITHUB_REF_NAME -ne "v$version") {
+            throw "tag $($env:GITHUB_REF_NAME) does not match v$version"
+          }
+          "CSU_VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Verify
+        run: cargo test --locked
+
+      - name: Build
+        run: cargo build --locked --release
+
+      - name: Smoke check
+        shell: pwsh
+        run: |
+          $binary = if ("${{ matrix.target }}".StartsWith("windows-")) { "target/release/csu.exe" } else { "target/release/csu" }
+          & $binary --version
+          if ($LASTEXITCODE -ne 0) { throw "release binary smoke check failed" }
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $targetName = "${{ matrix.target }}"
+          $packageName = "csu-$env:CSU_VERSION-$targetName"
+          $stage = Join-Path "dist" $packageName
+          $binaryName = if ($targetName.StartsWith("windows-")) { "csu.exe" } else { "csu" }
+          New-Item -ItemType Directory -Force -Path (Join-Path $stage "bin"), (Join-Path $stage "docs"), (Join-Path $stage ".agents/skills"), (Join-Path $stage ".claude/skills") | Out-Null
+          Copy-Item "target/release/$binaryName" (Join-Path $stage "bin/$binaryName")
+          Copy-Item README.md, LICENSE -Destination $stage
+          Copy-Item docs/coding_standards.md, docs/design.md, docs/AI-REVIEW-PROTOCOL.md -Destination (Join-Path $stage "docs")
+          Copy-Item .agents/skills/csu-review (Join-Path $stage ".agents/skills") -Recurse
+          Copy-Item .claude/skills/csu-review (Join-Path $stage ".claude/skills") -Recurse
+          if ($targetName.StartsWith("windows-")) {
+            Compress-Archive -LiteralPath $stage -DestinationPath "dist/$packageName.zip"
+          } else {
+            & tar -czf "dist/$packageName.tar.gz" -C dist $packageName
+            if ($LASTEXITCODE -ne 0) { throw "tar failed" }
+          }
+
+      - name: Upload package
+        uses: actions/upload-artifact@v7
+        with:
+          name: csu-${{ matrix.target }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Verify assets and generate checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          test -f "release-assets/csu-$version-windows-x86_64.zip"
+          test -f "release-assets/csu-$version-linux-x86_64.tar.gz"
+          test -f "release-assets/csu-$version-linux-aarch64.tar.gz"
+          test -f "release-assets/csu-$version-macos-x86_64.tar.gz"
+          test -f "release-assets/csu-$version-macos-aarch64.tar.gz"
+          cd release-assets
+          sha256sum *.zip *.tar.gz | sort > checksums.txt
+
+      - name: Wait for five-minute boundary
+        shell: bash
+        run: |
+          now=$(date +%s)
+          publish_at=$(( (now + 299) / 300 * 300 ))
+          delay=$(( publish_at - now ))
+          echo "Publishing at $(date -u -d "@$publish_at" +%Y-%m-%dT%H:%M:%SZ)"
+          sleep "$delay"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          gh release create "${GITHUB_REF_NAME}" release-assets/*.zip release-assets/*.tar.gz release-assets/checksums.txt --verify-tag --latest --title "CSU ${GITHUB_REF_NAME}" --generate-notes

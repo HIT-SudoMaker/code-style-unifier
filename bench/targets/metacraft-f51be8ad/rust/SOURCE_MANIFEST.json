@@ -1,0 +1,16 @@
+{
+  "Cargo.lock": "sha256:9d8d43c96735c12ee2e2c4dd832863dbc86325620886c6fed3d4050f202170d0",
+  "Cargo.toml": "sha256:b145d47e384b8a5b287e0c9afbba473446bc73773368beaf95566348b5464c4a",
+  "src/authority/interface.rs": "sha256:7f4d2db77e2333714c474ac310eb3a96157382d41276ffbb2f4e05664c3bab00",
+  "src/authority/lifecycle.rs": "sha256:be45d42136ffa247bf3fbc4a9e23926225401afc7b58cd103fd689cedb5b0eed",
+  "src/authority/mod.rs": "sha256:5facad5060a766b0922c8689feb15ed85aefce5742ad1d1384972fc367c8b41e",
+  "src/authority/protocol.rs": "sha256:62eb37faa640b3fffaf1470b931e76411f614bdf14b5c849bd4d2d11997c4633",
+  "src/authority/scale_tests.rs": "sha256:42b62c54bd827bfd5e76856c18c7cb437213ebc5139e60e6fe557bc47ab3246c",
+  "src/authority/verified_state_tests.rs": "sha256:1e47c10a94da6b9133507798a38761b6c111c59092a3c67408230d1614409920",
+  "src/lib.rs": "sha256:edebf4df89558506847ab140d5d292502f570141ae762141173ae07a3833dec2",
+  "src/python_binding/mod.rs": "sha256:940fd81137db40db0d17794d73e8fd074d1b505dd580c2c65e562c7f66b9785a",
+  "src/workspace/mod.rs": "sha256:63ad8e26058c6df6d3bf89852cc2abf8938807012f631a2c036de4275db44d5e",
+  "tests/architecture_boundary.rs": "sha256:af217bf4a4c4fe4bc9a751122e0ec747d4df587e99ae8aad9ae8a71b604fda7d",
+  "tests/authority_interface.rs": "sha256:6dc8bf9c847ec82f695e8e3bf7f830de1616b6fb37d195051b93e120c4ffd2c6",
+  "tests/fixtures/authority_protocol.json": "sha256:7352e06b17d0b817936c13d80946aab0f40f0ed8f00380c98456b6f4468b474a"
+}

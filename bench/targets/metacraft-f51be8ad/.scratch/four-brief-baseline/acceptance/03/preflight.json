@@ -1,0 +1,9 @@
+{
+  "launcher_exists": true,
+  "missing_flags": [],
+  "planned_session_count": 4,
+  "profile": "codex",
+  "retry_count": 0,
+  "schema": "metacraft.acceptance.ticket03_codex_preflight",
+  "version": "codex-cli 0.146.0"
+}
