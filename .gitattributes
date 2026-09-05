@@ -1,2 +1,7 @@
 * text=auto eol=lf
 /bench/targets/** text=auto eol=crlf
+
+# Count only CSU implementation and Rust tests.
+* linguist-detectable=false
+/src/**/*.rs linguist-detectable=true
+/tests/**/*.rs linguist-detectable=true
