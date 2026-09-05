@@ -1,19 +1,20 @@
 use csu::AuthorityDocument;
 use csu::AuthorityInput;
-use csu::Completion;
 use csu::Disposition;
 use csu::DocumentSet;
 use csu::FactFamily;
 use csu::FactFamilyState;
 use csu::ReviewInput;
 use csu::ReviewTerminal;
+use csu::SealedReview;
 use csu::SourceDocument;
 use csu::WorkspaceReviewer;
-use csu::project_human;
-use std::path::Path;
+
+mod review_fixture;
+
+use review_fixture::review_sources;
 
 const AUTHORITY: &str = include_str!("../docs/fixtures/core/authority.json");
-
 const VALID_PYTHON: &str = concat!(
     "def _calculate_velocity(distance_m: float, ",
     r#"duration_s: float) -> float:
@@ -24,613 +25,536 @@ const VALID_PYTHON: &str = concat!(
 "#,
 );
 
-/// 构造测试 Reviewer
+/// 根据测试 Authority 创建审查器
 fn reviewer() -> WorkspaceReviewer {
-    let documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: AUTHORITY.as_bytes(),
-    }];
-    WorkspaceReviewer::compile(AuthorityInput::Documents(&documents)).unwrap()
+    compile_value(&serde_json::from_str(AUTHORITY).unwrap())
+        .expect("frozen Project Authority must compile")
 }
 
-/// 构造指定来源形态的测试 Reviewer
-fn reviewer_with_source_form(source_form: &str) -> WorkspaceReviewer {
-    let mut authority: serde_json::Value =
-        serde_json::from_str(AUTHORITY).unwrap();
-    authority["source_form"] = serde_json::json!(source_form);
-    let bytes = serde_json::to_vec(&authority).unwrap();
-    let documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &bytes,
-    }];
-    WorkspaceReviewer::compile(AuthorityInput::Documents(&documents)).unwrap()
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn incomplete_projection_is_rejected_before_review() {
-    let mut authority: serde_json::Value =
-        serde_json::from_str(AUTHORITY).unwrap();
-    authority["families"][0]["projections"]
-        .as_object_mut()
-        .unwrap()
-        .remove("cpp");
-    let authority = serde_json::to_vec(&authority).unwrap();
-    let documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &authority,
-    }];
-    let rejection =
-        WorkspaceReviewer::compile(AuthorityInput::Documents(&documents))
-            .expect_err("missing C++ projection must reject the Authority");
-    assert_eq!(rejection.code(), "authority.projection");
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn selected_dependency_family_requires_enabled_authority() {
-    let mut authority: serde_json::Value =
-        serde_json::from_str(AUTHORITY).unwrap();
-    authority["families"]
-        .as_array_mut()
-        .unwrap()
-        .push(serde_json::json!({
-            "name": "dependency",
-            "operator": "dependency_v1",
-            "projections": {
-                "python": "supported",
-                "rust": "supported",
-                "c": "supported",
-                "cpp": "supported"
-            }
-        }));
-    let authority = serde_json::to_vec(&authority).unwrap();
-    let documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &authority,
-    }];
-    let rejection =
-        WorkspaceReviewer::compile(AuthorityInput::Documents(&documents))
-            .expect_err(
-                "selected dependency family must not be silently disabled",
-            );
-    assert_eq!(rejection.code(), "authority.dependency");
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn projection_state_controls_runtime_family_closure() {
-    let authority = AUTHORITY
-        .replace("\"cpp\": \"supported\"", "\"cpp\": \"needs_authority\"");
-    let authority_documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: authority.as_bytes(),
-    }];
-    let reviewer = WorkspaceReviewer::compile(AuthorityInput::Documents(
-        &authority_documents,
-    ))
-    .expect("Needs Authority is a total projection");
-    let documents = [SourceDocument {
-        relative_path: "src/value.cpp",
-        bytes: b"int value;\n",
-    }];
-    let terminal = reviewer.review(ReviewInput::Documents(DocumentSet {
-        revision: "needs-authority",
-        documents: &documents,
-    }));
-    assert_eq!(terminal.disposition(), Disposition::Incomplete);
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn candidate_registry_must_cover_the_frozen_latin_and_greek_minimum() {
-    for equivalent_forms in [
-        &["q"][..],
-        &["Q"][..],
-        &["alpha"][..],
-        &["α"][..],
-        &["Α"][..],
-        &["ϕ"][..],
-    ] {
-        let mut authority: serde_json::Value =
-            serde_json::from_str(AUTHORITY).unwrap();
-        authority["candidate_tokens"]
-            .as_array_mut()
-            .unwrap()
-            .retain(|token| {
-                !equivalent_forms.contains(&token.as_str().unwrap())
-            });
-        let authority = serde_json::to_vec(&authority).unwrap();
-        let documents = [AuthorityDocument {
-            relative_path: "authority.json",
-            bytes: &authority,
-        }];
-        let rejection =
-            WorkspaceReviewer::compile(AuthorityInput::Documents(&documents))
-                .expect_err("incomplete candidate registry must reject");
-        assert_eq!(rejection.code(), "authority.candidate_registry");
-    }
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn authority_must_cover_every_closed_rule_operator() {
-    let mut authority: serde_json::Value =
-        serde_json::from_str(AUTHORITY).unwrap();
-    authority["rules"]
-        .as_array_mut()
-        .unwrap()
-        .retain(|rule| rule["operator"] != "dependency_order");
-    let bytes = serde_json::to_vec(&authority).unwrap();
-    let documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &bytes,
-    }];
-    let rejection =
-        WorkspaceReviewer::compile(AuthorityInput::Documents(&documents))
-            .expect_err("a partial rule catalog must reject");
-
-    assert_eq!(rejection.code(), "authority.rule_catalog");
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn parseability_contract_must_be_explicit_and_supported() {
-    let authority: serde_json::Value =
-        serde_json::from_str(AUTHORITY).unwrap();
-    for invalid in [
-        {
-            let mut candidate = authority.clone();
-            candidate.as_object_mut().unwrap().remove("source_form");
-            candidate
-        },
-        {
-            let mut candidate = authority.clone();
-            candidate["source_form"] = serde_json::json!("fallback");
-            candidate
-        },
-        {
-            let mut candidate = authority;
-            candidate["profile_contracts"]["python"]["observation_method"] =
-                serde_json::json!("unpinned");
-            candidate
-        },
-    ] {
-        let bytes = serde_json::to_vec(&invalid).unwrap();
-        let documents = [AuthorityDocument {
+/// 编译指定 JSON 值
+fn compile_value(
+    authority: &serde_json::Value,
+) -> Result<WorkspaceReviewer, csu::ReviewRejection> {
+    let bytes = serde_json::to_vec(authority).unwrap();
+    WorkspaceReviewer::compile(AuthorityInput::Documents(&[
+        AuthorityDocument {
             relative_path: "authority.json",
             bytes: &bytes,
-        }];
-        WorkspaceReviewer::compile(AuthorityInput::Documents(&documents))
-            .expect_err("parseability policy must reject before Review");
-    }
+        },
+    ]))
+}
 
-    let cargo = include_str!("../Cargo.toml");
-    for (language, method, dependency) in [
-        (
-            "python",
-            "tree-sitter-python@0.25.0",
-            "tree-sitter-python = \"0.25.0\"",
-        ),
-        (
-            "rust",
-            "tree-sitter-rust@0.24.2",
-            "tree-sitter-rust = \"0.24.2\"",
-        ),
-        ("c", "tree-sitter-c@0.24.2", "tree-sitter-c = \"0.24.2\""),
-        (
-            "cpp",
-            "tree-sitter-cpp@8b5b49eb",
-            "rev = \"8b5b49eb196bec7040441bee33b2c9a4838d6967\"",
-        ),
-    ] {
+/// 断言原始 Authority 输入在访问源码前被拒绝
+fn assert_raw_authority_rejected(rows: &[&str]) {
+    for raw in rows {
+        let documents = [AuthorityDocument {
+            relative_path: "authority.json",
+            bytes: raw.as_bytes(),
+        }];
         assert!(
-            AUTHORITY.contains(&format!("\"observation_method\": \"{method}")),
-            "{language} observation method must remain pinned"
-        );
-        assert!(cargo.contains(dependency));
-    }
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn duplicate_operator_cannot_duplicate_an_atomic_finding() {
-    let mut wrong_grade: serde_json::Value =
-        serde_json::from_str(AUTHORITY).unwrap();
-    wrong_grade["rules"][0]["grade"] = serde_json::json!("soft_friction");
-    let wrong_grade = serde_json::to_vec(&wrong_grade).unwrap();
-    let wrong_grade_documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &wrong_grade,
-    }];
-    let rejection = WorkspaceReviewer::compile(AuthorityInput::Documents(
-        &wrong_grade_documents,
-    ))
-    .expect_err("Candidate grade must remain Review Required");
-    assert_eq!(rejection.code(), "authority.rule_catalog");
-
-    let mut authority: serde_json::Value =
-        serde_json::from_str(AUTHORITY).unwrap();
-    authority["rules"]
-        .as_array_mut()
-        .unwrap()
-        .push(serde_json::json!({
-            "id": "identifier.symbolic_alias",
-            "family": "identifier",
-            "fact": "declaration_name",
-            "operator": "identifier_candidate",
-            "grade": "review_required",
-            "message": "symbolic alias should be expanded before release",
-            "question": "该别名是否已有规范全名？"
-        }));
-    let bytes = serde_json::to_vec(&authority).unwrap();
-    let authority_documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &bytes,
-    }];
-    let rejection = WorkspaceReviewer::compile(AuthorityInput::Documents(
-        &authority_documents,
-    ))
-    .expect_err("one operator must not duplicate an atomic Finding");
-    assert_eq!(rejection.code(), "authority.rule_catalog");
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn presentation_must_be_total_before_review() {
-    let base: serde_json::Value = serde_json::from_str(AUTHORITY).unwrap();
-    let mut cases = Vec::new();
-
-    let mut missing_chapter = base.clone();
-    missing_chapter["presentation"]
-        .as_array_mut()
-        .unwrap()
-        .pop();
-    cases.push(missing_chapter);
-
-    let mut duplicate_rule = base.clone();
-    duplicate_rule["presentation"][0]["rules"] =
-        serde_json::json!(["identifier.candidate"]);
-    cases.push(duplicate_rule);
-
-    let mut missing_profile = base;
-    missing_profile["presentation"][4]["profiles"]
-        .as_object_mut()
-        .unwrap()
-        .remove("cpp");
-    cases.push(missing_profile);
-
-    for authority in cases {
-        let bytes = serde_json::to_vec(&authority).unwrap();
-        let documents = [AuthorityDocument {
-            relative_path: "authority.json",
-            bytes: &bytes,
-        }];
-        let rejection =
             WorkspaceReviewer::compile(AuthorityInput::Documents(&documents))
-                .expect_err(
-                    "incomplete presentation must reject before review",
-                );
-        assert_eq!(rejection.code(), "authority.presentation");
+                .is_err(),
+            "{raw}"
+        );
     }
 }
 
-/// 验证审查终态证据场景
-#[test]
-fn presentation_only_change_preserves_scientific_identity() {
-    let first: serde_json::Value = serde_json::from_str(AUTHORITY).unwrap();
-    let mut second = first.clone();
-    second["presentation"][4]["rules"]
-        .as_array_mut()
-        .unwrap()
-        .swap(0, 4);
+/// 从公共审查结果中取出封存值
+fn sealed(terminal: ReviewTerminal) -> SealedReview {
+    match terminal {
+        ReviewTerminal::Sealed(review) => review,
+        _ => panic!("review must seal"),
+    }
+}
 
-    let first_bytes = serde_json::to_vec(&first).unwrap();
-    let second_bytes = serde_json::to_vec(&second).unwrap();
-    let first_authority = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &first_bytes,
-    }];
-    let second_authority = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &second_bytes,
-    }];
-    let first_reviewer = WorkspaceReviewer::compile(
-        AuthorityInput::Documents(&first_authority),
-    )
-    .unwrap();
-    let second_reviewer = WorkspaceReviewer::compile(
-        AuthorityInput::Documents(&second_authority),
-    )
-    .unwrap();
-    let sources = [SourceDocument {
-        relative_path: "src/names.py",
-        bytes:
-            b"Q = 1\nmystery_token = 2\ndef undocumented():\n    return 1\n",
-    }];
-    let input = ReviewInput::Documents(DocumentSet {
-        revision: "presentation-invariance",
-        documents: &sources,
-    });
-    let first_terminal = first_reviewer.review(input);
-    let second_terminal = second_reviewer.review(input);
-    let (
-        ReviewTerminal::Sealed(first_review),
-        ReviewTerminal::Sealed(second_review),
-    ) = (&first_terminal, &second_terminal)
-    else {
-        panic!("valid presentation fixtures must seal");
-    };
-
-    assert_eq!(
-        first_review.canonical_bytes(),
-        second_review.canonical_bytes()
-    );
-    assert_eq!(first_review.seal(), second_review.seal());
-    let first_human = project_human(&first_terminal);
-    let second_human = project_human(&second_terminal);
-    assert_ne!(first_human, second_human);
+/// 断言无关项目事实不能消除源码已证明的硬违规
+fn assert_trailing_hard(authority: &serde_json::Value) {
+    let review = sealed(review_sources(
+        &compile_value(authority).unwrap(),
+        "effect-ceiling",
+        &[("src/value.py", "distance_m = 1  # explanation\n")],
+    ));
     assert!(
-        first_human.find("[HardViolation]")
-            < first_human.find("[ReviewRequired]")
-    );
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn rule_catalog_row_order_does_not_change_scientific_identity() {
-    let first: serde_json::Value = serde_json::from_str(AUTHORITY).unwrap();
-    let mut second = first.clone();
-    second["rules"].as_array_mut().unwrap().swap(0, 12);
-    let first_bytes = serde_json::to_vec(&first).unwrap();
-    let second_bytes = serde_json::to_vec(&second).unwrap();
-    let first_documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &first_bytes,
-    }];
-    let second_documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &second_bytes,
-    }];
-    let first = WorkspaceReviewer::compile(AuthorityInput::Documents(
-        &first_documents,
-    ))
-    .unwrap();
-    let second = WorkspaceReviewer::compile(AuthorityInput::Documents(
-        &second_documents,
-    ))
-    .unwrap();
-    let sources = [SourceDocument {
-        relative_path: "src/symbol.py",
-        bytes: b"Q = 1\n",
-    }];
-    let input = ReviewInput::Documents(DocumentSet {
-        revision: "catalog-order-invariance",
-        documents: &sources,
-    });
-    let ReviewTerminal::Sealed(first) = first.review(input) else {
-        panic!("first Authority must seal");
-    };
-    let ReviewTerminal::Sealed(second) = second.review(input) else {
-        panic!("reordered Authority must seal");
-    };
-    assert_eq!(first.canonical_bytes(), second.canonical_bytes());
-    assert_eq!(first.seal(), second.seal());
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn invalid_and_duplicate_document_paths_are_rejected() {
-    let invalid = [SourceDocument {
-        relative_path: "../escape.py",
-        bytes: VALID_PYTHON.as_bytes(),
-    }];
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "invalid-path",
-        documents: &invalid,
-    }));
-    assert_eq!(terminal.disposition(), Disposition::Rejected);
-
-    let duplicate = [
-        SourceDocument {
-            relative_path: "src/a.py",
-            bytes: VALID_PYTHON.as_bytes(),
-        },
-        SourceDocument {
-            relative_path: "src/a.py",
-            bytes: VALID_PYTHON.as_bytes(),
-        },
-    ];
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "duplicate-path",
-        documents: &duplicate,
-    }));
-    assert_eq!(terminal.disposition(), Disposition::Rejected);
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn unknown_memory_document_language_is_rejected() {
-    let documents = [SourceDocument {
-        relative_path: "src/notes.txt",
-        bytes: b"not governed source\n",
-    }];
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "unknown-language",
-        documents: &documents,
-    }));
-    assert_eq!(terminal.disposition(), Disposition::Rejected);
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn invalid_encoding_obeys_the_compiled_parseability_regime() {
-    let invalid_utf8 = [SourceDocument {
-        relative_path: "src/invalid.py",
-        bytes: &[0xff, b'\n'],
-    }];
-    for (source_form, finding_expected) in
-        [("direct", true), ("external", false)]
-    {
-        let terminal = reviewer_with_source_form(source_form).review(
-            ReviewInput::Documents(DocumentSet {
-                revision: source_form,
-                documents: &invalid_utf8,
-            }),
-        );
-        let ReviewTerminal::Sealed(review) = terminal else {
-            panic!("invalid source encoding must seal incomplete");
-        };
-        assert_eq!(review.completion(), Completion::Incomplete);
-        assert_eq!(
-            review
-                .findings()
-                .iter()
-                .any(|finding| finding.rule() == "source.parseability"),
-            finding_expected
-        );
-        assert_eq!(review.metrics().byte_sweeps, 1);
-        assert_eq!(review.metrics().structural_parses, 0);
-        assert!(
-            review.coverage().files()[0]
-                .families()
-                .iter()
-                .any(|(family, state)| *family == FactFamily::PhysicalLines
-                    && matches!(state, FactFamilyState::Complete(1)))
-        );
-    }
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn identical_inputs_produce_identical_seal_bytes_thirty_times() {
-    let reviewer = reviewer();
-    let documents = [SourceDocument {
-        relative_path: "src/velocity.py",
-        bytes: VALID_PYTHON.as_bytes(),
-    }];
-    let mut expected = None;
-    for _ in 0..30 {
-        let terminal = reviewer.review(ReviewInput::Documents(DocumentSet {
-            revision: "deterministic",
-            documents: &documents,
-        }));
-        let ReviewTerminal::Sealed(review) = terminal else {
-            panic!("valid input must seal");
-        };
-        let bytes = review.canonical_bytes();
-        if let Some(expected) = &expected {
-            assert_eq!(&bytes, expected);
-        } else {
-            expected = Some(bytes);
-        }
-    }
-}
-
-/// 验证审查终态证据场景
-#[test]
-fn four_language_syntax_damage_obeys_the_compiled_regime() {
-    let fixture_root =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/fixtures/core");
-    let manifest: serde_json::Value = serde_json::from_str(include_str!(
-        "../docs/fixtures/core/fixture-manifest.json"
-    ))
-    .unwrap();
-    let cases = [
-        ("python/calculate_velocity.py", "python"),
-        ("rust/calculate_velocity.rs", "rust"),
-        ("c/calculate_velocity.h", "c"),
-        ("cpp/calculate_velocity.hpp", "cpp"),
-    ];
-    for (relative, language) in &cases {
-        let source_path =
-            fixture_root.join("documents/syntax_damaged").join(relative);
-        let bytes = std::fs::read(&source_path).unwrap();
-        let document_path = format!("documents/syntax_damaged/{relative}");
-        let documents = [SourceDocument {
-            relative_path: &document_path,
-            bytes: &bytes,
-        }];
-        let terminal = reviewer_with_source_form("direct").review(
-            ReviewInput::Documents(DocumentSet {
-                revision: language,
-                documents: &documents,
-            }),
-        );
-        let ReviewTerminal::Sealed(review) = terminal else {
-            panic!("{language} syntax damage must seal incomplete");
-        };
-        assert_eq!(review.completion(), Completion::Incomplete);
-        let finding = review
+        review
             .findings()
             .iter()
-            .find(|finding| finding.rule() == "source.parseability")
-            .expect("direct source damage must create parseability evidence");
-        assert_eq!(finding.grade(), csu::FindingGrade::HardViolation);
-        let reason = review.coverage().files()[0]
-            .families()
-            .iter()
-            .find_map(|(family, state)| {
-                (*family == FactFamily::Structure)
-                    .then_some(state)
-                    .and_then(|state| match state {
-                        FactFamilyState::Blocked(reason) => Some(reason),
-                        _ => None,
-                    })
-            })
-            .expect("syntax damage must block Structure");
-        assert_eq!(
-            reason,
-            manifest["scenario_contracts"]["syntax_damaged"]["parse_anchors"]
-                [language]["reason"]
-                .as_str()
-                .unwrap()
+            .any(|finding| finding.rule() == "source.trailing_comment")
+    );
+}
+
+/// 返回封存结果中的 Authority 语义摘要
+fn authority_digest(review: &SealedReview) -> String {
+    let value: serde_json::Value =
+        serde_json::from_slice(&review.canonical_bytes()).unwrap();
+    value["semantic_authority_digest"]
+        .as_str()
+        .unwrap()
+        .to_owned()
+}
+
+/// 用固定源码观察一份 Authority 的摘要与 Seal
+fn authority_identity(authority: &serde_json::Value) -> (String, String) {
+    let bytes = serde_json::to_vec(authority).unwrap();
+    authority_identity_bytes(&bytes)
+}
+
+/// 用固定源码观察原始 Authority 字节的摘要与 Seal
+fn authority_identity_bytes(bytes: &[u8]) -> (String, String) {
+    let documents = [AuthorityDocument {
+        relative_path: "authority.json",
+        bytes,
+    }];
+    let reviewer =
+        WorkspaceReviewer::compile(AuthorityInput::Documents(&documents))
+            .expect("Project Authority must compile");
+    let review = sealed(review_sources(
+        &reviewer,
+        "authority-identity",
+        &[("src/velocity.py", VALID_PYTHON)],
+    ));
+    (authority_digest(&review), review.seal().to_owned())
+}
+
+/// 验证规则目录同时决定问题分类和语义身份
+#[test]
+fn rule_catalog_finding_and_semantic_identity() {
+    let review = sealed(review_sources(
+        &reviewer(),
+        "rule-catalog",
+        &[("src/value.py", "distance_m = 1  # explanation\n")],
+    ));
+    let finding = review.findings().first().unwrap();
+
+    assert_eq!(finding.rule(), "source.trailing_comment");
+    assert_eq!(finding.grade(), csu::FindingGrade::HardViolation);
+    assert_eq!(
+        finding.message(),
+        "ordinary comments must not share a physical line with code"
+    );
+    assert_eq!(finding.question(), None);
+    let fixture = include_str!("../docs/fixtures/core/fixture-manifest.json");
+    let manifest: serde_json::Value = serde_json::from_str(fixture).unwrap();
+    let expected = manifest["semantic_authority_digest"].as_str().unwrap();
+    assert_eq!(authority_digest(&review), expected);
+    assert_eq!(
+        review.seal(),
+        "1a1f9b91e0a672198a97bc7f9a2b80ef245381f337fee4f003f57bd7a1bc59ad"
+    );
+
+    let canonical: serde_json::Value =
+        serde_json::from_slice(&review.canonical_bytes()).unwrap();
+    assert!(canonical.get("presentation").is_none());
+}
+
+/// 验证项目只能提交项目事实，不能重定义标准规则
+#[test]
+fn project_authority_has_only_project_owned_facts() {
+    let authority: serde_json::Value =
+        serde_json::from_str(AUTHORITY).unwrap();
+    let fields = authority
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        fields.join(","),
+        "dependency_authority,external_fixed_identifiers,header_languages,public_callables,quantity_concepts,schema_version,token_vocabulary"
+    );
+    let mut previous_schema = authority.clone();
+    previous_schema["schema_version"] = serde_json::json!(3);
+    let rejection = compile_value(&previous_schema).unwrap_err();
+    assert_eq!(rejection.code(), "authority.version");
+
+    let mut invalid = authority;
+    invalid["rules"] = serde_json::Value::Null;
+    let rejection = compile_value(&invalid).unwrap_err();
+    assert_eq!(rejection.code(), "authority.syntax");
+}
+
+/// 验证工作区内的旧清单不能改变文件范围或语言
+#[test]
+fn workspace_inventory_has_no_review_effect() {
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::write(workspace.path().join("velocity.py"), VALID_PYTHON)
+        .unwrap();
+    let baseline =
+        sealed(reviewer().review(ReviewInput::Workspace(workspace.path())));
+    for inventory in [
+        r#"{"schema_version":1,"entries":[{"path":"velocity.py","language":"rust"}]}"#,
+        "{malformed",
+        r#"{"entries":[{"path":"../missing.rs","language":"rust"}]}"#,
+    ] {
+        std::fs::write(
+            workspace.path().join(".csu-inventory.json"),
+            inventory,
+        )
+        .unwrap();
+        let review = sealed(
+            reviewer().review(ReviewInput::Workspace(workspace.path())),
         );
-        assert_eq!(review.metrics().byte_sweeps, 1);
-        assert_eq!(review.metrics().structural_parses, 1);
+        assert_eq!(review.canonical_bytes(), baseline.canonical_bytes());
     }
 }
 
-/// 验证审查终态证据场景
+/// 验证各事实类别均有检查结果且不依赖位掩码
 #[test]
-fn inventoried_file_read_failure_seals_incomplete() {
-    let workspace = tempfile::tempdir().unwrap();
-    std::fs::write(
-        workspace.path().join(".csu-inventory.json"),
-        concat!(
-            r#"{"schema_version":1,"entries":[{"path":"missing.py","#,
-            r#""language":"python"}]}"#
-        ),
-    )
-    .unwrap();
+fn coverage_closes_all_owned_families_without_mask() {
+    let review =
+        sealed(reviewer().review(ReviewInput::Documents(DocumentSet {
+            revision: "invalid-utf8",
+            documents: &[SourceDocument {
+                relative_path: "src/velocity.py",
+                bytes: b"# \xce\xb1\r\n    \xc3\xa9\xff",
+            }],
+        })));
+    let expected = "observation method tree-sitter-python@0.25.0+direct-source-facts-v3 rejected source at 2:7: source is not valid UTF-8";
+    let blocked = FactFamilyState::Blocked(expected.to_owned());
 
-    let terminal = reviewer().review(ReviewInput::Workspace(workspace.path()));
-
-    assert_eq!(terminal.disposition(), Disposition::Incomplete);
-    let ReviewTerminal::Sealed(review) = terminal else {
-        panic!("post-inventory capture failure must still produce a Seal");
-    };
-    assert_eq!(review.completion(), Completion::Incomplete);
-    assert!(review.findings().is_empty());
-    let coverage = &review.coverage().files()[0];
-    let blocked: Vec<_> = coverage
-        .families()
-        .iter()
-        .filter_map(|(family, state)| {
-            matches!(state, FactFamilyState::Blocked(_)).then_some(*family)
-        })
-        .collect();
+    assert_eq!(review.completion(), csu::Completion::Incomplete);
+    assert_eq!(review.findings()[0].rule(), "source.parseability");
+    assert_eq!(review.findings()[0].observation(), expected);
+    assert_eq!(review.metrics().files_read, 1);
+    assert_eq!(review.metrics().byte_sweeps, 1);
+    assert_eq!(review.metrics().structural_parses, 0);
     assert_eq!(
-        blocked,
-        vec![
-            FactFamily::Capture,
-            FactFamily::PhysicalLines,
-            FactFamily::Structure,
-            FactFamily::Identifier,
-            FactFamily::Documentation,
+        review.coverage().files()[0].families(),
+        &[
+            (FactFamily::Capture, FactFamilyState::Complete(1)),
+            (FactFamily::PhysicalLines, FactFamilyState::Complete(2)),
+            (FactFamily::Structure, blocked.clone()),
+            (FactFamily::Identifier, blocked.clone()),
+            (FactFamily::Documentation, blocked.clone()),
+            (FactFamily::DependencyDeclaration, blocked),
         ]
     );
-    assert_eq!(review.metrics().files_read, 0);
-    assert_eq!(review.metrics().byte_sweeps, 0);
-    assert_eq!(review.metrics().structural_parses, 0);
+}
+
+/// 验证五类审查输入的规范字节与封存摘要
+#[test]
+fn review_identity_is_canonical() {
+    let cases: [(&str, &str, &[u8], &str, &str); 5] = [
+        (
+            "clean",
+            "src/velocity.py",
+            "def _calculate_velocity():\n    \"\"\"\n    计算平均速度\n    \"\"\"\n    return 1\n".as_bytes(),
+            "f7cf255153f561a3522da6804825949a25afafc8c6da39eb36010aa5f2298256",
+            "92d931b0397b490dd162c731a9189dca307abc62e15400774161185db1b297f1",
+        ),
+        ("findings", "src/value.py", b"Q = 1\n", "04b3106d02de61ccdd7ba0778c1e9a3c7939b08f54e5acacc9def0f01573d9bd", "26c29d14c5324fcf01943fe62fe39cb566446f532e3dff30b42b43d2c8997703"),
+        ("source-rejected", "src/value.py", b"\xff", "54b934be912cecdcb9339412074be7af4a1830f4a0e1c357734656c9eb1f1201", "1015ef6ed11dd99ef4baba04e27f1229198f4bb5b16b4a27df97b4c6a4f36fb2"),
+        ("documentation-blocked", "src/unowned.c", "/**\n * 计算平均速度\n */\ndouble calculate_velocity(void);\n".as_bytes(), "de125e4e34a7bc5e601d7f3c1ea7a657353eae4c819a43ebbb2b44398650b0fc", "51284c30f00839daab75a77872e60b5b8cf5965a80ce32a0db051debab3aa7b2"),
+        ("dependency-blocked", "src/dependency.py", b"import os\n", "e76b7754a992e5f3ea64215a1e1a1705a28873136eba1932306c6f1f94658996", "3b43f48187bfafceab4f392d43f1057dcb4d1a34c5ef6000d8b1400cc5037585"),
+    ];
+    for (identity, path, bytes, canonical, seal) in cases {
+        let documents = [SourceDocument {
+            relative_path: path,
+            bytes,
+        }];
+        let review =
+            sealed(reviewer().review(ReviewInput::Documents(DocumentSet {
+                revision: &format!("golden-{identity}"),
+                documents: &documents,
+            })));
+        assert_eq!(
+            blake3::hash(&review.canonical_bytes()).to_hex().as_str(),
+            canonical
+        );
+        assert_eq!(review.seal(), seal);
+    }
+}
+
+/// 验证四语言允许的行末指令及相近的非法写法
+#[test]
+fn profile_directives_and_trailing_comments_are_exact() {
+    for row in include_str!("fixtures/trailing-comments.tsv").lines() {
+        let mut fields = row.splitn(3, '\t');
+        let path = fields.next().unwrap();
+        let expected = fields.next().unwrap().parse::<usize>().unwrap();
+        let source = fields.next().unwrap().replace("\\n", "\n");
+        let review =
+            sealed(review_sources(&reviewer(), path, &[(path, &source)]));
+        let count = review
+            .findings()
+            .iter()
+            .filter(|finding| finding.rule() == "source.trailing_comment")
+            .count();
+        assert_eq!(count, expected, "{path}");
+    }
+}
+
+/// 验证未注册词元的结果确定，注册变更可还原
+#[test]
+fn project_registry_changes_new_authority_identity() {
+    let mut base: serde_json::Value = serde_json::from_str(AUTHORITY).unwrap();
+    base["token_vocabulary"]
+        .as_array_mut()
+        .unwrap()
+        .extend([serde_json::json!("phase"), serde_json::json!("value")]);
+    let mut admitted = base.clone();
+    admitted["token_vocabulary"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!("mystery"));
+    let execute = |authority: &serde_json::Value| {
+        sealed(review_sources(
+            &compile_value(authority).unwrap(),
+            "registration",
+            &[
+                ("src/registration.py", "mystery_value = 1\nphase_m = 1\n"),
+                ("src/registration.c", "int _mystery;\n"),
+            ],
+        ))
+    };
+    let first = execute(&base);
+    let second = execute(&admitted);
+    let third = execute(&base);
+
+    assert_eq!(first.canonical_bytes(), third.canonical_bytes());
+    assert_ne!(authority_digest(&first), authority_digest(&second));
+    assert!(
+        first
+            .findings()
+            .iter()
+            .any(|finding| finding.rule() == "identifier.unknown_token")
+    );
+    assert!(
+        !second
+            .findings()
+            .iter()
+            .any(|finding| finding.rule() == "identifier.unknown_token")
+    );
+    for rule in ["identifier.reserved", "identifier.representation_suffix"] {
+        assert!(
+            second
+                .findings()
+                .iter()
+                .any(|finding| finding.rule() == rule)
+        );
+    }
+}
+
+/// 验证六类项目事实在访问源码前检查格式、位置和重复项
+#[test]
+fn authority_rows_are_closed_before_source_access() {
+    let rows = include_str!("fixtures/authority-rejections.jsonl")
+        .lines()
+        .collect::<Vec<_>>();
+    assert_raw_authority_rejected(&rows);
+    let mut authority: serde_json::Value =
+        serde_json::from_str(AUTHORITY).unwrap();
+    authority["external_fixed_identifiers"] = serde_json::json!([{
+        "profile": "rust",
+        "role": "function",
+        "owner": "fmt::r#type",
+        "spelling": "fmt"
+    }]);
+    let review = sealed(review_sources(
+        &compile_value(&authority).unwrap(),
+        "raw-trait-owner",
+        &[(
+            "src/value.rs",
+            "struct Velocity;\nimpl fmt::r#type for Velocity {\n    /// 格式化速度\n    fn fmt(&self) {}\n}\n",
+        )],
+    ));
+    assert!(!review.findings().iter().any(|finding| {
+        finding.rule() == "identifier.unknown_token"
+            && finding.subject() == "fmt"
+    }));
+}
+
+/// 验证工作区拒绝非 Unicode 路径和规范化后重名的路径
+#[cfg(unix)]
+#[test]
+fn workspace_source_identity_is_unique() {
+    use std::os::unix::ffi::OsStringExt;
+
+    let assert_workspace_rejected = |path: &std::path::Path| {
+        assert_eq!(
+            reviewer()
+                .review(ReviewInput::Workspace(path))
+                .disposition(),
+            Disposition::Rejected
+        );
+    };
+    let invalid = tempfile::tempdir().unwrap();
+    let name = std::ffi::OsString::from_vec(b"value\xff.py".to_vec());
+    std::fs::write(invalid.path().join(name), VALID_PYTHON).unwrap();
+    assert_workspace_rejected(invalid.path());
+    let root = tempfile::tempdir().unwrap();
+    let root = root
+        .path()
+        .join(std::ffi::OsString::from_vec(b"root\xff".to_vec()));
+    std::fs::create_dir(&root).unwrap();
+    assert_workspace_rejected(&root);
+
+    let collision = tempfile::tempdir().unwrap();
+    std::fs::create_dir(collision.path().join("src")).unwrap();
+    std::fs::write(collision.path().join("src/value.py"), VALID_PYTHON)
+        .unwrap();
+    std::fs::write(collision.path().join("src\\value.py"), VALID_PYTHON)
+        .unwrap();
+    assert_workspace_rejected(collision.path());
+}
+
+/// 验证量值名称在去重和访问源码前完成语法检查
+#[test]
+fn quantity_admission_closes_raw_grammar_before_review() {
+    for (case, quantity) in [
+        ("empty concept", r#"{"":["rad"]}"#),
+        ("concept whitespace", r#"{"phase offset":["rad"]}"#),
+        ("empty family", r#"{"phase":[]}"#),
+        ("duplicate suffix", r#"{"phase":["rad","rad"]}"#),
+        ("uppercase concept", r#"{"Phase":["rad"]}"#),
+        ("uppercase suffix", r#"{"phase":["RAD"]}"#),
+        ("suffix whitespace", r#"{"phase":["rad "]}"#),
+        ("leading separator", r#"{"_phase":["rad"]}"#),
+        ("trailing separator", r#"{"phase_":["rad"]}"#),
+        ("repeated separator", r#"{"phase__offset":["rad"]}"#),
+        ("suffix leading separator", r#"{"phase":["_rad"]}"#),
+        ("suffix trailing separator", r#"{"phase":["rad_"]}"#),
+        ("suffix repeated separator", r#"{"phase":["m__s"]}"#),
+        ("leading digit", r#"{"phase":["2m"]}"#),
+        ("interleaved digit", r#"{"phase":["m2s"]}"#),
+        ("decomposition", r#"{"phase":["rad"],"phase_rad":["deg"]}"#),
+    ] {
+        let mut authority = serde_json::json!({"schema_version": 4});
+        authority["quantity_concepts"] =
+            serde_json::from_str(quantity).unwrap();
+        let code = compile_value(&authority)
+            .err()
+            .map(|rejection| rejection.code().to_owned());
+        assert_eq!(code.as_deref(), Some("authority.quantity"), "{case}");
+    }
+    let mut valid = serde_json::json!({"schema_version": 4});
+    valid["quantity_concepts"] =
+        serde_json::json!({"acceleration": ["m_per_s2"]});
+    compile_value(&valid).expect("trailing suffix digits must compile");
+}
+
+/// 验证项目事实重排不改变身份，内容变化改变身份
+#[test]
+fn project_fact_identity_is_canonical_and_changes_with_facts() {
+    let base: serde_json::Value = serde_json::from_str(AUTHORITY).unwrap();
+    let base_identity = authority_identity(&base);
+    let mut explicit_empty_dependency = base.clone();
+    explicit_empty_dependency["dependency_authority"] = serde_json::json!({});
+    assert_eq!(
+        base_identity,
+        authority_identity(&explicit_empty_dependency)
+    );
+    let mut permuted = base.clone();
+    permuted["token_vocabulary"]
+        .as_array_mut()
+        .unwrap()
+        .reverse();
+    for suffixes in permuted["quantity_concepts"]
+        .as_object_mut()
+        .unwrap()
+        .values_mut()
+    {
+        suffixes.as_array_mut().unwrap().reverse();
+    }
+    assert_eq!(base_identity, authority_identity(&permuted));
+    for (field, value) in [
+        ("public_callables", "{}"),
+        ("token_vocabulary", "[]"),
+        ("quantity_concepts", "{}"),
+        (
+            "external_fixed_identifiers",
+            r#"[{"profile":"rust","role":"function","owner":"fmt::Display","spelling":"fmt"}]"#,
+        ),
+        ("dependency_authority", r#"{"python_reorder_safe":true}"#),
+    ] {
+        let mut changed = base.clone();
+        changed[field] = serde_json::from_str(value).unwrap();
+        assert_ne!(base_identity, authority_identity(&changed), "{field}");
+        assert_trailing_hard(&changed);
+    }
+    let mut changed_header = base.clone();
+    changed_header["header_languages"]["documents/valid/c/calculate_velocity.h"] =
+        serde_json::json!("cpp");
+    assert_ne!(base_identity, authority_identity(&changed_header));
+    assert_trailing_hard(&changed_header);
+    let first = br#"{"schema_version":4,"quantity_concepts":{"alpha":["rad"],"beta":["deg"]}}"#;
+    let second = br#"{"schema_version":4,"quantity_concepts":{"beta":["deg"],"alpha":["rad"]}}"#;
+    assert_eq!(
+        authority_identity_bytes(first),
+        authority_identity_bytes(second)
+    );
+}
+
+/// 验证文件与内存输入对六种语言选择情形给出相同证据
+#[test]
+fn source_inputs_share_profile_admission() {
+    let mut authority: serde_json::Value =
+        serde_json::from_str(AUTHORITY).unwrap();
+    authority["public_callables"] = serde_json::json!({});
+    authority["header_languages"] =
+        serde_json::json!({"c_header.h": "c", "cpp_header.h": "cpp"});
+    let reviewer = compile_value(&authority).unwrap();
+    let cases: [(&str, &[u8]); 6] = [
+        ("value.py", b"distance_m = 1\n"),
+        ("value.rs", b"const DISTANCE_M: i32 = 1;\n"),
+        ("value.c", b"int distance_m;\n"),
+        ("value.cpp", b"int distance_m;\n"),
+        ("c_header.h", b"int distance_m;\n"),
+        ("cpp_header.h", b"int distance_m;\n"),
+    ];
+    let documents = cases.map(|(relative_path, bytes)| SourceDocument {
+        relative_path,
+        bytes,
+    });
+    let document_review =
+        sealed(reviewer.review(ReviewInput::Documents(DocumentSet {
+            revision: "transport-correspondence",
+            documents: &documents,
+        })));
+    let workspace_results: [SealedReview; 2] = std::array::from_fn(|_| {
+        let workspace = tempfile::tempdir().unwrap();
+        for (relative_path, bytes) in cases {
+            std::fs::write(workspace.path().join(relative_path), bytes)
+                .unwrap();
+        }
+        sealed(reviewer.review(ReviewInput::Workspace(workspace.path())))
+    });
+    let [first, second] = &workspace_results;
+    let projections = [&document_review, first, second].map(|review| {
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&review.canonical_bytes()).unwrap();
+        value.as_object_mut().unwrap().remove("scope");
+        value.as_object_mut().unwrap().remove("seal");
+        value
+    });
+    assert!(projections.windows(2).all(|pair| pair[0] == pair[1]));
+    assert_ne!(first.seal(), second.seal());
+}
+
+/// 验证无效文档身份与未知语言在读取源码前被拒绝
+#[test]
+fn document_identity_validate_before_capture() {
+    let reviewer = reviewer();
+    let assert_rejected = |sources: &[(&str, &str)]| {
+        assert_eq!(
+            review_sources(&reviewer, "invalid-document", sources)
+                .disposition(),
+            Disposition::Rejected
+        );
+    };
+    assert_rejected(&[
+        ("src/value.py", "distance_m = 1\n"),
+        ("src\\value.py", "distance_m = 1\n"),
+    ]);
+    for path in [
+        "",
+        "src/./value.py",
+        "src/../value.py",
+        "src//value.py",
+        "/src/value.py",
+        r"C:\src\value.py",
+        "src/value.h",
+        "src/value.txt",
+    ] {
+        assert_rejected(&[(path, "distance_m = 1\n")]);
+    }
 }

@@ -1,2 +1,0 @@
-2026-08-08T18:49:51.323113Z ERROR codex_core::tools::router: error=`"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command ".\\metacraft.exe conduct --help"` rejected: blocked by policy
-2026-08-08T18:50:01.035835Z ERROR codex_core::tools::router: error=`"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Recurse -Force '.\\prepared-application-root' | Select-Object FullName,Length,LastWriteTime"` rejected: blocked by policy

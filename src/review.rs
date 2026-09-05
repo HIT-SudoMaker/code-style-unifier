@@ -1,15 +1,24 @@
 use crate::authority::CompiledAuthority;
-use crate::authority::ProjectionState;
+use crate::authority::DependencyProfileLaw;
+use crate::authority::DocumentationCarrierLaw;
+use crate::authority::DocumentationRole;
+use crate::authority::ProfileLaw;
+use crate::authority::QuantityNameDisposition;
+use crate::authority::ReturnShape;
 use crate::authority::ReviewRejection;
 use crate::authority::RuleOperator;
-use crate::authority::SourceForm;
+use crate::authority::SourceProfile as Language;
+use crate::authority::TokenDisposition;
+use crate::authority::callable_is_reserved;
+use crate::authority::narrative_law;
 use crate::authority::normalize_relative_path;
+use crate::authority::profile_law;
 use crate::model::CompactCoverage;
-use crate::model::Completion;
-use crate::model::FactFamily;
 use crate::model::FactFamilyState;
+use crate::model::FamilyClosure;
 use crate::model::FileCoverage;
 use crate::model::Finding;
+use crate::model::REVIEW_SCHEMA_VERSION;
 use crate::model::ReviewFailure;
 use crate::model::ReviewInput;
 use crate::model::ReviewMetrics;
@@ -24,32 +33,18 @@ use tree_sitter::Language as TreeSitterLanguage;
 use tree_sitter::Node;
 use tree_sitter::Parser;
 use walkdir::WalkDir;
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Language {
-    Python,
-    Rust,
-    ProceduralSource,
-    Cplusplus,
-}
-
-impl Language {
-    /// 执行 `key` 内部逻辑
-    fn key(self) -> &'static str {
-        match self {
-            Self::Python => "python",
-            Self::Rust => "rust",
-            Self::ProceduralSource => "c",
-            Self::Cplusplus => "cpp",
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 struct OwnedDocument {
     path: String,
     bytes: Vec<u8>,
     language: Language,
     capture_error: Option<String>,
+}
+
+/// 表示已确定路径和语言的源码输入
+struct AdmittedSource {
+    path: String,
+    language: Language,
 }
 
 type CaptureResult = Result<
@@ -59,10 +54,8 @@ type CaptureResult = Result<
 
 #[derive(Debug)]
 struct FileResult {
-    path: String,
+    coverage: FileCoverage,
     findings: Vec<Finding>,
-    required_mask: u8,
-    families: [FactFamilyState; 7],
     snapshot_digest: [u8; 32],
     byte_sweeps: u64,
     structural_parses: u64,
@@ -88,28 +81,22 @@ struct Callable {
     carrier_unresolved: bool,
 }
 
+/// 汇总一个 Rust 声明附着的属性事实
+struct RustAttributeFacts<'tree> {
+    documentation: Vec<String>,
+    /// 是否观察到精确 macro_export 属性
+    is_public: bool,
+    nonliteral_documentation: bool,
+    preceding: Option<Node<'tree>>,
+    attachment_start: usize,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DocumentationVisibility {
     Public,
     Internal,
+    IdentityUnresolved,
     Unresolved,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum DocumentationRole {
-    TemplateParameters,
-    Arguments,
-    Returns,
-    Failures,
-    Effect,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ReturnShape {
-    NoValue,
-    Never,
-    Value,
-    Unknown,
 }
 
 #[derive(Clone, Debug)]
@@ -121,6 +108,15 @@ struct Declaration {
     role: IdentifierRole,
     local_form: LocalIdentifierForm,
     reserved_scope: bool,
+    owner: IdentifierOwner,
+    external_owner: Option<String>,
+}
+
+/// 在一次遍历中拥有声明观察所需的稳定上下文与输出
+struct DeclarationReview<'source> {
+    language: Language,
+    source: &'source [u8],
+    output: Vec<Declaration>,
 }
 
 #[derive(Debug)]
@@ -129,6 +125,15 @@ struct LocalFacts {
     declarations: Vec<Declaration>,
     python_module_docstring: Option<(usize, usize)>,
     dependencies: DependencyFacts,
+    trailing_comments: Vec<TrailingComment>,
+}
+
+/// 表示同一物理行中跟随代码的 comment token
+#[derive(Debug)]
+struct TrailingComment {
+    line: usize,
+    column: usize,
+    end_row: usize,
 }
 
 #[derive(Debug)]
@@ -136,6 +141,50 @@ struct ParseEvidence {
     line: usize,
     column: usize,
     reason: &'static str,
+}
+
+/// 为同一源码路径构造可稳定排序的审查问题
+struct FindingState<'path> {
+    path: &'path str,
+    findings: Vec<Finding>,
+}
+
+impl<'path> FindingState<'path> {
+    /// 开始收集单个文件的审查问题
+    fn new(path: &'path str) -> Self {
+        Self {
+            path,
+            findings: Vec::new(),
+        }
+    }
+
+    /// 根据固定规则目录追加一个源码问题
+    fn push(
+        &mut self,
+        operator: RuleOperator,
+        line: usize,
+        column: usize,
+        subject: &str,
+        observation: &str,
+    ) {
+        let rule = operator.law();
+        self.findings.push(Finding {
+            rule: rule.identity.to_owned(),
+            grade: rule.grade,
+            path: self.path.to_owned(),
+            line,
+            column,
+            subject: subject.to_owned(),
+            observation: observation.to_owned(),
+            question: rule.question.map(str::to_owned),
+            message: rule.message.to_owned(),
+        });
+    }
+
+    /// 返回本文件已收集的全部问题
+    fn complete(self) -> Vec<Finding> {
+        self.findings
+    }
 }
 
 #[derive(Debug)]
@@ -161,6 +210,40 @@ enum IdentifierRole {
     ModuleBinding,
 }
 
+/// 表示从语言结构识别的标识符归属
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum IdentifierOwner {
+    /// 语法或语言身份固定拼写，例如 Rust 类型上下文 `Self`
+    LanguageFixed,
+    /// 语言结构确定的约定名称，例如 Python 首位接收者
+    ProfileFixed,
+    /// 语法证明的非绑定丢弃角色
+    Discard,
+    /// 作者选择，进入正常候选/词形/量纲判定
+    AuthorChosen,
+}
+
+impl IdentifierRole {
+    /// 返回声明角色对应的 Authority 拼写
+    fn key(self) -> &'static str {
+        match self {
+            Self::Value => "value",
+            Self::Function => "function",
+            Self::Type => "type",
+            Self::Constant => "constant",
+            Self::Enumerator => "enumerator",
+            Self::Variant => "variant",
+            Self::Typedef => "typedef",
+            Self::ModuleNamespace => "module_namespace",
+            Self::Tag => "tag",
+            Self::Lifetime => "lifetime",
+            Self::Label => "label",
+            Self::Alias => "alias",
+            Self::ModuleBinding => "module_binding",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum LocalIdentifierForm {
     Plain,
@@ -173,7 +256,7 @@ enum LocalIdentifierForm {
     CplusplusPrivateMember,
 }
 
-/// 执行 `review` 内部逻辑
+/// 审查输入源码并汇总各文件结果
 pub(crate) fn review(
     authority: &CompiledAuthority,
     input: ReviewInput<'_>,
@@ -197,7 +280,7 @@ pub(crate) fn review(
     seal(authority, scope, results, run_metrics)
 }
 
-/// 执行 `capture` 内部逻辑
+/// 读取审查输入并记录文件快照
 fn capture(
     authority: &CompiledAuthority,
     input: ReviewInput<'_>,
@@ -213,24 +296,27 @@ fn capture(
             let mut paths = BTreeSet::new();
             let mut documents = Vec::with_capacity(set.documents.len());
             for document in set.documents {
-                let path = normalize_relative_path(document.relative_path)?;
-                if !paths.insert(path.clone()) {
-                    return Err(ReviewRejection::new(
-                        "request.path",
-                        format!("duplicate document path {path}"),
-                    ));
-                }
-                let Some(language) = language_for_document(authority, &path)?
+                let Some(admitted) =
+                    source_admission(authority, document.relative_path)?
                 else {
                     return Err(ReviewRejection::new(
                         "request.language",
-                        format!("document language is not governed: {path}"),
+                        format!(
+                            "document language is not governed: {}",
+                            document.relative_path
+                        ),
                     ));
                 };
+                if !paths.insert(admitted.path.clone()) {
+                    return Err(ReviewRejection::new(
+                        "request.path",
+                        format!("duplicate document path {}", admitted.path),
+                    ));
+                }
                 documents.push(OwnedDocument {
-                    path,
+                    path: admitted.path,
                     bytes: document.bytes.to_vec(),
-                    language,
+                    language: admitted.language,
                     capture_error: None,
                 });
             }
@@ -254,7 +340,7 @@ fn capture(
     }
 }
 
-/// 执行 `capture_workspace` 内部逻辑
+/// 遍历工作区并读取纳入审查的源码
 fn capture_workspace(
     authority: &CompiledAuthority,
     root: &Path,
@@ -265,17 +351,20 @@ fn capture_workspace(
             format!("cannot open workspace {}: {error}", root.display()),
         )
     })?;
-    let inventory_path = canonical.join(".csu-inventory.json");
-    if inventory_path.is_file() {
-        return capture_manifest_workspace(&canonical, &inventory_path);
-    }
-    let mut inventory = Vec::new();
+    let scope_root = canonical.to_str().ok_or_else(|| {
+        ReviewRejection::new(
+            "request.workspace",
+            "canonical workspace path is not valid Unicode",
+        )
+    })?;
+    let mut admitted_sources = Vec::new();
+    let mut admitted_paths = BTreeSet::new();
     for entry in WalkDir::new(&canonical)
         .follow_links(false)
         .sort_by_file_name()
     {
         let entry = entry.map_err(|error| {
-            ReviewRejection::new("request.inventory", error.to_string())
+            ReviewRejection::new("request.workspace", error.to_string())
         })?;
         if !entry.file_type().is_file() {
             continue;
@@ -284,148 +373,46 @@ fn capture_workspace(
             entry.path().strip_prefix(&canonical).map_err(|_| {
                 ReviewRejection::new(
                     "request.path",
-                    "inventoried file escaped workspace",
+                    "source file escaped workspace",
                 )
             })?;
-        let path = normalize_relative_path(&relative.to_string_lossy())?;
-        let language = match language_for_document(authority, &path) {
-            Ok(Some(language)) => language,
-            Ok(None) => continue,
-            Err(rejection) => return Err(rejection),
-        };
-        inventory.push((path, entry.path().to_path_buf(), language));
-    }
-    inventory.sort_by(|left, right| left.0.cmp(&right.0));
-    let mut documents = Vec::with_capacity(inventory.len());
-    for (path, source_path, language) in inventory {
-        documents.push(read_document(
-            path,
-            language,
-            Some(&source_path),
-            None,
-        ));
-    }
-    close_workspace_capture(&canonical, documents)
-}
-
-#[derive(serde::Deserialize)]
-struct WorkspaceInventory {
-    schema_version: u32,
-    entries: Vec<WorkspaceInventoryEntry>,
-}
-
-#[derive(serde::Deserialize)]
-struct WorkspaceInventoryEntry {
-    path: String,
-    language: String,
-}
-
-/// 执行 `capture_manifest_workspace` 内部逻辑
-fn capture_manifest_workspace(
-    root: &Path,
-    inventory_path: &Path,
-) -> CaptureResult {
-    let inventory_bytes = fs::read(inventory_path).map_err(|error| {
-        ReviewRejection::new(
-            "request.inventory",
-            format!("cannot read {}: {error}", inventory_path.display()),
-        )
-    })?;
-    let inventory: WorkspaceInventory =
-        serde_json::from_slice(&inventory_bytes).map_err(|error| {
+        let relative = relative.to_str().ok_or_else(|| {
             ReviewRejection::new(
-                "request.inventory",
-                format!("invalid .csu-inventory.json: {error}"),
+                "request.path",
+                "workspace source path is not valid Unicode",
             )
         })?;
-    if inventory.schema_version != 1 {
-        return Err(ReviewRejection::new(
-            "request.inventory",
-            "only workspace inventory schema_version 1 is supported",
-        ));
-    }
-    let mut seen = BTreeSet::new();
-    let mut admitted = Vec::with_capacity(inventory.entries.len());
-    for entry in inventory.entries {
-        let path = normalize_relative_path(&entry.path)?;
-        if !seen.insert(path.clone()) {
+        let Some(admitted) = source_admission(authority, relative)? else {
+            continue;
+        };
+        if !admitted_paths.insert(admitted.path.clone()) {
             return Err(ReviewRejection::new(
-                "request.inventory",
-                format!("duplicate inventory path {path}"),
+                "request.path",
+                "distinct source paths collide after normalization",
             ));
         }
-        let language = parse_language(&entry.language)?;
-        let source_path = root.join(Path::new(&path));
-        admitted.push((path, language, source_path));
-    }
-    admitted.sort_by(|left, right| left.0.cmp(&right.0));
-
-    let mut prepared = Vec::with_capacity(admitted.len());
-    for (path, language, source_path) in admitted {
-        let (canonical_source, capture_error) = match source_path
-            .canonicalize()
-        {
-            Ok(canonical_source) if !canonical_source.starts_with(root) => {
-                return Err(ReviewRejection::new(
-                    "request.path",
-                    format!("inventoried source escapes workspace: {path}"),
-                ));
-            }
-            Ok(canonical_source) => (Some(canonical_source), None),
-            Err(error) => (
-                None,
-                Some(format!(
-                    "cannot open inventoried source {path}: {error}"
-                )),
-            ),
-        };
-        prepared.push((path, language, canonical_source, capture_error));
-    }
-
-    let mut documents = Vec::with_capacity(prepared.len());
-    for (path, language, canonical_source, prior_error) in prepared {
-        documents.push(read_document(
-            path,
-            language,
-            canonical_source.as_deref(),
-            prior_error,
+        admitted_sources.push((
+            admitted.path,
+            entry.path().to_path_buf(),
+            admitted.language,
         ));
     }
-    close_workspace_capture(root, documents)
-}
-
-/// 捕获一个已准入文档，保留可审计的读取失败
-fn read_document(
-    path: String,
-    language: Language,
-    source_path: Option<&Path>,
-    prior_error: Option<String>,
-) -> OwnedDocument {
-    let (bytes, capture_error) = match source_path {
-        Some(source_path) => match fs::read(source_path) {
+    let mut documents = Vec::with_capacity(admitted_sources.len());
+    for (path, source_path, language) in admitted_sources {
+        let (bytes, capture_error) = match fs::read(source_path) {
             Ok(bytes) => (bytes, None),
             Err(error) => (
                 Vec::new(),
-                Some(format!(
-                    "cannot read inventoried source {path}: {error}"
-                )),
+                Some(format!("cannot read admitted source {path}: {error}")),
             ),
-        },
-        None => (Vec::new(), prior_error),
-    };
-    OwnedDocument {
-        path,
-        bytes,
-        language,
-        capture_error,
+        };
+        documents.push(OwnedDocument {
+            path,
+            bytes,
+            language,
+            capture_error,
+        });
     }
-}
-
-/// 以唯一顺序封闭工作区捕获范围与读取计数
-fn close_workspace_capture(
-    root: &Path,
-    mut documents: Vec<OwnedDocument>,
-) -> CaptureResult {
     documents.sort_by(|left, right| left.path.cmp(&right.path));
     let files = documents.iter().map(|item| item.path.clone()).collect();
     let files_read = documents
@@ -434,7 +421,7 @@ fn close_workspace_capture(
         .count() as u64;
     Ok((
         ReviewedScope::Workspace {
-            root: root.to_string_lossy().replace('\\', "/"),
+            root: scope_root.replace('\\', "/"),
             files,
         },
         documents,
@@ -445,39 +432,17 @@ fn close_workspace_capture(
     ))
 }
 
-/// 将 captured document 构造为完整文件终态
+/// 根据已读取文档生成文件审查终态
 fn close_file(
     authority: &CompiledAuthority,
     document: &OwnedDocument,
 ) -> Result<FileResult, ReviewFailure> {
     let snapshot_digest = *blake3::hash(&document.bytes).as_bytes();
-    let language = document.language;
-    let required_mask = required_family_mask(authority, language);
-    let (findings, families, byte_sweeps, structural_parses) =
+    let (findings, closure, byte_sweeps, structural_parses) =
         if let Some(reason) = &document.capture_error {
-            let blocked = || FactFamilyState::Blocked(reason.clone());
-            let projection = |family| match authority
-                .projection(family, language.key())
-            {
-                ProjectionState::NotApplicable => FactFamilyState::NotRequired,
-                ProjectionState::Supported
-                | ProjectionState::NeedsAuthority => blocked(),
-            };
             (
                 Vec::new(),
-                [
-                    blocked(),
-                    blocked(),
-                    blocked(),
-                    projection("identifier"),
-                    projection("documentation"),
-                    if authority.families.contains("dependency") {
-                        projection("dependency")
-                    } else {
-                        FactFamilyState::NotRequired
-                    },
-                    FactFamilyState::NotRequired,
-                ],
+                FamilyClosure::CaptureBlocked(reason.clone()),
                 0,
                 0,
             )
@@ -490,7 +455,7 @@ fn close_file(
             } as u32;
             let (observation, structural_parses) =
                 observe_structure(document)?;
-            let (findings, families) = match observation {
+            let (findings, closure) = match observation {
                 StructuralObservation::Complete(facts) => {
                     close_complete_source(
                         authority,
@@ -500,40 +465,34 @@ fn close_file(
                     )
                 }
                 StructuralObservation::SourceRejected(evidence) => {
-                    close_source_rejection(
-                        authority,
-                        document,
-                        physical_lines,
-                        evidence,
-                    )
+                    close_source_rejection(document, physical_lines, evidence)
                 }
             };
-            (findings, families, 1, structural_parses)
+            (findings, closure, 1, structural_parses)
         };
     Ok(FileResult {
-        path: document.path.clone(),
+        coverage: FileCoverage::close(document.path.clone(), closure),
         findings,
-        required_mask,
-        families,
         snapshot_digest,
         byte_sweeps,
         structural_parses,
     })
 }
 
-/// 对已接受的结构事实执行可满足 Judgment 并闭合事实族
+/// 检查已提取的结构事实并记录各类结果
 fn close_complete_source(
     authority: &CompiledAuthority,
     document: &OwnedDocument,
     physical_lines: u32,
     facts: LocalFacts,
-) -> (Vec<Finding>, [FactFamilyState; 7]) {
+) -> (Vec<Finding>, FamilyClosure) {
     let language = document.language;
     let LocalFacts {
         mut callables,
         declarations,
         python_module_docstring,
         dependencies,
+        trailing_comments,
     } = facts;
     resolve_native_public_visibility(
         authority,
@@ -541,16 +500,12 @@ fn close_complete_source(
         &mut callables,
     );
     reject_ambiguous_public_callable_identities(&mut callables);
-    let documentation_projection =
-        authority.projection("documentation", language.key());
-    let identifier_projection =
-        authority.projection("identifier", language.key());
-    let mut findings = Vec::new();
+    let mut findings = FindingState::new(&document.path);
+    let documentation_block_reason =
+        unresolved_documentation_reason(&callables);
     if let Some((line, column)) = python_module_docstring {
-        push_rule_findings(
-            authority,
+        findings.push(
             RuleOperator::DocumentationCarrier,
-            &document.path,
             line,
             column,
             "<module>",
@@ -558,146 +513,143 @@ fn close_complete_source(
                 "observed a suite-first constant string expression at ",
                 "Python module scope"
             ),
-            &mut findings,
         );
     }
-    let documentation_block_reason =
-        unresolved_documentation_reason(&callables);
-    if documentation_projection == ProjectionState::Supported {
-        for callable in &callables {
-            if callable.carrier_unresolved {
-                continue;
-            }
-            let Some(carrier) = &callable.carrier else {
-                push_rule_findings(
-                    authority,
-                    RuleOperator::DocumentationCarrier,
-                    &document.path,
-                    callable.line,
-                    callable.column,
-                    &callable.name,
-                    concat!(
-                        "the declaration has no directly attached ",
-                        "profile-recognized carrier"
-                    ),
-                    &mut findings,
-                );
-                continue;
-            };
-            let lines = documentation_lines(callable.language, carrier);
-            if !documentation_has_summary(authority, callable.language, &lines)
-            {
-                push_documentation_findings(
-                    authority,
-                    document,
-                    callable,
-                    RuleOperator::DocumentationSummary,
-                    &mut findings,
-                );
-                continue;
-            }
-            let has_public_contract = callable.named
-                && callable.visibility == DocumentationVisibility::Public;
-            let signature_is_resolved = callable.parameters_complete
-                && callable.template_parameters_complete
-                && callable.return_shape != ReturnShape::Unknown;
-            if controlled_line_has_terminator(
-                authority,
-                callable.language,
-                has_public_contract,
-                callable.requires_safety,
-                &lines,
-            ) {
-                push_documentation_findings(
-                    authority,
-                    document,
-                    callable,
-                    RuleOperator::DocumentationTerminator,
-                    &mut findings,
-                );
-            }
-            if has_public_contract
-                && signature_is_resolved
-                && !public_contract_is_complete(authority, callable, &lines)
-            {
-                push_documentation_findings(
-                    authority,
-                    document,
-                    callable,
-                    RuleOperator::DocumentationPublicContract,
-                    &mut findings,
-                );
-            }
-            if callable.requires_safety
-                && !rust_safety_contract_is_complete(&lines)
-            {
-                push_documentation_findings(
-                    authority,
-                    document,
-                    callable,
-                    RuleOperator::DocumentationSafety,
-                    &mut findings,
-                );
-            }
+    for callable in &callables {
+        if callable.carrier_unresolved {
+            continue;
+        }
+        let Some(carrier) = &callable.carrier else {
+            findings.push(
+                RuleOperator::DocumentationCarrier,
+                callable.line,
+                callable.column,
+                &callable.name,
+                concat!(
+                    "the declaration has no directly attached ",
+                    "profile-recognized carrier"
+                ),
+            );
+            continue;
+        };
+        let documented_lines = documentation_lines(callable.language, carrier);
+        let profile = profile_law(callable.language.key());
+        let summary = profile.documentation_summary(
+            documented_lines.iter().map(|line| line.text),
+        );
+        if summary.is_none_or(|line| {
+            profile.is_documentation_heading(line)
+                || callable.language == Language::Rust
+                    && rust_markdown_line_is_indented_code(line)
+                || !contains_chinese_phrase(line)
+        }) {
+            findings.push(
+                RuleOperator::DocumentationSummary,
+                callable.line,
+                callable.column,
+                &callable.name,
+                &format!(
+                    "observed attached documentation for {}",
+                    callable.name
+                ),
+            );
+            continue;
+        }
+        let has_public_contract = callable.named
+            && callable.visibility == DocumentationVisibility::Public;
+        let signature_is_resolved = callable.parameters_complete
+            && callable.template_parameters_complete
+            && (callable.return_shape != ReturnShape::Unknown
+                || !profile.return_surface.unknown_blocks_documentation);
+        if controlled_line_has_terminator(
+            callable.language,
+            has_public_contract,
+            callable.requires_safety,
+            &documented_lines,
+        ) {
+            findings.push(
+                RuleOperator::DocumentationTerminator,
+                callable.line,
+                callable.column,
+                &callable.name,
+                &format!(
+                    "observed attached documentation for {}",
+                    callable.name
+                ),
+            );
+        }
+        if has_public_contract
+            && signature_is_resolved
+            && let Err(defect) =
+                public_contract_is_complete(callable, &documented_lines)
+        {
+            findings.push(
+                RuleOperator::DocumentationPublicContract,
+                callable.line,
+                callable.column,
+                &callable.name,
+                &defect.observation(&callable.name),
+            );
+        }
+        if callable.requires_safety
+            && !rust_safety_contract_is_complete(&documented_lines)
+        {
+            findings.push(
+                RuleOperator::DocumentationSafety,
+                callable.line,
+                callable.column,
+                &callable.name,
+                &format!(
+                    "observed attached documentation for {}",
+                    callable.name
+                ),
+            );
         }
     }
-    if identifier_projection == ProjectionState::Supported {
-        for declaration in &declarations {
-            if let Some(operator) =
-                judge_identifier(authority, language, declaration)
-            {
-                push_identifier_findings(
-                    authority,
-                    document,
-                    declaration,
-                    operator,
-                    &mut findings,
-                );
-            }
+    for declaration in &declarations {
+        if let Some(operator) =
+            judge_identifier(authority, language, declaration)
+        {
+            findings.push(
+                operator,
+                declaration.line,
+                declaration.column,
+                &declaration.name,
+                &format!(
+                    "observed author-chosen declaration spelling {}",
+                    declaration.name
+                ),
+            );
         }
     }
-    let dependency =
-        judge_dependencies(authority, language, &dependencies, document);
-    findings.extend(dependency.findings);
-    findings.sort_by(finding_order);
+    let dependency_state =
+        judge_dependencies(authority, language, &dependencies, &mut findings);
+    for comment in &trailing_comments {
+        findings.push(
+            RuleOperator::SourceTrailingComment,
+            comment.line,
+            comment.column,
+            "<comment>",
+            "observed an ordinary comment sharing a physical line with code",
+        );
+    }
     let identifier_subjects = declarations.len() as u32;
-    let identifier_state = match identifier_projection {
-        ProjectionState::Supported => {
-            FactFamilyState::Complete(identifier_subjects)
-        }
-        ProjectionState::NotApplicable => FactFamilyState::NotRequired,
-        ProjectionState::NeedsAuthority => FactFamilyState::Blocked(
-            "Identifier projection requires Authority capability".to_owned(),
-        ),
-    };
-    let documentation_state = if documentation_projection
-        == ProjectionState::Supported
-        && let Some(reason) = documentation_block_reason
+    let documentation_state = if let Some(reason) = documentation_block_reason
     {
         FactFamilyState::Blocked(reason)
     } else {
         let subjects = callables.len() as u32
             + u32::from(python_module_docstring.is_some());
-        match documentation_projection {
-            ProjectionState::Supported => FactFamilyState::Complete(subjects),
-            ProjectionState::NotApplicable => FactFamilyState::NotRequired,
-            ProjectionState::NeedsAuthority => FactFamilyState::Blocked(
-                "Documentation projection requires Authority capability"
-                    .to_owned(),
-            ),
-        }
+        FactFamilyState::Complete(subjects)
     };
     (
-        findings,
-        [
-            FactFamilyState::Complete(1),
-            FactFamilyState::Complete(physical_lines),
-            FactFamilyState::Complete(identifier_subjects),
-            identifier_state,
-            documentation_state,
-            dependency.state,
-            FactFamilyState::NotRequired,
-        ],
+        findings.complete(),
+        FamilyClosure::Observed {
+            physical_lines,
+            identifier_subjects,
+            documentation: documentation_state,
+            dependency: dependency_state,
+        },
     )
 }
 
@@ -706,8 +658,12 @@ fn observe_structure(
     document: &OwnedDocument,
 ) -> Result<(StructuralObservation, u64), ReviewFailure> {
     if let Err(error) = std::str::from_utf8(&document.bytes) {
-        let (line, column) =
-            source_line_column(&document.bytes, error.valid_up_to());
+        let (line, column) = document.bytes[..error.valid_up_to()]
+            .iter()
+            .fold((1, 1), |(line, column), byte| match byte {
+                b'\n' => (line + 1, 1),
+                _ => (line, column + 1),
+            });
         return Ok((
             StructuralObservation::SourceRejected(ParseEvidence {
                 line,
@@ -752,12 +708,10 @@ fn observe_structure(
         false,
         &mut callables,
     );
-    let mut declarations = Vec::new();
-    collect_declarations(
+    let mut declarations = DeclarationReview::collect(
         language,
         tree.root_node(),
         &document.bytes,
-        &mut declarations,
     );
     declarations.sort_by(|left, right| {
         (left.line, left.column, &left.name).cmp(&(
@@ -783,6 +737,19 @@ fn observe_structure(
     };
     let dependencies =
         observe_dependencies(language, tree.root_node(), &document.bytes);
+    let profile = profile_law(language.key());
+    let mut trailing_comments = Vec::new();
+    let mut candidate_comments = Vec::new();
+    let mut last_code_row = None;
+    collect_trailing_comments(
+        profile,
+        language,
+        tree.root_node(),
+        &document.bytes,
+        &mut last_code_row,
+        &mut candidate_comments,
+        &mut trailing_comments,
+    );
     drop(tree);
     Ok((
         StructuralObservation::Complete(LocalFacts {
@@ -790,23 +757,71 @@ fn observe_structure(
             declarations,
             python_module_docstring,
             dependencies,
+            trailing_comments,
         }),
         1,
     ))
 }
 
-/// 返回 byte offset 对应的一基源码位置
-fn source_line_column(bytes: &[u8], offset: usize) -> (usize, usize) {
-    let prefix = &bytes[..offset.min(bytes.len())];
-    let line = prefix.iter().filter(|byte| **byte == b'\n').count() + 1;
-    let column = prefix
-        .iter()
-        .rposition(|byte| *byte == b'\n')
-        .map_or(prefix.len() + 1, |index| prefix.len() - index);
-    (line, column)
+/// 收集由 CST 证明且与代码共享物理行的普通 comment token
+fn collect_trailing_comments(
+    profile: &ProfileLaw,
+    language: Language,
+    node: Node<'_>,
+    source: &[u8],
+    last_code_row: &mut Option<usize>,
+    candidate_comments: &mut Vec<TrailingComment>,
+    output: &mut Vec<TrailingComment>,
+) {
+    let comment = node.kind() == "comment"
+        || language == Language::Rust
+            && matches!(node.kind(), "line_comment" | "block_comment");
+    if comment {
+        let point = node.start_position();
+        let text =
+            std::str::from_utf8(&source[node.start_byte()..node.end_byte()])
+                .expect("accepted source is valid UTF-8");
+        let end_row = node
+            .end_position()
+            .row
+            .saturating_sub(usize::from(text.ends_with('\n')));
+        let observation = TrailingComment {
+            line: point.row + 1,
+            column: point.column + 1,
+            end_row,
+        };
+        if *last_code_row == Some(point.row) && !profile.is_directive(text) {
+            output.push(observation);
+        } else {
+            candidate_comments.push(observation);
+        }
+        return;
+    }
+    if node.child_count() == 0 {
+        let start_row = node.start_position().row;
+        output.extend(
+            candidate_comments
+                .drain(..)
+                .filter(|comment| comment.end_row == start_row),
+        );
+        *last_code_row = Some(node.end_position().row);
+        return;
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        collect_trailing_comments(
+            profile,
+            language,
+            child,
+            source,
+            last_code_row,
+            candidate_comments,
+            output,
+        );
+    }
 }
 
-/// 返回最早 source-order ERROR 或 MISSING node
+/// 按源码顺序返回最早的 ERROR 或 MISSING 节点
 fn first_parse_error(root: Node<'_>) -> Option<Node<'_>> {
     let mut children = vec![root];
     while let Some(node) = children.pop() {
@@ -826,12 +841,14 @@ fn first_parse_error(root: Node<'_>) -> Option<Node<'_>> {
     None
 }
 
-/// 汇总无法闭合的 callable Documentation 事实
+/// 汇总函数文档缺少的必要事实
 fn unresolved_documentation_reason(callables: &[Callable]) -> Option<String> {
     let mut subjects = Vec::new();
     for callable in callables {
         let mut categories = Vec::with_capacity(5);
-        if callable.visibility == DocumentationVisibility::Unresolved {
+        if callable.visibility == DocumentationVisibility::IdentityUnresolved {
+            categories.push("identity");
+        } else if callable.visibility == DocumentationVisibility::Unresolved {
             categories.push("tier");
         }
         if callable.carrier_unresolved {
@@ -839,7 +856,6 @@ fn unresolved_documentation_reason(callables: &[Callable]) -> Option<String> {
         }
         if callable.named
             && callable.visibility == DocumentationVisibility::Public
-            && callable.carrier.is_some()
         {
             if !callable.parameters_complete {
                 categories.push("parameters");
@@ -847,7 +863,11 @@ fn unresolved_documentation_reason(callables: &[Callable]) -> Option<String> {
             if !callable.template_parameters_complete {
                 categories.push("template");
             }
-            if callable.return_shape == ReturnShape::Unknown {
+            if callable.return_shape == ReturnShape::Unknown
+                && profile_law(callable.language.key())
+                    .return_surface
+                    .unknown_blocks_documentation
+            {
                 categories.push("return");
             }
         }
@@ -871,33 +891,34 @@ fn unresolved_documentation_reason(callables: &[Callable]) -> Option<String> {
     })
 }
 
-/// 执行 `reject_ambiguous_public_callable_identities` 内部逻辑
+/// 将 C/C++ 同名公开函数标记为归属不明确
+///
+/// 歧义只统计具名 callable：class 等 unnamed subject 不与它的
+/// constructor 同名碰撞；真正的同名重载保持保守 Unresolved
 fn reject_ambiguous_public_callable_identities(callables: &mut [Callable]) {
     let mut counts = BTreeMap::new();
     for callable in callables.iter() {
-        if matches!(
-            callable.language,
-            Language::ProceduralSource | Language::Cplusplus
-        ) && callable.visibility == DocumentationVisibility::Public
+        if callable.named
+            && matches!(
+                callable.language,
+                Language::ProceduralSource | Language::Cplusplus
+            )
+            && callable.visibility == DocumentationVisibility::Public
         {
             *counts.entry(callable.name.clone()).or_insert(0_u32) += 1;
         }
     }
     for callable in callables {
-        if matches!(
-            callable.language,
-            Language::ProceduralSource | Language::Cplusplus
-        ) && counts.get(&callable.name).is_some_and(|count| *count > 1)
+        if callable.named
+            && matches!(
+                callable.language,
+                Language::ProceduralSource | Language::Cplusplus
+            )
+            && counts.get(&callable.name).is_some_and(|count| *count > 1)
         {
             callable.visibility = DocumentationVisibility::Unresolved;
         }
     }
-}
-
-#[derive(Debug)]
-struct DependencyResult {
-    state: FactFamilyState,
-    findings: Vec<Finding>,
 }
 
 #[derive(Clone, Debug)]
@@ -920,7 +941,7 @@ struct DependencyFacts {
     python_has_unhandled_import: bool,
 }
 
-/// 读取一次 CST 并返回完全自有的依赖事实
+/// 从语法树提取依赖事实，返回不借用语法节点的数据
 fn observe_dependencies(
     language: Language,
     root: Node<'_>,
@@ -943,7 +964,7 @@ fn observe_dependencies(
             );
         }
         Language::ProceduralSource | Language::Cplusplus => {
-            collect_dependency_declarations(
+            collect_native_dependency_declarations(
                 language,
                 root,
                 source,
@@ -973,148 +994,124 @@ fn observe_dependencies(
     }
 }
 
-/// 执行 `judge_dependencies` 内部逻辑
+/// 检查依赖声明并记录违规或缺失事实
 fn judge_dependencies(
     authority: &CompiledAuthority,
     language: Language,
     facts: &DependencyFacts,
-    document: &OwnedDocument,
-) -> DependencyResult {
-    if !authority.families.contains("dependency")
-        || !authority.dependency.enabled
-    {
-        return DependencyResult {
-            state: FactFamilyState::NotRequired,
-            findings: Vec::new(),
-        };
-    }
-    match authority.projection("dependency", language.key()) {
-        ProjectionState::NotApplicable => {
-            return DependencyResult {
-                state: FactFamilyState::NotRequired,
-                findings: Vec::new(),
-            };
-        }
-        ProjectionState::NeedsAuthority => {
-            return DependencyResult {
-                state: FactFamilyState::Blocked(
-                    "Dependency projection requires Authority capability"
-                        .to_owned(),
-                ),
-                findings: Vec::new(),
-            };
-        }
-        ProjectionState::Supported => {}
-    }
+    findings: &mut FindingState<'_>,
+) -> FactFamilyState {
     let declarations = &facts.declarations;
-    let mut findings = Vec::new();
+    let law = &profile_law(language.key()).dependency;
     for declaration in declarations {
         if declaration.wildcard
-            && matches!(language, Language::Python | Language::Rust)
+            && matches!(
+                law,
+                DependencyProfileLaw::Python { .. }
+                    | DependencyProfileLaw::Rust { .. }
+            )
         {
-            push_dependency_findings(
-                authority,
-                document,
-                declaration,
+            findings.push(
                 RuleOperator::DependencyWildcard,
-                &mut findings,
+                declaration.line,
+                declaration.column,
+                &declaration.key,
+                &format!(
+                    "observed direct dependency declaration {}",
+                    declaration.key
+                ),
             );
         }
-        if !declaration.module_placement_valid {
-            push_dependency_findings(
-                authority,
-                document,
-                declaration,
+        if !declaration.module_placement_valid
+            && matches!(law, DependencyProfileLaw::Cplusplus { .. })
+        {
+            findings.push(
                 RuleOperator::DependencyModulePlacement,
-                &mut findings,
+                declaration.line,
+                declaration.column,
+                &declaration.key,
+                &format!(
+                    "observed direct dependency declaration {}",
+                    declaration.key
+                ),
             );
         }
     }
-    let blocked = match language {
-        Language::Python if facts.python_has_unhandled_import => Some(
-            concat!(
-                "Python import outside module scope or exact TYPE_CHECKING ",
-                "block needs Authority"
-            )
-            .to_owned(),
-        ),
-        Language::Python
-            if declarations.iter().any(|item| item.complex_order) =>
-        {
-            Some(
-                concat!(
-                    "Python multi-module import statement needs per-module ",
-                    "dependency facts"
-                )
-                .to_owned(),
-            )
+    let blocked = match law {
+        DependencyProfileLaw::Python {
+            scope_blocked,
+            multi_import_blocked,
+            classification_blocked,
+            ..
+        } => {
+            let reason = if facts.python_has_unhandled_import {
+                Some(*scope_blocked)
+            } else if declarations.iter().any(|item| item.complex_order) {
+                Some(*multi_import_blocked)
+            } else if declarations.iter().any(|item| {
+                authority.python_dependency_tier(&item.key).is_none()
+            }) {
+                Some(*classification_blocked)
+            } else {
+                None
+            };
+            reason.map(str::to_owned)
         }
-        Language::Python
-            if declarations.iter().any(|item| {
-                classify_python_dependency(authority, &item.key).is_none()
-            }) =>
-        {
-            Some(
-                "Python dependency classification is absent from Authority"
-                    .to_owned(),
-            )
+        DependencyProfileLaw::Rust {
+            nested_use_blocked, ..
+        } => declarations
+            .iter()
+            .any(|item| item.complex_order)
+            .then(|| (*nested_use_blocked).to_owned()),
+        DependencyProfileLaw::Procedural {
+            unavailable_blocked,
         }
-        Language::Python => {
-            if authority.dependency.python_reorder_safe {
-                check_python_dependency_order(
-                    authority,
-                    declarations,
-                    document,
-                    &mut findings,
-                );
-            }
-            None
-        }
-        Language::Rust
-            if declarations.iter().any(|item| item.complex_order) =>
-        {
-            Some(
-                concat!(
-                    "Rust nested use-list ordering needs a frozen comparator ",
-                    "capability"
-                )
-                .to_owned(),
-            )
-        }
-        Language::Rust => {
-            if authority.dependency.rust_reorder_safe {
-                check_rust_dependency_order(
-                    authority,
-                    declarations,
-                    document,
-                    &mut findings,
-                );
-            }
-            None
-        }
-        Language::ProceduralSource | Language::Cplusplus
-            if !declarations.is_empty() =>
-        {
-            Some(
-                concat!(
-                    "C/C++ dependency target or preprocessing capability is ",
-                    "absent from Authority"
-                )
-                .to_owned(),
-            )
-        }
-        Language::ProceduralSource | Language::Cplusplus => None,
+        | DependencyProfileLaw::Cplusplus {
+            unavailable_blocked,
+            ..
+        } => (!declarations.is_empty())
+            .then(|| (*unavailable_blocked).to_owned()),
     };
-    DependencyResult {
-        state: blocked.map_or_else(
-            || FactFamilyState::Complete(declarations.len() as u32),
-            FactFamilyState::Blocked,
-        ),
-        findings,
+    if blocked.is_none() {
+        match law {
+            DependencyProfileLaw::Python {
+                within_tier_blank_lines,
+                cross_tier_blank_lines,
+                ..
+            } => {
+                if authority.dependency_reorder_safe(law) {
+                    check_python_dependency_order(
+                        authority,
+                        declarations,
+                        *within_tier_blank_lines,
+                        *cross_tier_blank_lines,
+                        findings,
+                    );
+                }
+            }
+            DependencyProfileLaw::Rust {
+                within_group_blank_lines,
+                ..
+            } => {
+                if authority.dependency_reorder_safe(law) {
+                    check_rust_dependency_order(
+                        declarations,
+                        *within_group_blank_lines,
+                        findings,
+                    );
+                }
+            }
+            DependencyProfileLaw::Procedural { .. }
+            | DependencyProfileLaw::Cplusplus { .. } => {}
+        }
     }
+    blocked.map_or_else(
+        || FactFamilyState::Complete(declarations.len() as u32),
+        FactFamilyState::Blocked,
+    )
 }
 
-/// 执行 `has_unhandled_python_import` 内部逻辑
+/// 查找尚未记录的 Python 导入语句
 fn has_unhandled_python_import(
     node: Node<'_>,
     handled: &[DependencyDeclaration],
@@ -1129,7 +1126,7 @@ fn has_unhandled_python_import(
         .any(|child| has_unhandled_python_import(child, handled))
 }
 
-/// 执行 `collect_python_dependency_declarations` 内部逻辑
+/// 按连续分组收集 Python 模块级导入
 fn collect_python_dependency_declarations(
     root: Node<'_>,
     source: &[u8],
@@ -1190,14 +1187,14 @@ fn collect_python_dependency_declarations(
     }
 }
 
-/// 执行 `take_group` 内部逻辑
+/// 分配下一个依赖分组编号
 fn take_group(next_group: &mut u32) -> u32 {
     let group = *next_group;
     *next_group += 1;
     group
 }
 
-/// 执行 `collect_rust_dependency_declarations` 内部逻辑
+/// 按作用域收集连续的 Rust 导入分组
 fn collect_rust_dependency_declarations(
     scope: Node<'_>,
     source: &[u8],
@@ -1226,33 +1223,26 @@ fn collect_rust_dependency_declarations(
     }
 }
 
-/// 执行 `collect_dependency_declarations` 内部逻辑
-fn collect_dependency_declarations(
+/// 从语法树收集 C/C++ 头文件包含语句
+fn collect_native_dependency_declarations(
     language: Language,
     node: Node<'_>,
     source: &[u8],
     output: &mut Vec<DependencyDeclaration>,
 ) {
-    let relevant = match language {
-        Language::Python => {
-            matches!(node.kind(), "import_statement" | "import_from_statement")
-        }
-        Language::Rust => node.kind() == "use_declaration",
-        Language::ProceduralSource | Language::Cplusplus => {
-            node.kind() == "preproc_include"
-        }
-    };
-    if relevant {
+    if node.kind() == "preproc_include" {
         push_dependency_declaration(language, node, source, 0, output);
         return;
     }
     let mut cursor = node.walk();
     for child in node.named_children(&mut cursor) {
-        collect_dependency_declarations(language, child, source, output);
+        collect_native_dependency_declarations(
+            language, child, source, output,
+        );
     }
 }
 
-/// 执行 `push_dependency_declaration` 内部逻辑
+/// 记录依赖声明的内容、位置和分组
 fn push_dependency_declaration(
     language: Language,
     node: Node<'_>,
@@ -1260,10 +1250,7 @@ fn push_dependency_declaration(
     group_identity: u32,
     output: &mut Vec<DependencyDeclaration>,
 ) {
-    let Ok(text) = node.utf8_text(source) else {
-        return;
-    };
-    let key = dependency_key(language, text);
+    let key = dependency_key(language, node, source).unwrap_or_default();
     let point = node.start_position();
     output.push(DependencyDeclaration {
         key,
@@ -1273,12 +1260,7 @@ fn push_dependency_declaration(
         end_byte: node.end_byte(),
         group_identity,
         preceding_blank_lines: 0,
-        wildcard: match language {
-            Language::Python | Language::Rust => {
-                dependency_node_has_token(node, "*")
-            }
-            Language::ProceduralSource | Language::Cplusplus => false,
-        },
+        wildcard: dependency_node_has_token(node, "*"),
         complex_order: match language {
             Language::Python => {
                 node.kind() == "import_statement"
@@ -1301,7 +1283,7 @@ fn dependency_node_has_token(node: Node<'_>, token: &str) -> bool {
         .any(|child| dependency_node_has_token(child, token))
 }
 
-/// 执行 `collect_cplusplus_module_declarations` 内部逻辑
+/// 收集 C++ 模块导入并判断其位置是否合法
 fn collect_cplusplus_module_declarations(
     root: Node<'_>,
     source: &[u8],
@@ -1345,7 +1327,7 @@ enum CplusplusModuleNode<'tree> {
     Other,
 }
 
-/// 执行 `cplusplus_module_node` 内部逻辑
+/// 识别 C++ 模块声明、导入和其他节点
 fn cplusplus_module_node(node: Node<'_>) -> CplusplusModuleNode<'_> {
     match node.kind() {
         "global_module_fragment_declaration" => {
@@ -1367,7 +1349,7 @@ fn cplusplus_module_node(node: Node<'_>) -> CplusplusModuleNode<'_> {
     }
 }
 
-/// 执行 `collect_nested_cplusplus_imports` 内部逻辑
+/// 收集不在顶层的 C++ 模块导入
 fn collect_nested_cplusplus_imports(
     node: Node<'_>,
     source: &[u8],
@@ -1383,7 +1365,7 @@ fn collect_nested_cplusplus_imports(
     }
 }
 
-/// 执行 `push_cplusplus_module_import` 内部逻辑
+/// 记录 C++ 模块导入及其位置检查结果
 fn push_cplusplus_module_import(
     node: Node<'_>,
     source: &[u8],
@@ -1405,74 +1387,34 @@ fn push_cplusplus_module_import(
     });
 }
 
-/// 执行 `dependency_key` 内部逻辑
-fn dependency_key(language: Language, text: &str) -> String {
-    let text = text.trim();
-    match language {
-        Language::Python => {
-            if let Some(rest) = text.strip_prefix("from ") {
-                rest.split_whitespace()
-                    .next()
-                    .unwrap_or_default()
-                    .to_owned()
-            } else {
-                text.strip_prefix("import ")
-                    .unwrap_or(text)
-                    .split([',', ' '])
-                    .next()
-                    .unwrap_or_default()
-                    .to_owned()
-            }
+/// 提取依赖声明用于排序的文本
+fn dependency_key(
+    language: Language,
+    node: Node<'_>,
+    source: &[u8],
+) -> Option<String> {
+    let key = match language {
+        Language::Python if node.kind() == "import_from_statement" => {
+            node.child_by_field_name("module_name")
         }
-        Language::Rust => text
-            .strip_prefix("pub ")
-            .unwrap_or(text)
-            .strip_prefix("use ")
-            .unwrap_or(text)
-            .trim_end_matches(';')
-            .to_owned(),
-        Language::ProceduralSource | Language::Cplusplus => text.to_owned(),
-    }
+        Language::Python => node
+            .child_by_field_name("name")
+            .map(|name| name.child_by_field_name("name").unwrap_or(name)),
+        Language::Rust => node.child_by_field_name("argument"),
+        Language::ProceduralSource | Language::Cplusplus => Some(node),
+    }?;
+    key.utf8_text(source)
+        .ok()
+        .map(|text| text.trim().to_owned())
 }
 
-/// 执行 `classify_python_dependency` 内部逻辑
-fn classify_python_dependency(
-    authority: &CompiledAuthority,
-    key: &str,
-) -> Option<u8> {
-    let root = key.split('.').next().unwrap_or(key);
-    if authority
-        .dependency
-        .python_standard_library
-        .iter()
-        .any(|module| module == root)
-    {
-        Some(0)
-    } else if authority
-        .dependency
-        .python_third_party
-        .iter()
-        .any(|module| module == root)
-    {
-        Some(1)
-    } else if authority
-        .dependency
-        .python_project_roots
-        .iter()
-        .any(|module| module == root)
-    {
-        Some(2)
-    } else {
-        None
-    }
-}
-
-/// 执行 `check_python_dependency_order` 内部逻辑
+/// 按依赖类别检查 Python 导入顺序和空行
 fn check_python_dependency_order(
     authority: &CompiledAuthority,
     declarations: &[DependencyDeclaration],
-    document: &OwnedDocument,
-    findings: &mut Vec<Finding>,
+    within_tier_blank_lines: usize,
+    cross_tier_blank_lines: usize,
+    findings: &mut FindingState<'_>,
 ) {
     for pair in declarations.windows(2) {
         let left = &pair[0];
@@ -1480,56 +1422,61 @@ fn check_python_dependency_order(
         if left.group_identity != right.group_identity {
             continue;
         }
-        let left_tier = classify_python_dependency(authority, &left.key);
-        let right_tier = classify_python_dependency(authority, &right.key);
+        let left_tier = authority.python_dependency_tier(&left.key);
+        let right_tier = authority.python_dependency_tier(&right.key);
         let out_of_order = left_tier > right_tier
             || (left_tier == right_tier && left.key > right.key);
         let tier_changed = left_tier != right_tier;
         let spacing_invalid = if tier_changed {
-            right.preceding_blank_lines != 1
+            right.preceding_blank_lines != cross_tier_blank_lines
         } else {
-            right.preceding_blank_lines != 0
+            right.preceding_blank_lines != within_tier_blank_lines
         };
         if out_of_order || spacing_invalid {
-            push_dependency_findings(
-                authority,
-                document,
-                right,
+            findings.push(
                 RuleOperator::DependencyOrder,
-                findings,
+                right.line,
+                right.column,
+                &right.key,
+                &format!(
+                    "observed direct dependency declaration {}",
+                    right.key
+                ),
             );
         }
     }
 }
 
-/// 执行 `check_rust_dependency_order` 内部逻辑
+/// 检查同组 Rust 导入的顺序和空行
 fn check_rust_dependency_order(
-    authority: &CompiledAuthority,
     declarations: &[DependencyDeclaration],
-    document: &OwnedDocument,
-    findings: &mut Vec<Finding>,
+    within_group_blank_lines: usize,
+    findings: &mut FindingState<'_>,
 ) {
     for pair in declarations.windows(2) {
         let left = &pair[0];
         let right = &pair[1];
         if left.group_identity == right.group_identity
-            && (right.preceding_blank_lines != 0
+            && (right.preceding_blank_lines != within_group_blank_lines
                 || rust_dependency_compare(&left.key, &right.key).is_gt())
         {
-            push_dependency_findings(
-                authority,
-                document,
-                right,
+            findings.push(
                 RuleOperator::DependencyOrder,
-                findings,
+                right.line,
+                right.column,
+                &right.key,
+                &format!(
+                    "observed direct dependency declaration {}",
+                    right.key
+                ),
             );
         }
     }
 }
 
-/// 执行 `rust_dependency_compare` 内部逻辑
+/// 按路径来源和数字段比较 Rust 导入顺序
 fn rust_dependency_compare(left: &str, right: &str) -> std::cmp::Ordering {
-    /// 执行 `root_rank` 内部逻辑
+    /// 返回 Rust 导入路径来源的排序编号
     fn root_rank(path: &str) -> u8 {
         match path.split("::").next().unwrap_or(path) {
             "self" => 0,
@@ -1544,7 +1491,7 @@ fn rust_dependency_compare(left: &str, right: &str) -> std::cmp::Ordering {
         .then_with(|| left.cmp(right))
 }
 
-/// 执行 `blank_lines_between` 内部逻辑
+/// 统计两个源码位置之间的空行数
 fn blank_lines_between(
     source: &[u8],
     end_byte: usize,
@@ -1561,7 +1508,7 @@ fn blank_lines_between(
         .unwrap_or(0)
 }
 
-/// 执行 `version_compare` 内部逻辑
+/// 按字符和数字段比较文本顺序
 fn version_compare(left: &str, right: &str) -> std::cmp::Ordering {
     let mut left = left.chars().peekable();
     let mut right = right.chars().peekable();
@@ -1594,7 +1541,7 @@ fn version_compare(left: &str, right: &str) -> std::cmp::Ordering {
     }
 }
 
-/// 执行 `take_digits` 内部逻辑
+/// 读取连续数字并去除多余的前导零
 fn take_digits(
     iterator: &mut std::iter::Peekable<std::str::Chars<'_>>,
 ) -> String {
@@ -1610,634 +1557,556 @@ fn take_digits(
     }
 }
 
-/// 将依赖判定映射为 Authority 拥有的 Finding
-fn push_dependency_findings(
-    authority: &CompiledAuthority,
-    document: &OwnedDocument,
-    declaration: &DependencyDeclaration,
-    operator: RuleOperator,
-    findings: &mut Vec<Finding>,
-) {
-    push_rule_findings(
-        authority,
-        operator,
-        &document.path,
-        declaration.line,
-        declaration.column,
-        &declaration.key,
-        &format!("observed direct dependency declaration {}", declaration.key),
-        findings,
-    );
-}
+impl<'source> DeclarationReview<'source> {
+    /// 观察一棵语法树中的全部声明主体
+    fn collect(
+        language: Language,
+        root: Node<'_>,
+        source: &'source [u8],
+    ) -> Vec<Declaration> {
+        let mut review = Self {
+            language,
+            source,
+            output: Vec::new(),
+        };
+        review.collect_node(root);
+        review.output
+    }
 
-/// 执行 `collect_declarations` 内部逻辑
-fn collect_declarations(
-    language: Language,
-    node: Node<'_>,
-    source: &[u8],
-    output: &mut Vec<Declaration>,
-) {
-    match language {
-        Language::Python => match node.kind() {
-            "function_definition" | "class_definition" => {
-                let role = if node.kind() == "function_definition" {
-                    IdentifierRole::Function
-                } else {
-                    IdentifierRole::Type
-                };
-                push_named_declaration(
-                    Language::Python,
-                    node.child_by_field_name("name"),
-                    source,
-                    role,
-                    output,
-                );
-                if let Some(parameters) =
-                    node.child_by_field_name("type_parameters")
-                {
-                    push_python_type_parameters(parameters, source, output);
-                }
-                if let Some(parameters) =
-                    node.child_by_field_name("parameters")
-                {
-                    push_python_parameter_identifiers(
-                        parameters,
-                        source,
-                        python_receiver_spelling(node, source),
-                        output,
-                    );
-                }
-            }
-            "assignment" | "augmented_assignment" => {
-                if let Some(left) = node.child_by_field_name("left") {
-                    let role = if node.kind() == "assignment"
-                        && python_is_module_assignment(node)
-                    {
-                        IdentifierRole::ModuleBinding
+    /// 执行一个声明节点及其后代的深度优先观察
+    fn collect_node(&mut self, node: Node<'_>) {
+        match self.language {
+            Language::Python => match node.kind() {
+                "function_definition" | "class_definition" => {
+                    let role = if node.kind() == "function_definition" {
+                        IdentifierRole::Function
                     } else {
-                        IdentifierRole::Value
-                    };
-                    push_python_binding_target(left, source, role, output);
-                }
-            }
-            "for_statement" | "for_in_clause" => {
-                if let Some(left) = node.child_by_field_name("left") {
-                    push_python_binding_target(
-                        left,
-                        source,
-                        IdentifierRole::Value,
-                        output,
-                    );
-                }
-            }
-            "as_pattern_target" => {
-                let mut cursor = node.walk();
-                let name = node
-                    .named_children(&mut cursor)
-                    .find(|child| child.kind() == "identifier");
-                push_named_declaration(
-                    Language::Python,
-                    name,
-                    source,
-                    IdentifierRole::Value,
-                    output,
-                );
-            }
-            "named_expression" => {
-                push_named_declaration(
-                    Language::Python,
-                    node.child_by_field_name("name"),
-                    source,
-                    IdentifierRole::Value,
-                    output,
-                );
-            }
-            "aliased_import" => {
-                push_named_declaration(
-                    Language::Python,
-                    node.child_by_field_name("alias"),
-                    source,
-                    IdentifierRole::Alias,
-                    output,
-                );
-            }
-            "case_pattern" => push_python_case_bindings(node, source, output),
-            "lambda" => {
-                if let Some(parameters) =
-                    node.child_by_field_name("parameters")
-                {
-                    push_python_parameter_identifiers(
-                        parameters, source, None, output,
-                    );
-                }
-            }
-            "type_alias_statement" => {
-                if let Some(left) = node.child_by_field_name("left") {
-                    push_python_type_alias(left, source, output);
-                }
-            }
-            _ => {}
-        },
-        Language::Rust => match node.kind() {
-            "function_item"
-            | "struct_item"
-            | "enum_item"
-            | "trait_item"
-            | "type_item"
-            | "mod_item"
-            | "const_item"
-            | "static_item"
-            | "union_item"
-            | "function_signature_item"
-            | "associated_type"
-            | "macro_definition" => {
-                let role = match node.kind() {
-                    "function_item"
-                    | "function_signature_item"
-                    | "macro_definition" => IdentifierRole::Function,
-                    "struct_item" | "enum_item" | "trait_item"
-                    | "type_item" | "union_item" | "associated_type" => {
                         IdentifierRole::Type
-                    }
-                    "const_item" | "static_item" => IdentifierRole::Constant,
-                    "mod_item" => IdentifierRole::ModuleNamespace,
-                    _ => unreachable!("closed Rust item role"),
-                };
-                if !rust_external_trait_method_has_fixed_name(node, source) {
-                    push_named_declaration(
-                        Language::Rust,
+                    };
+                    self.push_named_declaration(
                         node.child_by_field_name("name"),
-                        source,
                         role,
-                        output,
                     );
-                }
-                if matches!(
-                    node.kind(),
-                    "function_item" | "function_signature_item"
-                ) && let Some(parameters) =
-                    node.child_by_field_name("parameters")
-                {
-                    push_rust_parameter_identifiers(
-                        parameters, source, output,
-                    );
-                }
-            }
-            "field_declaration" => {
-                push_named_declaration(
-                    Language::Rust,
-                    node.child_by_field_name("name"),
-                    source,
-                    IdentifierRole::Value,
-                    output,
-                );
-            }
-            "enum_variant" => {
-                push_named_declaration(
-                    Language::Rust,
-                    node.child_by_field_name("name"),
-                    source,
-                    IdentifierRole::Variant,
-                    output,
-                );
-            }
-            "type_parameter" => {
-                push_named_declaration(
-                    Language::Rust,
-                    node.child_by_field_name("name"),
-                    source,
-                    IdentifierRole::Type,
-                    output,
-                );
-            }
-            "const_parameter" => {
-                push_named_declaration(
-                    Language::Rust,
-                    node.child_by_field_name("name"),
-                    source,
-                    IdentifierRole::Constant,
-                    output,
-                );
-            }
-            "lifetime_parameter" => {
-                push_named_declaration(
-                    Language::Rust,
-                    node.child_by_field_name("name"),
-                    source,
-                    IdentifierRole::Lifetime,
-                    output,
-                );
-            }
-            "use_as_clause" => {
-                push_named_declaration(
-                    Language::Rust,
-                    node.child_by_field_name("alias"),
-                    source,
-                    IdentifierRole::Alias,
-                    output,
-                );
-            }
-            "extern_crate_declaration" => {
-                push_named_declaration(
-                    Language::Rust,
-                    node.child_by_field_name("alias"),
-                    source,
-                    IdentifierRole::ModuleNamespace,
-                    output,
-                );
-            }
-            "label"
-                if node.parent().is_some_and(|parent| {
-                    !matches!(
-                        parent.kind(),
-                        "break_expression" | "continue_expression"
-                    )
-                }) =>
-            {
-                push_named_declaration(
-                    Language::Rust,
-                    Some(node),
-                    source,
-                    IdentifierRole::Label,
-                    output,
-                );
-            }
-            "let_declaration" => {
-                if let Some(pattern) = node.child_by_field_name("pattern") {
-                    push_rust_binding_pattern(pattern, source, output);
-                }
-            }
-            "let_condition" | "for_expression" => {
-                if let Some(pattern) = node.child_by_field_name("pattern") {
-                    push_rust_binding_pattern(pattern, source, output);
-                }
-            }
-            "match_arm" => {
-                if let Some(pattern) = node.child_by_field_name("pattern") {
-                    push_rust_binding_pattern(pattern, source, output);
-                }
-            }
-            "closure_expression" => {
-                if let Some(parameters) =
-                    node.child_by_field_name("parameters")
-                {
-                    let mut cursor = parameters.walk();
-                    for parameter in parameters.named_children(&mut cursor) {
-                        let pattern = parameter
-                            .child_by_field_name("pattern")
-                            .unwrap_or(parameter);
-                        push_rust_binding_pattern(pattern, source, output);
+                    if let Some(parameters) =
+                        node.child_by_field_name("type_parameters")
+                    {
+                        self.push_python_type_parameters(parameters);
+                    }
+                    if let Some(parameters) =
+                        node.child_by_field_name("parameters")
+                    {
+                        self.push_python_parameter_identifiers(
+                            parameters,
+                            python_receiver_spelling(node, self.source),
+                        );
                     }
                 }
-            }
-            _ => {}
-        },
-        Language::ProceduralSource | Language::Cplusplus => {
-            match node.kind() {
-                "preproc_def" => {
-                    push_named_declaration(
-                        language,
+                "assignment" | "augmented_assignment" => {
+                    if let Some(left) = node.child_by_field_name("left") {
+                        let role = if node.kind() == "assignment"
+                            && python_type_alias_assignment(node, self.source)
+                        {
+                            IdentifierRole::Alias
+                        } else if node.kind() == "assignment"
+                            && python_is_module_assignment(node)
+                        {
+                            IdentifierRole::ModuleBinding
+                        } else {
+                            IdentifierRole::Value
+                        };
+                        let before = self.output.len();
+                        self.push_python_binding_target(left, role);
+                        // `__all__` 只在模块体、`__slots__` 只在 class 体固定
+                        if self.output.len() == before + 1
+                            && left.kind() == "identifier"
+                            && let Some(binding) = self.output.last()
+                            && let Some(fixed) =
+                                python_fixed_binding_owner(node, &binding.name)
+                            && let Some(last) = self.output.last_mut()
+                        {
+                            last.owner = fixed;
+                        }
+                    }
+                }
+                "for_statement" | "for_in_clause" => {
+                    if let Some(left) = node.child_by_field_name("left") {
+                        self.push_python_binding_target(
+                            left,
+                            IdentifierRole::Value,
+                        );
+                    }
+                }
+                "as_pattern_target" => {
+                    let mut cursor = node.walk();
+                    let name = node
+                        .named_children(&mut cursor)
+                        .find(|child| child.kind() == "identifier");
+                    self.push_named_declaration(name, IdentifierRole::Value);
+                }
+                "named_expression" => {
+                    self.push_named_declaration(
                         node.child_by_field_name("name"),
-                        source,
-                        IdentifierRole::Constant,
-                        output,
+                        IdentifierRole::Value,
                     );
                 }
-                "preproc_function_def" => {
-                    push_named_declaration(
-                        language,
-                        node.child_by_field_name("name"),
-                        source,
-                        IdentifierRole::Constant,
-                        output,
+                "aliased_import" => {
+                    self.push_named_declaration(
+                        node.child_by_field_name("alias"),
+                        IdentifierRole::Alias,
                     );
+                }
+                "case_pattern" => self.push_python_case_bindings(node),
+                "lambda" => {
+                    if let Some(parameters) =
+                        node.child_by_field_name("parameters")
+                    {
+                        self.push_python_parameter_identifiers(
+                            parameters, None,
+                        );
+                    }
+                }
+                "type_alias_statement" => {
+                    if let Some(left) = node.child_by_field_name("left") {
+                        self.push_python_type_alias(left);
+                    }
+                }
+                _ => {}
+            },
+            Language::Rust => match node.kind() {
+                "function_item"
+                | "struct_item"
+                | "enum_item"
+                | "trait_item"
+                | "type_item"
+                | "mod_item"
+                | "const_item"
+                | "static_item"
+                | "union_item"
+                | "function_signature_item"
+                | "associated_type"
+                | "macro_definition" => {
+                    let role = match node.kind() {
+                        "function_item"
+                        | "function_signature_item"
+                        | "macro_definition" => IdentifierRole::Function,
+                        "struct_item" | "enum_item" | "trait_item"
+                        | "type_item" | "union_item" | "associated_type" => {
+                            IdentifierRole::Type
+                        }
+                        "const_item" | "static_item" => {
+                            IdentifierRole::Constant
+                        }
+                        "mod_item" => IdentifierRole::ModuleNamespace,
+                        _ => unreachable!("closed Rust item role"),
+                    };
+                    if matches!(
+                        node.kind(),
+                        "function_item" | "function_signature_item"
+                    ) {
+                        let before = self.output.len();
+                        self.push_named_declaration(
+                            node.child_by_field_name("name"),
+                            role,
+                        );
+                        // 记录 impl 中直接写出的 trait 名称作为外部归属
+                        // 不解析导入、别名或类型
+                        if self.output.len() != before
+                            && let Some(surface) =
+                                rust_trait_surface(node, self.source)
+                            && let Some(last) = self.output.last_mut()
+                        {
+                            last.external_owner = Some(surface);
+                        }
+                    } else {
+                        self.push_named_declaration(
+                            node.child_by_field_name("name"),
+                            role,
+                        );
+                    }
+                    if matches!(
+                        node.kind(),
+                        "function_item" | "function_signature_item"
+                    ) && let Some(parameters) =
+                        node.child_by_field_name("parameters")
+                    {
+                        self.push_rust_parameter_identifiers(parameters);
+                    }
+                }
+                "field_declaration" => {
+                    self.push_named_declaration(
+                        node.child_by_field_name("name"),
+                        IdentifierRole::Value,
+                    );
+                }
+                "enum_variant" => {
+                    self.push_named_declaration(
+                        node.child_by_field_name("name"),
+                        IdentifierRole::Variant,
+                    );
+                }
+                "type_parameter" => {
+                    self.push_named_declaration(
+                        node.child_by_field_name("name"),
+                        IdentifierRole::Type,
+                    );
+                }
+                "const_parameter" => {
+                    self.push_named_declaration(
+                        node.child_by_field_name("name"),
+                        IdentifierRole::Constant,
+                    );
+                }
+                "lifetime_parameter" => {
+                    self.push_named_declaration(
+                        node.child_by_field_name("name"),
+                        IdentifierRole::Lifetime,
+                    );
+                }
+                "use_as_clause" => {
+                    self.push_named_declaration(
+                        node.child_by_field_name("alias"),
+                        IdentifierRole::Alias,
+                    );
+                }
+                "extern_crate_declaration" => {
+                    self.push_named_declaration(
+                        node.child_by_field_name("alias"),
+                        IdentifierRole::ModuleNamespace,
+                    );
+                }
+                "label"
+                    if node.parent().is_some_and(|parent| {
+                        !matches!(
+                            parent.kind(),
+                            "break_expression" | "continue_expression"
+                        )
+                    }) =>
+                {
+                    self.push_named_declaration(
+                        Some(node),
+                        IdentifierRole::Label,
+                    );
+                }
+                "let_declaration" => {
+                    if let Some(pattern) = node.child_by_field_name("pattern")
+                    {
+                        self.push_rust_binding_pattern(pattern);
+                    }
+                }
+                "let_condition" | "for_expression" => {
+                    if let Some(pattern) = node.child_by_field_name("pattern")
+                    {
+                        self.push_rust_binding_pattern(pattern);
+                    }
+                }
+                "match_arm" => {
+                    if let Some(pattern) = node.child_by_field_name("pattern")
+                    {
+                        self.push_rust_binding_pattern(pattern);
+                    }
+                }
+                "closure_expression" => {
                     if let Some(parameters) =
                         node.child_by_field_name("parameters")
                     {
                         let mut cursor = parameters.walk();
                         for parameter in parameters.named_children(&mut cursor)
                         {
-                            if parameter.kind() == "identifier" {
-                                push_named_declaration(
-                                    language,
-                                    Some(parameter),
-                                    source,
-                                    IdentifierRole::Value,
-                                    output,
-                                );
-                            }
+                            let pattern = parameter
+                                .child_by_field_name("pattern")
+                                .unwrap_or(parameter);
+                            self.push_rust_binding_pattern(pattern);
                         }
                     }
                 }
-                "struct_specifier" | "union_specifier" | "enum_specifier"
-                | "class_specifier" => {
-                    let name = node
-                        .child_by_field_name("name")
-                        .and_then(find_declaration_identifier);
-                    let role = if language == Language::Cplusplus {
-                        IdentifierRole::Type
-                    } else {
-                        IdentifierRole::Tag
-                    };
-                    push_named_declaration(
-                        language, name, source, role, output,
-                    );
-                }
-                "type_definition" => {
-                    push_native_family_field_declarators(
-                        language,
-                        node,
-                        "declarator",
-                        source,
-                        IdentifierRole::Typedef,
-                        output,
-                    );
-                }
-                "enumerator" => {
-                    push_named_declaration(
-                        language,
-                        node.child_by_field_name("name"),
-                        source,
-                        IdentifierRole::Enumerator,
-                        output,
-                    );
-                }
-                "labeled_statement"
-                    if language == Language::ProceduralSource =>
-                {
-                    push_named_declaration(
-                        language,
-                        node.child_by_field_name("label"),
-                        source,
-                        IdentifierRole::Label,
-                        output,
-                    );
-                }
-                "namespace_definition" if language == Language::Cplusplus => {
-                    if let Some(name) = node.child_by_field_name("name") {
-                        push_cplusplus_namespace_names(name, source, output);
-                    }
-                }
-                "namespace_alias_definition"
-                    if language == Language::Cplusplus =>
-                {
-                    push_named_declaration(
-                        language,
-                        node.child_by_field_name("name"),
-                        source,
-                        IdentifierRole::ModuleNamespace,
-                        output,
-                    );
-                }
-                "alias_declaration" if language == Language::Cplusplus => {
-                    push_named_declaration(
-                        language,
-                        node.child_by_field_name("name"),
-                        source,
-                        IdentifierRole::Type,
-                        output,
-                    );
-                }
-                "type_parameter_declaration"
-                | "optional_type_parameter_declaration"
-                | "variadic_type_parameter_declaration"
-                    if language == Language::Cplusplus =>
-                {
-                    let mut cursor = node.walk();
-                    let name = node
-                        .named_children(&mut cursor)
-                        .find(|child| child.kind() == "type_identifier");
-                    push_named_declaration(
-                        language,
-                        name,
-                        source,
-                        IdentifierRole::Type,
-                        output,
-                    );
-                }
-                "parameter_declaration"
-                | "optional_parameter_declaration"
-                | "variadic_parameter_declaration" => {
-                    let name = node
-                        .child_by_field_name("declarator")
-                        .and_then(find_declarator_identifier);
-                    let role = if node.parent().is_some_and(|parent| {
-                        parent.kind() == "template_parameter_list"
-                    }) {
-                        IdentifierRole::Constant
-                    } else {
-                        IdentifierRole::Value
-                    };
-                    push_named_declaration(
-                        language, name, source, role, output,
-                    );
-                }
-                "lambda_capture_initializer"
-                    if language == Language::Cplusplus =>
-                {
-                    push_named_declaration(
-                        language,
-                        node.child_by_field_name("left"),
-                        source,
-                        IdentifierRole::Value,
-                        output,
-                    );
-                }
-                "function_definition" => {
-                    if let Some(declarator) =
-                        node.child_by_field_name("declarator")
-                    {
-                        push_native_family_callable_declarations(
-                            language, declarator, source, output,
+                _ => {}
+            },
+            Language::ProceduralSource | Language::Cplusplus => {
+                match node.kind() {
+                    "preproc_def" => {
+                        self.push_named_declaration(
+                            node.child_by_field_name("name"),
+                            IdentifierRole::Constant,
                         );
                     }
-                }
-                "declaration" | "field_declaration" => {
-                    push_native_family_value_declarations(
-                        language, node, source, output,
-                    );
-                    if descendant_of_kind(node, "function_declarator")
-                        .is_some()
-                    {
-                        if let Some(declarator) =
-                            node.child_by_field_name("declarator")
+                    "preproc_function_def" => {
+                        self.push_named_declaration(
+                            node.child_by_field_name("name"),
+                            IdentifierRole::Constant,
+                        );
+                        if let Some(parameters) =
+                            node.child_by_field_name("parameters")
                         {
-                            push_native_family_callable_declarations(
-                                language, declarator, source, output,
-                            );
-                        } else {
-                            let mut cursor = node.walk();
-                            for child in node.named_children(&mut cursor) {
-                                if child.kind().contains("declarator") {
-                                    push_native_family_callable_declarations(
-                                        language, child, source, output,
+                            let mut cursor = parameters.walk();
+                            for parameter in
+                                parameters.named_children(&mut cursor)
+                            {
+                                if parameter.kind() == "identifier" {
+                                    self.push_named_declaration(
+                                        Some(parameter),
+                                        IdentifierRole::Value,
                                     );
                                 }
                             }
                         }
                     }
+                    "struct_specifier" | "union_specifier"
+                    | "enum_specifier" | "class_specifier" => {
+                        let name = node
+                            .child_by_field_name("name")
+                            .and_then(find_declaration_identifier);
+                        let role = if self.language == Language::Cplusplus {
+                            IdentifierRole::Type
+                        } else {
+                            IdentifierRole::Tag
+                        };
+                        self.push_named_declaration(name, role);
+                    }
+                    "type_definition" => {
+                        self.push_native_family_field_declarators(
+                            node,
+                            "declarator",
+                            IdentifierRole::Typedef,
+                        );
+                    }
+                    "enumerator" => {
+                        self.push_named_declaration(
+                            node.child_by_field_name("name"),
+                            IdentifierRole::Enumerator,
+                        );
+                    }
+                    "labeled_statement"
+                        if self.language == Language::ProceduralSource =>
+                    {
+                        self.push_named_declaration(
+                            node.child_by_field_name("label"),
+                            IdentifierRole::Label,
+                        );
+                    }
+                    "namespace_definition"
+                        if self.language == Language::Cplusplus =>
+                    {
+                        if let Some(name) = node.child_by_field_name("name") {
+                            self.push_cplusplus_namespace_names(name);
+                        }
+                    }
+                    "namespace_alias_definition"
+                        if self.language == Language::Cplusplus =>
+                    {
+                        self.push_named_declaration(
+                            node.child_by_field_name("name"),
+                            IdentifierRole::ModuleNamespace,
+                        );
+                    }
+                    "alias_declaration"
+                        if self.language == Language::Cplusplus =>
+                    {
+                        self.push_named_declaration(
+                            node.child_by_field_name("name"),
+                            IdentifierRole::Type,
+                        );
+                    }
+                    "type_parameter_declaration"
+                    | "optional_type_parameter_declaration"
+                    | "variadic_type_parameter_declaration"
+                        if self.language == Language::Cplusplus =>
+                    {
+                        let mut cursor = node.walk();
+                        let name = node
+                            .named_children(&mut cursor)
+                            .find(|child| child.kind() == "type_identifier");
+                        self.push_named_declaration(
+                            name,
+                            IdentifierRole::Type,
+                        );
+                    }
+                    "parameter_declaration"
+                    | "optional_parameter_declaration"
+                    | "variadic_parameter_declaration" => {
+                        let name = node
+                            .child_by_field_name("declarator")
+                            .and_then(find_declarator_identifier);
+                        let role = if node.parent().is_some_and(|parent| {
+                            parent.kind() == "template_parameter_list"
+                        }) {
+                            IdentifierRole::Constant
+                        } else {
+                            IdentifierRole::Value
+                        };
+                        self.push_named_declaration(name, role);
+                    }
+                    "lambda_capture_initializer"
+                        if self.language == Language::Cplusplus =>
+                    {
+                        self.push_named_declaration(
+                            node.child_by_field_name("left"),
+                            IdentifierRole::Value,
+                        );
+                    }
+                    "function_definition" => {
+                        if let Some(declarator) =
+                            node.child_by_field_name("declarator")
+                        {
+                            self.push_native_family_callable_declarations(
+                                declarator,
+                            );
+                        }
+                    }
+                    "declaration" | "field_declaration" => {
+                        self.push_native_family_value_declarations(node);
+                        if descendant_of_kind(node, "function_declarator")
+                            .is_some()
+                        {
+                            if let Some(declarator) =
+                                node.child_by_field_name("declarator")
+                            {
+                                self.push_native_family_callable_declarations(
+                                    declarator,
+                                );
+                            } else {
+                                let mut cursor = node.walk();
+                                for child in node.named_children(&mut cursor) {
+                                    if child.kind().contains("declarator") {
+                                        self.push_native_family_callable_declarations(
+                                        child,
+                                    );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
                 }
+            }
+        }
+        let mut cursor = node.walk();
+        for child in node.named_children(&mut cursor) {
+            self.collect_node(child);
+        }
+    }
+}
+
+/// 返回 Rust 函数直接所属 impl 的书面 trait 面文本
+fn rust_trait_surface(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let surface = node
+        .parent()
+        .filter(|body| body.kind() == "declaration_list")
+        .and_then(|body| body.parent())
+        .filter(|implementation| implementation.kind() == "impl_item")
+        .and_then(|implementation| implementation.child_by_field_name("trait"))
+        .and_then(|implemented_trait| {
+            implemented_trait.utf8_text(source).ok()
+        })?;
+    Some(surface.split_whitespace().collect::<Vec<_>>().join(" "))
+}
+
+impl DeclarationReview<'_> {
+    /// 提取 Python 模式匹配中的绑定名称
+    fn push_python_case_bindings(&mut self, node: Node<'_>) {
+        match node.kind() {
+            // match 通配 `_` 是语法性丢弃，不是值绑定
+            "case_pattern"
+                if node.utf8_text(self.source).ok() == Some("_") =>
+            {
+                let before = self.output.len();
+                self.push_named_declaration(Some(node), IdentifierRole::Value);
+                if self.output.len() != before
+                    && let Some(last) = self.output.last_mut()
+                {
+                    last.owner = IdentifierOwner::Discard;
+                }
+            }
+            "dotted_name" => {
+                let Ok(name) = node.utf8_text(self.source) else {
+                    return;
+                };
+                if !name.contains('.') {
+                    self.push_named_declaration(
+                        first_descendant_identifier(node),
+                        IdentifierRole::Value,
+                    );
+                }
+            }
+            "class_pattern" => {
+                let mut cursor = node.walk();
+                for child in node.named_children(&mut cursor) {
+                    if child.kind() == "case_pattern" {
+                        self.push_python_case_bindings(child);
+                    }
+                }
+            }
+            "dict_pattern" => {
+                for index in 0..node.child_count() {
+                    let index = index as u32;
+                    let Some(child) = node.child(index) else {
+                        continue;
+                    };
+                    if node.field_name_for_child(index) == Some("value")
+                        || child.kind() == "splat_pattern"
+                    {
+                        self.push_python_case_bindings(child);
+                    }
+                }
+            }
+            "keyword_pattern" => {
+                let mut cursor = node.walk();
+                for child in node.named_children(&mut cursor) {
+                    if child.kind() != "identifier" {
+                        self.push_python_case_bindings(child);
+                    }
+                }
+            }
+            "as_pattern_target" => {
+                self.push_named_declaration(
+                    first_descendant_identifier(node),
+                    IdentifierRole::Value,
+                );
+            }
+            "identifier" => {
+                self.push_named_declaration(Some(node), IdentifierRole::Value)
+            }
+            _ => {
+                let mut cursor = node.walk();
+                for child in node.named_children(&mut cursor) {
+                    self.push_python_case_bindings(child);
+                }
+            }
+        }
+    }
+
+    /// 提取 Python 类型别名及其类型参数
+    fn push_python_type_alias(&mut self, node: Node<'_>) {
+        let Some(generic) = descendant_of_kind(node, "generic_type") else {
+            self.push_named_declaration(
+                first_descendant_identifier(node),
+                IdentifierRole::Type,
+            );
+            return;
+        };
+        let mut cursor = generic.walk();
+        for child in generic.named_children(&mut cursor) {
+            match child.kind() {
+                "identifier" => self
+                    .push_named_declaration(Some(child), IdentifierRole::Type),
+                "type_parameter" => self.push_python_type_parameters(child),
                 _ => {}
             }
         }
     }
-    let mut cursor = node.walk();
-    for child in node.named_children(&mut cursor) {
-        collect_declarations(language, child, source, output);
-    }
-}
 
-/// 判断 Rust 外部 trait 是否固定当前方法拼写
-fn rust_external_trait_method_has_fixed_name(
-    node: Node<'_>,
-    source: &[u8],
-) -> bool {
-    if node.kind() != "function_item"
-        || node
-            .child_by_field_name("name")
-            .and_then(|name| name.utf8_text(source).ok())
-            != Some("fmt")
-    {
-        return false;
-    }
-    node.parent()
-        .and_then(|body| body.parent())
-        .filter(|implementation| implementation.kind() == "impl_item")
-        .and_then(|implementation| implementation.child_by_field_name("trait"))
-        .and_then(|implemented_trait| implemented_trait.utf8_text(source).ok())
-        .is_some_and(|implemented_trait| {
-            matches!(implemented_trait, "fmt::Display" | "std::fmt::Display")
-        })
-}
-
-/// 执行 `push_python_case_bindings` 内部逻辑
-fn push_python_case_bindings(
-    node: Node<'_>,
-    source: &[u8],
-    output: &mut Vec<Declaration>,
-) {
-    match node.kind() {
-        "dotted_name" => {
-            let Ok(name) = node.utf8_text(source) else {
-                return;
-            };
-            if !name.contains('.') {
-                push_named_declaration(
-                    Language::Python,
-                    first_descendant_identifier(node),
-                    source,
-                    IdentifierRole::Value,
-                    output,
-                );
-            }
-        }
-        "class_pattern" => {
-            let mut cursor = node.walk();
-            for child in node.named_children(&mut cursor) {
-                if child.kind() == "case_pattern" {
-                    push_python_case_bindings(child, source, output);
-                }
-            }
-        }
-        "dict_pattern" => {
-            for index in 0..node.child_count() {
-                let index = index as u32;
-                let Some(child) = node.child(index) else {
-                    continue;
-                };
-                if node.field_name_for_child(index) == Some("value")
-                    || child.kind() == "splat_pattern"
-                {
-                    push_python_case_bindings(child, source, output);
-                }
-            }
-        }
-        "keyword_pattern" => {
-            let mut cursor = node.walk();
-            for child in node.named_children(&mut cursor) {
-                if child.kind() != "identifier" {
-                    push_python_case_bindings(child, source, output);
-                }
-            }
-        }
-        "as_pattern_target" => {
-            push_named_declaration(
-                Language::Python,
-                first_descendant_identifier(node),
-                source,
-                IdentifierRole::Value,
-                output,
+    /// 提取 Python 类型参数的名称
+    fn push_python_type_parameters(&mut self, parameters: Node<'_>) {
+        let mut cursor = parameters.walk();
+        for parameter in parameters.named_children(&mut cursor) {
+            self.push_named_declaration(
+                first_descendant_identifier(parameter),
+                IdentifierRole::Type,
             );
         }
-        "identifier" => push_named_declaration(
-            Language::Python,
-            Some(node),
-            source,
-            IdentifierRole::Value,
-            output,
-        ),
-        _ => {
-            let mut cursor = node.walk();
-            for child in node.named_children(&mut cursor) {
-                push_python_case_bindings(child, source, output);
-            }
-        }
     }
 }
 
-/// 执行 `push_python_type_alias` 内部逻辑
-fn push_python_type_alias(
-    node: Node<'_>,
-    source: &[u8],
-    output: &mut Vec<Declaration>,
-) {
-    let Some(generic) = descendant_of_kind(node, "generic_type") else {
-        push_named_declaration(
-            Language::Python,
-            first_descendant_identifier(node),
-            source,
-            IdentifierRole::Type,
-            output,
-        );
-        return;
-    };
-    let mut cursor = generic.walk();
-    for child in generic.named_children(&mut cursor) {
-        match child.kind() {
-            "identifier" => push_named_declaration(
-                Language::Python,
-                Some(child),
-                source,
-                IdentifierRole::Type,
-                output,
-            ),
-            "type_parameter" => {
-                push_python_type_parameters(child, source, output)
-            }
-            _ => {}
-        }
-    }
-}
-
-/// 执行 `push_python_type_parameters` 内部逻辑
-fn push_python_type_parameters(
-    parameters: Node<'_>,
-    source: &[u8],
-    output: &mut Vec<Declaration>,
-) {
-    let mut cursor = parameters.walk();
-    for parameter in parameters.named_children(&mut cursor) {
-        push_named_declaration(
-            Language::Python,
-            first_descendant_identifier(parameter),
-            source,
-            IdentifierRole::Type,
-            output,
-        );
-    }
-}
-
-/// 执行 `first_descendant_identifier` 内部逻辑
+/// 查找节点内的第一个标识符
 fn first_descendant_identifier(node: Node<'_>) -> Option<Node<'_>> {
     if node.kind() == "identifier" {
         return Some(node);
@@ -2251,56 +2120,46 @@ fn first_descendant_identifier(node: Node<'_>) -> Option<Node<'_>> {
     None
 }
 
-/// 执行 `push_cplusplus_namespace_names` 内部逻辑
-fn push_cplusplus_namespace_names(
-    node: Node<'_>,
-    source: &[u8],
-    output: &mut Vec<Declaration>,
-) {
-    if node.kind() == "namespace_identifier" {
-        push_named_declaration(
-            Language::Cplusplus,
-            Some(node),
-            source,
-            IdentifierRole::ModuleNamespace,
-            output,
-        );
-        return;
-    }
-    let mut cursor = node.walk();
-    for child in node.named_children(&mut cursor) {
-        push_cplusplus_namespace_names(child, source, output);
-    }
-}
-
-/// 执行 `push_native_family_field_declarators` 内部逻辑
-fn push_native_family_field_declarators(
-    language: Language,
-    node: Node<'_>,
-    field: &str,
-    source: &[u8],
-    role: IdentifierRole,
-    output: &mut Vec<Declaration>,
-) {
-    for index in 0..node.child_count() {
-        let index = index as u32;
-        if node.field_name_for_child(index) != Some(field) {
-            continue;
+impl DeclarationReview<'_> {
+    /// 收集 C++ 命名空间的名称
+    fn push_cplusplus_namespace_names(&mut self, node: Node<'_>) {
+        if node.kind() == "namespace_identifier" {
+            self.push_named_declaration(
+                Some(node),
+                IdentifierRole::ModuleNamespace,
+            );
+            return;
         }
-        let Some(declarator) = node.child(index) else {
-            continue;
-        };
-        push_named_declaration(
-            language,
-            find_declaration_identifier(declarator),
-            source,
-            role,
-            output,
-        );
+        let mut cursor = node.walk();
+        for child in node.named_children(&mut cursor) {
+            self.push_cplusplus_namespace_names(child);
+        }
+    }
+
+    /// 从 C/C++ 指定语法字段提取声明名称
+    fn push_native_family_field_declarators(
+        &mut self,
+        node: Node<'_>,
+        field: &str,
+        role: IdentifierRole,
+    ) {
+        for index in 0..node.child_count() {
+            let index = index as u32;
+            if node.field_name_for_child(index) != Some(field) {
+                continue;
+            }
+            let Some(declarator) = node.child(index) else {
+                continue;
+            };
+            self.push_named_declaration(
+                find_declaration_identifier(declarator),
+                role,
+            );
+        }
     }
 }
 
-/// 执行 `find_declaration_identifier` 内部逻辑
+/// 查找声明中的变量、字段或类型名称
 fn find_declaration_identifier(node: Node<'_>) -> Option<Node<'_>> {
     if matches!(
         node.kind(),
@@ -2317,7 +2176,7 @@ fn find_declaration_identifier(node: Node<'_>) -> Option<Node<'_>> {
     None
 }
 
-/// 执行 `python_is_module_assignment` 内部逻辑
+/// 判断 Python 赋值是否直接位于模块内
 fn python_is_module_assignment(node: Node<'_>) -> bool {
     let statement = node
         .parent()
@@ -2328,103 +2187,152 @@ fn python_is_module_assignment(node: Node<'_>) -> bool {
         .is_some_and(|parent| parent.kind() == "module")
 }
 
-/// 执行 `push_python_binding_target` 内部逻辑
-fn push_python_binding_target(
+/// 识别 Python 经典 TypeAlias 注解赋值
+fn python_type_alias_assignment(node: Node<'_>, source: &[u8]) -> bool {
+    node.child_by_field_name("type")
+        .and_then(|carrier| carrier.utf8_text(source).ok())
+        .is_some_and(|text| {
+            matches!(text.trim(), "TypeAlias" | "typing.TypeAlias")
+        })
+}
+
+/// 返回 Python 精确结构固定绑定的归属
+fn python_fixed_binding_owner(
     node: Node<'_>,
-    source: &[u8],
-    role: IdentifierRole,
-    output: &mut Vec<Declaration>,
-) {
-    match node.kind() {
-        "identifier" => push_named_declaration(
-            Language::Python,
-            Some(node),
-            source,
-            role,
-            output,
-        ),
-        "attribute" => {
-            let is_owned_field = node
-                .child_by_field_name("object")
-                .and_then(|object| object.utf8_text(source).ok())
-                .is_some_and(|object| matches!(object, "self" | "cls"));
-            if is_owned_field {
-                push_named_declaration(
-                    Language::Python,
-                    node.child_by_field_name("attribute"),
-                    source,
-                    IdentifierRole::Value,
-                    output,
-                );
-            }
+    name: &str,
+) -> Option<IdentifierOwner> {
+    let statement = node
+        .parent()
+        .filter(|parent| parent.kind() == "expression_statement")
+        .unwrap_or(node);
+    let body = statement.parent()?;
+    match (name, body.kind()) {
+        ("__all__", "module") => Some(IdentifierOwner::LanguageFixed),
+        ("__slots__", "block")
+            if body
+                .parent()
+                .is_some_and(|owner| owner.kind() == "class_definition") =>
+        {
+            Some(IdentifierOwner::LanguageFixed)
         }
-        "subscript" => {}
-        _ => {
-            let mut cursor = node.walk();
-            for child in node.named_children(&mut cursor) {
-                push_python_binding_target(child, source, role, output);
-            }
-        }
+        _ => None,
     }
 }
 
-/// 执行 `push_python_parameter_identifiers` 内部逻辑
-fn push_python_parameter_identifiers(
-    parameters: Node<'_>,
-    source: &[u8],
-    excluded_receiver: Option<&str>,
-    output: &mut Vec<Declaration>,
-) {
-    let mut cursor = parameters.walk();
-    let mut first_parameter = true;
-    for parameter in parameters.named_children(&mut cursor) {
-        let name = if parameter.kind() == "identifier" {
-            Some(parameter)
-        } else {
-            parameter.child_by_field_name("name").or_else(|| {
-                let mut child_cursor = parameter.walk();
-                parameter
-                    .named_children(&mut child_cursor)
-                    .find(|child| child.kind() == "identifier")
-            })
-        };
-        if first_parameter {
-            first_parameter = false;
-            if let Some(expected) = excluded_receiver {
-                let observed = name
-                    .and_then(|identifier| identifier.utf8_text(source).ok());
-                if observed == Some(expected) {
+impl DeclarationReview<'_> {
+    /// 提取 Python 赋值目标中的绑定名称
+    fn push_python_binding_target(
+        &mut self,
+        node: Node<'_>,
+        role: IdentifierRole,
+    ) {
+        match node.kind() {
+            "identifier" => self.push_named_declaration(Some(node), role),
+            "attribute" => {
+                let is_owned_field = node
+                    .child_by_field_name("object")
+                    .and_then(|object| object.utf8_text(self.source).ok())
+                    .is_some_and(|object| matches!(object, "self" | "cls"));
+                if is_owned_field {
+                    self.push_named_declaration(
+                        node.child_by_field_name("attribute"),
+                        IdentifierRole::Value,
+                    );
+                }
+            }
+            "subscript" => {}
+            _ => {
+                let mut cursor = node.walk();
+                for child in node.named_children(&mut cursor) {
+                    self.push_python_binding_target(child, role);
+                }
+            }
+        }
+    }
+
+    /// 提取 Python 参数名称并校验首位接收者
+    fn push_python_parameter_identifiers(
+        &mut self,
+        parameters: Node<'_>,
+        excluded_receiver: Option<&str>,
+    ) {
+        let mut cursor = parameters.walk();
+        let mut first_parameter = true;
+        for parameter in parameters.named_children(&mut cursor) {
+            let name = python_parameter_identifier(parameter);
+            if first_parameter {
+                first_parameter = false;
+                if let Some(expected) = excluded_receiver {
+                    let observed = name.and_then(|identifier| {
+                        identifier.utf8_text(self.source).ok()
+                    });
+                    if observed == Some(expected) {
+                        // 仅将结构已证明的首位参数认作接收者
+                        let before = self.output.len();
+                        self.push_named_declaration(
+                            name,
+                            IdentifierRole::Value,
+                        );
+                        if self.output.len() != before
+                            && let Some(last) = self.output.last_mut()
+                        {
+                            last.owner = IdentifierOwner::ProfileFixed;
+                        }
+                        continue;
+                    }
+                    let before = self.output.len();
+                    self.push_named_declaration(name, IdentifierRole::Value);
+                    if self.output.len() != before {
+                        self.output
+                            .last_mut()
+                            .expect("new receiver declaration must be last")
+                            .local_form =
+                            LocalIdentifierForm::PythonInvalidReceiver;
+                    }
                     continue;
                 }
-                let before = output.len();
-                push_named_declaration(
-                    Language::Python,
-                    name,
-                    source,
-                    IdentifierRole::Value,
-                    output,
-                );
-                if output.len() != before {
-                    output
-                        .last_mut()
-                        .expect("new receiver declaration must be last")
-                        .local_form =
-                        LocalIdentifierForm::PythonInvalidReceiver;
-                }
-                continue;
             }
+            self.push_named_declaration(name, IdentifierRole::Value);
         }
-        push_named_declaration(
-            Language::Python,
-            name,
-            source,
-            IdentifierRole::Value,
-            output,
-        );
     }
 }
 
-/// 执行 `python_receiver_spelling` 内部逻辑
+/// 返回 Python 参数节点内的稳定标识符
+///
+/// 类型化 splat（`*values_m: float`、`**options: dict`）的稳定名
+/// 位于 list/dictionary_splat_pattern 内部的 identifier
+fn python_parameter_identifier(parameter: Node<'_>) -> Option<Node<'_>> {
+    match parameter.kind() {
+        "identifier" => Some(parameter),
+        "default_parameter" | "typed_default_parameter" => parameter
+            .child_by_field_name("name")
+            .filter(|name| name.kind() == "identifier"),
+        "typed_parameter" => {
+            let direct = single_identifier_child(parameter);
+            if direct.is_some() {
+                return direct;
+            }
+            let mut cursor = parameter.walk();
+            let children: Vec<_> =
+                parameter.named_children(&mut cursor).collect();
+            children
+                .iter()
+                .find(|child| {
+                    matches!(
+                        child.kind(),
+                        "list_splat_pattern" | "dictionary_splat_pattern"
+                    )
+                })
+                .and_then(|splat| single_identifier_child(*splat))
+        }
+        "list_splat_pattern" | "dictionary_splat_pattern" => {
+            single_identifier_child(parameter)
+        }
+        _ => None,
+    }
+}
+
+/// 根据方法位置和装饰器确定 Python 接收者名称
 fn python_receiver_spelling<'source>(
     node: Node<'_>,
     source: &'source [u8],
@@ -2458,85 +2366,88 @@ fn python_receiver_spelling<'source>(
     }
 }
 
-/// 执行 `push_named_declaration` 内部逻辑
-fn push_named_declaration(
-    language: Language,
-    node: Option<Node<'_>>,
-    source: &[u8],
-    role: IdentifierRole,
-    output: &mut Vec<Declaration>,
-) {
-    let Some(node) = node else {
-        return;
-    };
-    let Ok(name) = node.utf8_text(source) else {
-        return;
-    };
-    let point = node.start_position();
-    let local_form = match language {
-        Language::Python
-            if role == IdentifierRole::Function
-                && name.starts_with("__")
-                && name.ends_with("__") =>
-        {
-            LocalIdentifierForm::PythonProtocol
-        }
-        Language::Python if name.starts_with('_') => {
-            LocalIdentifierForm::PythonPrivate
-        }
-        Language::Rust if name.starts_with("r#") => {
-            LocalIdentifierForm::RustRaw
-        }
-        Language::Rust if name.starts_with('\'') => {
-            LocalIdentifierForm::RustLifetime
-        }
-        Language::ProceduralSource
-            if role == IdentifierRole::Typedef && name.ends_with("_t") =>
-        {
-            LocalIdentifierForm::TypeDefinitionSuffix
-        }
-        _ => LocalIdentifierForm::Plain,
-    };
-    output.push(Declaration {
-        name: name.to_owned(),
-        line: point.row + 1,
-        column: point.column + 1,
-        value_like: matches!(
+impl DeclarationReview<'_> {
+    /// 记录声明名称、源码位置和语言形式
+    fn push_named_declaration(
+        &mut self,
+        node: Option<Node<'_>>,
+        role: IdentifierRole,
+    ) {
+        let Some(node) = node else {
+            return;
+        };
+        let Ok(name) = node.utf8_text(self.source) else {
+            return;
+        };
+        let point = node.start_position();
+        let local_form = match self.language {
+            Language::Python
+                if role == IdentifierRole::Function
+                    && node.parent().is_some_and(|definition| {
+                        python_protocol_method(definition, self.source)
+                    }) =>
+            {
+                LocalIdentifierForm::PythonProtocol
+            }
+            Language::Python if name.starts_with('_') => {
+                LocalIdentifierForm::PythonPrivate
+            }
+            Language::Rust if name.starts_with("r#") => {
+                LocalIdentifierForm::RustRaw
+            }
+            Language::Rust if name.starts_with('\'') => {
+                LocalIdentifierForm::RustLifetime
+            }
+            Language::ProceduralSource
+                if role == IdentifierRole::Typedef && name.ends_with("_t") =>
+            {
+                LocalIdentifierForm::TypeDefinitionSuffix
+            }
+            _ => LocalIdentifierForm::Plain,
+        };
+        // Rust `Self` 只在类型上下文是语言固定拼写；其他语言同名照常判定
+        let owner = match (self.language, name, role) {
+            (Language::Rust, "Self", IdentifierRole::Type) => {
+                IdentifierOwner::LanguageFixed
+            }
+            _ => IdentifierOwner::AuthorChosen,
+        };
+        self.output.push(Declaration {
+            name: name.to_owned(),
+            line: point.row + 1,
+            column: point.column + 1,
+            value_like: matches!(
+                role,
+                IdentifierRole::Value
+                    | IdentifierRole::Constant
+                    | IdentifierRole::Enumerator
+                    | IdentifierRole::ModuleBinding
+            ),
             role,
-            IdentifierRole::Value
-                | IdentifierRole::Constant
-                | IdentifierRole::Enumerator
-                | IdentifierRole::ModuleBinding
-        ),
-        role,
-        local_form,
-        reserved_scope: declaration_is_file_or_global_scope(node),
-    });
-}
+            local_form,
+            reserved_scope: declaration_is_file_or_global_scope(node),
+            owner,
+            external_owner: None,
+        });
+    }
 
-/// 执行 `push_cplusplus_private_member_declaration` 内部逻辑
-fn push_cplusplus_private_member_declaration(
-    node: Option<Node<'_>>,
-    source: &[u8],
-    output: &mut Vec<Declaration>,
-) {
-    let before = output.len();
-    push_named_declaration(
-        Language::Cplusplus,
-        node,
-        source,
-        IdentifierRole::Value,
-        output,
-    );
-    if output.len() != before {
-        output
-            .last_mut()
-            .expect("new declaration must be last")
-            .local_form = LocalIdentifierForm::CplusplusPrivateMember;
+    /// 记录 C++ 私有数据成员的名称形式
+    fn push_cplusplus_private_member_declaration(
+        &mut self,
+        node: Option<Node<'_>>,
+    ) {
+        let before = self.output.len();
+        self.push_named_declaration(node, IdentifierRole::Value);
+        if self.output.len() != before {
+            self.output
+                .last_mut()
+                .expect("new declaration must be last")
+                .local_form = LocalIdentifierForm::CplusplusPrivateMember;
+        }
     }
 }
 
-/// 执行 `declaration_is_file_or_global_scope` 内部逻辑
+/// 判断声明是否位于文件或全局作用域
 fn declaration_is_file_or_global_scope(node: Node<'_>) -> bool {
     let mut ancestor = node.parent();
     while let Some(parent) = ancestor {
@@ -2555,148 +2466,147 @@ fn declaration_is_file_or_global_scope(node: Node<'_>) -> bool {
     true
 }
 
-/// 执行 `push_identifier_descendants` 内部逻辑
-fn push_identifier_descendants(
-    language: Language,
-    node: Node<'_>,
-    source: &[u8],
-    role: IdentifierRole,
-    output: &mut Vec<Declaration>,
-) {
-    if matches!(node.kind(), "identifier" | "field_identifier") {
-        push_named_declaration(language, Some(node), source, role, output);
-        return;
-    }
-    let mut cursor = node.walk();
-    for child in node.named_children(&mut cursor) {
-        push_identifier_descendants(language, child, source, role, output);
-    }
-}
-
-/// 执行 `push_rust_parameter_identifiers` 内部逻辑
-fn push_rust_parameter_identifiers(
-    parameters: Node<'_>,
-    source: &[u8],
-    output: &mut Vec<Declaration>,
-) {
-    let mut cursor = parameters.walk();
-    for parameter in parameters.named_children(&mut cursor) {
-        if parameter.kind() == "self_parameter" {
-            continue;
+impl DeclarationReview<'_> {
+    /// 收集节点内的变量和字段名称
+    fn push_identifier_descendants(
+        &mut self,
+        node: Node<'_>,
+        role: IdentifierRole,
+    ) {
+        if matches!(node.kind(), "identifier" | "field_identifier") {
+            self.push_named_declaration(Some(node), role);
+            return;
         }
-        if let Some(pattern) = parameter.child_by_field_name("pattern") {
-            push_rust_binding_pattern(pattern, source, output);
+        let mut cursor = node.walk();
+        for child in node.named_children(&mut cursor) {
+            self.push_identifier_descendants(child, role);
         }
     }
-}
 
-/// 执行 `push_rust_binding_pattern` 内部逻辑
-fn push_rust_binding_pattern(
-    node: Node<'_>,
-    source: &[u8],
-    output: &mut Vec<Declaration>,
-) {
-    match node.kind() {
-        "identifier" | "shorthand_field_identifier" => {
-            if node.kind() == "identifier"
-                && node.utf8_text(source).ok() == Some("None")
+    /// 提取 Rust 非接收者参数中的绑定名称
+    fn push_rust_parameter_identifiers(&mut self, parameters: Node<'_>) {
+        let mut cursor = parameters.walk();
+        for parameter in parameters.named_children(&mut cursor) {
+            if parameter.kind() == "self_parameter" {
+                continue;
+            }
+            if let Some(pattern) = parameter.child_by_field_name("pattern") {
+                self.push_rust_binding_pattern(pattern);
+            }
+        }
+    }
+
+    /// 提取 Rust 模式中的绑定并识别丢弃位置
+    fn push_rust_binding_pattern(&mut self, node: Node<'_>) {
+        match node.kind() {
+            "identifier" | "shorthand_field_identifier" => {
+                if node.kind() == "identifier"
+                    && node.utf8_text(self.source).ok() == Some("None")
+                {
+                    return;
+                }
+                self.push_named_declaration(Some(node), IdentifierRole::Value);
+            }
+            "struct_pattern" | "tuple_struct_pattern" => {
+                let excluded_type =
+                    node.child_by_field_name("type").map(|child| child.id());
+                let mut cursor = node.walk();
+                for child in node.named_children(&mut cursor) {
+                    if Some(child.id()) != excluded_type {
+                        self.push_rust_binding_pattern(child);
+                    }
+                }
+            }
+            "field_pattern" => {
+                if let Some(pattern) = node.child_by_field_name("pattern") {
+                    self.push_rust_binding_pattern(pattern);
+                } else {
+                    self.push_named_declaration(
+                        node.child_by_field_name("name"),
+                        IdentifierRole::Value,
+                    );
+                }
+            }
+            "scoped_identifier"
+            | "scoped_type_identifier"
+            | "type_identifier"
+            | "remaining_field_pattern" => {}
+            // `_` 通配 token 是语法性丢弃，不是作者命名
+            "_" => self.push_rust_discard_declaration(node),
+            // 裸 `_` match 通配没有命名子节点，按整体文本识别为丢弃
+            "match_pattern"
+                if node.utf8_text(self.source).ok() == Some("_") =>
             {
-                return;
+                self.push_rust_discard_declaration(node);
             }
-            push_named_declaration(
-                Language::Rust,
-                Some(node),
-                source,
-                IdentifierRole::Value,
-                output,
-            );
-        }
-        "struct_pattern" | "tuple_struct_pattern" => {
-            let excluded_type =
-                node.child_by_field_name("type").map(|child| child.id());
-            let mut cursor = node.walk();
-            for child in node.named_children(&mut cursor) {
-                if Some(child.id()) != excluded_type {
-                    push_rust_binding_pattern(child, source, output);
+            // match_pattern 把 guard 表达式并入同一节点；只提取首个命名
+            // 子节点（真实模式），guard 里的标识符不是绑定声明
+            "match_pattern" => {
+                let mut cursor = node.walk();
+                let pattern = node.named_children(&mut cursor).next();
+                if let Some(pattern) = pattern {
+                    self.push_rust_binding_pattern(pattern);
+                }
+            }
+            _ => {
+                let mut cursor = node.walk();
+                for child in node.named_children(&mut cursor) {
+                    self.push_rust_binding_pattern(child);
                 }
             }
         }
-        "field_pattern" => {
-            if let Some(pattern) = node.child_by_field_name("pattern") {
-                push_rust_binding_pattern(pattern, source, output);
-            } else {
-                push_named_declaration(
-                    Language::Rust,
-                    node.child_by_field_name("name"),
-                    source,
-                    IdentifierRole::Value,
-                    output,
-                );
-            }
-        }
-        "scoped_identifier"
-        | "scoped_type_identifier"
-        | "type_identifier"
-        | "remaining_field_pattern"
-        | "wildcard_pattern" => {}
-        _ => {
-            let mut cursor = node.walk();
-            for child in node.named_children(&mut cursor) {
-                push_rust_binding_pattern(child, source, output);
-            }
-        }
     }
-}
 
-/// 执行 `push_native_family_callable_declarations` 内部逻辑
-fn push_native_family_callable_declarations(
-    language: Language,
-    declarator: Node<'_>,
-    source: &[u8],
-    output: &mut Vec<Declaration>,
-) {
-    if let Some(function) =
-        descendant_of_kind(declarator, "function_declarator")
-    {
-        let name = function
-            .child_by_field_name("declarator")
-            .and_then(find_declarator_identifier);
-        if language != Language::Cplusplus
-            || !cplusplus_fixed_callable_spelling(name, source)
+    /// 记录 Rust 语法性丢弃 `_` 通配
+    fn push_rust_discard_declaration(&mut self, node: Node<'_>) {
+        let before = self.output.len();
+        self.push_named_declaration(Some(node), IdentifierRole::Value);
+        if self.output.len() != before
+            && let Some(last) = self.output.last_mut()
         {
-            push_named_declaration(
-                language,
-                name,
-                source,
-                IdentifierRole::Function,
-                output,
-            );
+            last.owner = IdentifierOwner::Discard;
         }
-        if let Some(parameters) = function.child_by_field_name("parameters") {
-            let mut cursor = parameters.walk();
-            for parameter in parameters.named_children(&mut cursor) {
-                if !matches!(
-                    parameter.kind(),
-                    "parameter_declaration" | "optional_parameter_declaration"
-                ) {
-                    continue;
+    }
+
+    /// 提取 C/C++ 函数及其参数的可审查名称
+    fn push_native_family_callable_declarations(
+        &mut self,
+        declarator: Node<'_>,
+    ) {
+        if let Some(function) =
+            descendant_of_kind(declarator, "function_declarator")
+        {
+            let name = function
+                .child_by_field_name("declarator")
+                .and_then(find_declarator_identifier);
+            if self.language != Language::Cplusplus
+                || !cplusplus_fixed_callable_spelling(name, self.source)
+            {
+                self.push_named_declaration(name, IdentifierRole::Function);
+            }
+            if let Some(parameters) =
+                function.child_by_field_name("parameters")
+            {
+                let mut cursor = parameters.walk();
+                for parameter in parameters.named_children(&mut cursor) {
+                    if !matches!(
+                        parameter.kind(),
+                        "parameter_declaration"
+                            | "optional_parameter_declaration"
+                    ) {
+                        continue;
+                    }
+                    let name = parameter
+                        .child_by_field_name("declarator")
+                        .and_then(find_declarator_identifier);
+                    self.push_named_declaration(name, IdentifierRole::Value);
                 }
-                let name = parameter
-                    .child_by_field_name("declarator")
-                    .and_then(find_declarator_identifier);
-                push_named_declaration(
-                    language,
-                    name,
-                    source,
-                    IdentifierRole::Value,
-                    output,
-                );
             }
         }
     }
 }
 
-/// 执行 `cplusplus_fixed_callable_spelling` 内部逻辑
+/// 识别 C++ 构造、析构和运算符的固定名称
 fn cplusplus_fixed_callable_spelling(
     name: Option<Node<'_>>,
     source: &[u8],
@@ -2736,58 +2646,74 @@ fn cplusplus_fixed_callable_spelling(
     false
 }
 
-/// 执行 `push_native_family_value_declarations` 内部逻辑
-fn push_native_family_value_declarations(
-    language: Language,
-    declaration: Node<'_>,
-    source: &[u8],
-    output: &mut Vec<Declaration>,
-) {
-    for index in 0..declaration.child_count() {
-        let index = index as u32;
-        let Some(child) = declaration.child(index) else {
-            continue;
-        };
-        let is_declarator = declaration.field_name_for_child(index)
-            == Some("declarator")
-            || child.kind() == "init_declarator"
-            || (child.kind().ends_with("declarator")
-                && child.kind() != "function_declarator");
-        if !is_declarator
-            || descendant_of_kind(child, "function_declarator").is_some()
-        {
-            continue;
-        }
-        if let Some(binding) =
-            descendant_of_kind(child, "structured_binding_declarator")
-        {
-            push_identifier_descendants(
-                language,
-                binding,
-                source,
-                IdentifierRole::Value,
-                output,
-            );
-            continue;
-        }
-        let name = find_declarator_identifier(child);
-        if language == Language::Cplusplus
-            && cplusplus_is_private_non_static_data_member(declaration, source)
-        {
-            push_cplusplus_private_member_declaration(name, source, output);
-        } else {
-            push_named_declaration(
-                language,
-                name,
-                source,
-                IdentifierRole::Value,
-                output,
-            );
+impl DeclarationReview<'_> {
+    /// 提取 C/C++ 变量、常量和数据成员名称
+    fn push_native_family_value_declarations(
+        &mut self,
+        declaration: Node<'_>,
+    ) {
+        for index in 0..declaration.child_count() {
+            let index = index as u32;
+            let Some(child) = declaration.child(index) else {
+                continue;
+            };
+            let is_declarator = declaration.field_name_for_child(index)
+                == Some("declarator")
+                || child.kind() == "init_declarator"
+                || (child.kind().ends_with("declarator")
+                    && child.kind() != "function_declarator");
+            if !is_declarator
+                || descendant_of_kind(child, "function_declarator").is_some()
+            {
+                continue;
+            }
+            if let Some(binding) =
+                descendant_of_kind(child, "structured_binding_declarator")
+            {
+                self.push_identifier_descendants(
+                    binding,
+                    IdentifierRole::Value,
+                );
+                continue;
+            }
+            let name = find_declarator_identifier(child);
+            if self.language == Language::Cplusplus
+                && cplusplus_is_private_non_static_data_member(
+                    declaration,
+                    self.source,
+                )
+            {
+                self.push_cplusplus_private_member_declaration(name);
+            } else {
+                let role = if native_family_declaration_is_constant(
+                    declaration,
+                    self.source,
+                ) {
+                    IdentifierRole::Constant
+                } else {
+                    IdentifierRole::Value
+                };
+                self.push_named_declaration(name, role);
+            }
         }
     }
 }
 
-/// 执行 `cplusplus_is_private_non_static_data_member` 内部逻辑
+/// 判断原生声明是否直接携带不可变对象说明符
+fn native_family_declaration_is_constant(
+    declaration: Node<'_>,
+    source: &[u8],
+) -> bool {
+    let mut cursor = declaration.walk();
+    declaration.named_children(&mut cursor).any(|child| {
+        matches!(child.kind(), "type_qualifier" | "storage_class_specifier")
+            && child
+                .utf8_text(source)
+                .is_ok_and(|text| matches!(text, "const" | "constexpr"))
+    })
+}
+
+/// 判断 C++ 声明是否为私有非静态数据成员
 fn cplusplus_is_private_non_static_data_member(
     declaration: Node<'_>,
     source: &[u8],
@@ -2820,38 +2746,33 @@ fn cplusplus_is_private_non_static_data_member(
     private
 }
 
-/// 执行 `judge_identifier` 内部逻辑
+/// 按规则优先级检查标识符并返回首项问题
 fn judge_identifier(
     authority: &CompiledAuthority,
     language: Language,
     declaration: &Declaration,
 ) -> Option<RuleOperator> {
-    if declaration.name == "Self" {
-        return None;
+    match declaration.owner {
+        IdentifierOwner::LanguageFixed
+        | IdentifierOwner::ProfileFixed
+        | IdentifierOwner::Discard => return None,
+        IdentifierOwner::AuthorChosen => {}
     }
     let semantic_name = strip_language_form(declaration);
-    let (invalid_prefix, mut remainder) =
-        strip_role_prefix(&authority.semantic_role_prefixes, semantic_name);
-    let mut observed_suffix = None;
-    let mut suffix_order: Vec<_> = authority
-        .representation_suffixes
-        .iter()
-        .map(String::as_str)
-        .collect();
-    suffix_order.sort_by_key(|suffix| std::cmp::Reverse(suffix.len()));
-    for suffix in suffix_order {
-        let marker = format!("_{suffix}");
-        if remainder.ends_with(&marker) {
-            remainder = &remainder[..remainder.len() - marker.len()];
-            observed_suffix = Some(suffix);
-            break;
+    let (invalid_prefix, quantity, remainder) =
+        authority.identifier_name_disposition(semantic_name);
+    // 通过 Authority 统一判断词元是否为候选或已注册名称
+    // 单次遍历汇总结果，调用方不再自行分类
+    let mut has_candidate = false;
+    let mut vocabulary_complete = true;
+    for token in split_identifier_tokens(remainder) {
+        match authority.identifier_token_disposition(&token) {
+            TokenDisposition::Candidate => has_candidate = true,
+            TokenDisposition::Vocabulary => {}
+            TokenDisposition::Unknown => vocabulary_complete = false,
         }
     }
-    let tokens = split_identifier_tokens(remainder);
-    if tokens.iter().any(|token| {
-        token.chars().count() == 1
-            || authority.candidate_tokens.contains(token.as_str())
-    }) {
+    if has_candidate {
         return Some(RuleOperator::IdentifierCandidate);
     }
     if identifier_is_reserved(language, declaration) {
@@ -2860,43 +2781,32 @@ fn judge_identifier(
     if invalid_prefix {
         return Some(RuleOperator::IdentifierCanonicalForm);
     }
-    let vocabulary_complete = tokens
-        .iter()
-        .all(|token| authority.token_vocabulary.contains(token.as_str()));
-    if vocabulary_complete
-        && !identifier_role_form_is_valid(declaration, semantic_name)
-    {
+    if !identifier_role_form_is_valid(declaration, semantic_name) {
         return Some(RuleOperator::IdentifierCanonicalForm);
     }
+    // 表未命中即不做任何 quantity 推断；token 判定路径保持不变
     if declaration.value_like
-        && let Some(allowed) = authority.quantity_concepts.get(remainder)
-    {
-        match observed_suffix {
-            Some(suffix) if allowed.contains(suffix) => {}
-            _ => {
-                return Some(RuleOperator::IdentifierRepresentationSuffix);
-            }
-        }
-    }
-    if declaration.value_like
-        && observed_suffix.is_none()
-        && authority
-            .quantity_concepts
-            .keys()
-            .any(|concept| remainder.starts_with(&format!("{concept}_")))
+        && let Some(disposition) = quantity
+        && disposition != QuantityNameDisposition::Valid
     {
         return Some(RuleOperator::IdentifierRepresentationSuffix);
     }
-    if tokens
-        .iter()
-        .any(|token| !authority.token_vocabulary.contains(token.as_str()))
+    if !vocabulary_complete
+        && !declaration.external_owner.as_deref().is_some_and(|owner| {
+            authority.external_fixed_contains(
+                language.key(),
+                declaration.role.key(),
+                owner,
+                &declaration.name,
+            )
+        })
     {
         return Some(RuleOperator::IdentifierUnknownToken);
     }
     None
 }
 
-/// 执行 `strip_language_form` 内部逻辑
+/// 去除标识符中已识别的语言专用前后缀
 fn strip_language_form(declaration: &Declaration) -> &str {
     match declaration.local_form {
         LocalIdentifierForm::PythonPrivate => declaration
@@ -2929,11 +2839,18 @@ fn strip_language_form(declaration: &Declaration) -> &str {
     }
 }
 
-/// 执行 `identifier_is_reserved` 内部逻辑
+/// 判断标识符是否占用语言保留名称
 fn identifier_is_reserved(
     language: Language,
     declaration: &Declaration,
 ) -> bool {
+    if language == Language::Rust {
+        return declaration.local_form == LocalIdentifierForm::RustRaw
+            && callable_is_reserved(
+                language,
+                strip_language_form(declaration),
+            );
+    }
     if !matches!(language, Language::ProceduralSource | Language::Cplusplus) {
         return false;
     }
@@ -2952,7 +2869,7 @@ fn identifier_is_reserved(
         || (declaration.reserved_scope && name.starts_with('_'))
 }
 
-/// 执行 `identifier_role_form_is_valid` 内部逻辑
+/// 按声明用途检查标识符的命名形式
 fn identifier_role_form_is_valid(
     declaration: &Declaration,
     semantic_name: &str,
@@ -3023,7 +2940,7 @@ fn matches_upper_snake_case(name: &str) -> bool {
         })
 }
 
-/// 执行 `is_pascal_case` 内部逻辑
+/// 判断名称是否满足大驼峰拼写要求
 fn is_pascal_case(name: &str) -> bool {
     name.chars()
         .next()
@@ -3035,55 +2952,24 @@ fn is_pascal_case(name: &str) -> bool {
         && name.chars().any(|character| character.is_ascii_lowercase())
 }
 
-/// 执行 `strip_role_prefix` 内部逻辑
-fn strip_role_prefix<'identifier>(
-    prefixes: &[String],
-    name: &'identifier str,
-) -> (bool, &'identifier str) {
-    if let Some(remainder) = name
-        .strip_prefix("min_")
-        .or_else(|| name.strip_prefix("max_"))
-    {
-        return (true, remainder);
-    }
-    for prefix in prefixes {
-        let marker = format!("{prefix}_");
-        if let Some(remainder) = name.strip_prefix(&marker) {
-            if prefixes
-                .iter()
-                .any(|other| remainder.starts_with(&format!("{other}_")))
-            {
-                let remainder = prefixes
-                    .iter()
-                    .find_map(|other| {
-                        remainder.strip_prefix(&format!("{other}_"))
-                    })
-                    .unwrap_or(remainder);
-                return (true, remainder);
-            }
-            return (false, remainder);
-        }
-    }
-    (false, name)
-}
-
-/// 执行 `split_identifier_tokens` 内部逻辑
+/// 按下划线和大小写边界拆分名称
+///
+/// 只负责边界拆分；大小写归一化由 Authority 的词法法则查询统一拥有
 fn split_identifier_tokens(name: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     for segment in name.split('_').filter(|segment| !segment.is_empty()) {
         if segment.chars().all(|character| {
             !character.is_alphabetic() || character.is_uppercase()
         }) {
-            tokens.push(segment.to_lowercase());
+            tokens.push(segment.to_owned());
             continue;
         }
         let mut current = String::new();
         for character in segment.chars() {
             if character.is_uppercase() && !current.is_empty() {
-                tokens.push(current.to_lowercase());
-                current.clear();
+                tokens.push(std::mem::take(&mut current));
             }
-            current.extend(character.to_lowercase());
+            current.push(character);
         }
         if !current.is_empty() {
             tokens.push(current);
@@ -3092,30 +2978,7 @@ fn split_identifier_tokens(name: &str) -> Vec<String> {
     tokens
 }
 
-/// 将标识符判定映射为 Authority 拥有的 Finding
-fn push_identifier_findings(
-    authority: &CompiledAuthority,
-    document: &OwnedDocument,
-    declaration: &Declaration,
-    operator: RuleOperator,
-    findings: &mut Vec<Finding>,
-) {
-    push_rule_findings(
-        authority,
-        operator,
-        &document.path,
-        declaration.line,
-        declaration.column,
-        &declaration.name,
-        &format!(
-            "observed author-chosen declaration spelling {}",
-            declaration.name
-        ),
-        findings,
-    );
-}
-
-/// 执行 `tree_sitter_language` 内部逻辑
+/// 选择对应语言的 Tree-sitter 语法
 fn tree_sitter_language(language: Language) -> TreeSitterLanguage {
     match language {
         Language::Python => tree_sitter_python::LANGUAGE.into(),
@@ -3125,58 +2988,25 @@ fn tree_sitter_language(language: Language) -> TreeSitterLanguage {
     }
 }
 
-/// 执行 `language_for_document` 内部逻辑
-fn language_for_document(
+/// 规范化相对路径并确定其源码语言
+fn source_admission(
     authority: &CompiledAuthority,
-    path: &str,
-) -> Result<Option<Language>, ReviewRejection> {
-    let path_object = Path::new(path);
-    if path_object
+    raw_path: &str,
+) -> Result<Option<AdmittedSource>, ReviewRejection> {
+    let path = normalize_relative_path(raw_path)?;
+    let Some(extension) = Path::new(&path)
         .extension()
-        .and_then(|extension| extension.to_str())
-        == Some("h")
-    {
-        return match authority.header_languages.get(path) {
-            Some(language) => parse_language(language).map(Some),
-            None => Err(ReviewRejection::new(
-                "request.language",
-                format!(
-                    "ambiguous .h source lacks header_languages entry: {path}"
-                ),
-            )),
-        };
-    }
-    Ok(language_for_path(path_object))
+        .and_then(std::ffi::OsStr::to_str)
+    else {
+        return Ok(None);
+    };
+    let Some(language) = authority.source_profile(extension, &path)? else {
+        return Ok(None);
+    };
+    Ok(Some(AdmittedSource { path, language }))
 }
 
-/// 执行 `language_for_path` 内部逻辑
-fn language_for_path(path: &Path) -> Option<Language> {
-    match path.extension().and_then(|extension| extension.to_str()) {
-        Some("py") => Some(Language::Python),
-        Some("rs") => Some(Language::Rust),
-        Some("c") => Some(Language::ProceduralSource),
-        Some("cc" | "cpp" | "cxx" | "hpp" | "hh" | "hxx") => {
-            Some(Language::Cplusplus)
-        }
-        _ => None,
-    }
-}
-
-/// 执行 `parse_language` 内部逻辑
-fn parse_language(language: &str) -> Result<Language, ReviewRejection> {
-    match language {
-        "python" => Ok(Language::Python),
-        "rust" => Ok(Language::Rust),
-        "c" => Ok(Language::ProceduralSource),
-        "cpp" => Ok(Language::Cplusplus),
-        _ => Err(ReviewRejection::new(
-            "request.language",
-            format!("unknown language {language}"),
-        )),
-    }
-}
-
-/// 执行 `collect_callables` 内部逻辑
+/// 从语法树收集需要文档的声明及其相关事实
 #[allow(clippy::too_many_arguments)]
 fn collect_callables(
     language: Language,
@@ -3199,8 +3029,15 @@ fn collect_callables(
     };
     let is_python_class =
         language == Language::Python && node.kind() == "class_definition";
+    let mut rust_attribute = (language == Language::Rust
+        && node.kind() == "macro_definition")
+        .then(|| observe_rust_attribute(node, source));
     let is_rust_public_item = language == Language::Rust
-        && rust_public_documentation_item(node, source);
+        && rust_public_documentation_item(
+            node,
+            source,
+            rust_attribute.as_ref(),
+        );
     let is_native_family_unresolved_item =
         matches!(language, Language::ProceduralSource | Language::Cplusplus)
             && native_family_documentation_capability_needed(node);
@@ -3212,23 +3049,41 @@ fn collect_callables(
         || (is_named_callable
             && !matches!(node.kind(), "function_signature_item"));
     if is_subject {
-        let name = documentation_subject_name(language, node, source)
-            .unwrap_or_else(|| "<unknown>".to_owned());
+        if language == Language::Rust && rust_attribute.is_none() {
+            rust_attribute = Some(observe_rust_attribute(node, source));
+        }
+        let name = documentation_subject_name(language, node, source);
+        let identity_unresolved = name.is_none();
+        let name = name.unwrap_or_else(|| "<unknown>".to_owned());
         let point = node.start_position();
         let decorated_visibility = (language == Language::Python
             && is_named_callable)
             .then(|| observe_python_decorated_visibility(node, source, &name))
             .flatten();
-        let visibility = if is_native_family_unresolved_item {
+        let visibility = if identity_unresolved {
+            DocumentationVisibility::IdentityUnresolved
+        } else if is_native_family_unresolved_item && !is_named_callable {
+            DocumentationVisibility::Internal
+        } else if is_native_family_unresolved_item {
             DocumentationVisibility::Unresolved
         } else if let Some(decorated_visibility) = decorated_visibility {
             decorated_visibility
         } else {
             observe_documentation_visibility(
-                language, node, source, nested, &name,
+                language,
+                node,
+                source,
+                nested,
+                &name,
+                rust_attribute.as_ref(),
             )
         };
-        let carrier = documentation_carrier(language, node, source);
+        let carrier = documentation_carrier(
+            language,
+            node,
+            source,
+            rust_attribute.as_ref(),
+        );
         let (parameters, parameters_complete) =
             callable_parameters(language, node, source);
         let (
@@ -3254,8 +3109,9 @@ fn collect_callables(
                 && rust_requires_safety(node),
             requires_effect: language == Language::Cplusplus
                 && cplusplus_requires_effect(node, source),
-            carrier_unresolved: language == Language::Rust
-                && rust_has_nonliteral_documentation_attribute(node, source),
+            carrier_unresolved: rust_attribute
+                .as_ref()
+                .is_some_and(|facts| facts.nonliteral_documentation),
         });
     }
     let mut cursor = node.walk();
@@ -3264,8 +3120,12 @@ fn collect_callables(
     }
 }
 
-/// 执行 `rust_public_documentation_item` 内部逻辑
-fn rust_public_documentation_item(node: Node<'_>, source: &[u8]) -> bool {
+/// 判断 Rust 非函数声明是否需要文档
+fn rust_public_documentation_item(
+    node: Node<'_>,
+    source: &[u8],
+    attribute: Option<&RustAttributeFacts<'_>>,
+) -> bool {
     match node.kind() {
         "mod_item" | "struct_item" | "union_item" | "enum_item"
         | "type_item" | "const_item" | "static_item" | "use_declaration" => {
@@ -3279,12 +3139,12 @@ fn rust_public_documentation_item(node: Node<'_>, source: &[u8]) -> bool {
             rust_has_unrestricted_public_visibility(node, source)
         }
         "enum_variant" => rust_public_ancestor(node, source, "enum_item"),
-        "macro_definition" => rust_has_attribute(node, source, "macro_export"),
+        "macro_definition" => attribute.is_some_and(|facts| facts.is_public),
         _ => false,
     }
 }
 
-/// 执行 `rust_requires_safety` 内部逻辑
+/// 判断 Rust 声明是否需要安全说明
 fn rust_requires_safety(node: Node<'_>) -> bool {
     if !matches!(
         node.kind(),
@@ -3310,85 +3170,65 @@ fn rust_requires_safety(node: Node<'_>) -> bool {
     false
 }
 
-/// 执行 `rust_has_attribute` 内部逻辑
-fn rust_has_attribute(
-    node: Node<'_>,
+/// 一次观察 Rust 属性链的精确身份与文档事实
+fn observe_rust_attribute<'tree>(
+    node: Node<'tree>,
     source: &[u8],
-    attribute_name: &str,
-) -> bool {
-    let marker = format!("#[{attribute_name}");
+) -> RustAttributeFacts<'tree> {
+    let mut items = Vec::new();
     let mut cursor = node.walk();
-    if node.named_children(&mut cursor).any(|child| {
-        child.kind() == "attribute_item"
-            && child
-                .utf8_text(source)
-                .is_ok_and(|text| text.trim().starts_with(&marker))
-    }) {
-        return true;
-    }
-    let mut sibling = node.prev_named_sibling();
-    while let Some(attribute) = sibling {
+    items.extend(
+        node.named_children(&mut cursor)
+            .filter(|child| child.kind() == "attribute_item"),
+    );
+    let mut preceding = node.prev_named_sibling();
+    let mut attachment_start = node.start_byte();
+    while let Some(attribute) = preceding {
         if attribute.kind() != "attribute_item" {
             break;
         }
-        if attribute
-            .utf8_text(source)
-            .is_ok_and(|text| text.trim().starts_with(&marker))
-        {
-            return true;
-        }
-        sibling = attribute.prev_named_sibling();
+        attachment_start = attribute.start_byte();
+        items.push(attribute);
+        preceding = attribute.prev_named_sibling();
     }
-    false
+    items.sort_unstable_by_key(Node::start_byte);
+    let mut facts = RustAttributeFacts {
+        documentation: Vec::new(),
+        is_public: false,
+        nonliteral_documentation: false,
+        preceding,
+        attachment_start,
+    };
+    for item in items {
+        let Some(attribute) = item.named_child(0) else {
+            continue;
+        };
+        let Some(path) = attribute.named_child(0) else {
+            continue;
+        };
+        if path.kind() != "identifier" {
+            continue;
+        }
+        match path.utf8_text(source).ok() {
+            Some("macro_export") => facts.is_public = true,
+            Some("doc") => {
+                let literal = attribute
+                    .child_by_field_name("value")
+                    .and_then(|value| value.utf8_text(source).ok())
+                    .and_then(|value| serde_json::from_str(value).ok());
+                if let Some(line) = literal {
+                    facts.documentation.push(line);
+                } else {
+                    facts.nonliteral_documentation = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    facts
 }
 
-/// 执行 `rust_has_nonliteral_documentation_attribute` 内部逻辑
-fn rust_has_nonliteral_documentation_attribute(
-    node: Node<'_>,
-    source: &[u8],
-) -> bool {
-    let mut cursor = node.walk();
-    if node.named_children(&mut cursor).any(|child| {
-        child.kind() == "attribute_item"
-            && child
-                .utf8_text(source)
-                .is_ok_and(|text| text.trim().starts_with("#[doc"))
-            && parse_rust_documentation_attribute(child, source).is_none()
-    }) {
-        return true;
-    }
-    let mut sibling = node.prev_named_sibling();
-    while let Some(attribute) = sibling {
-        if attribute.kind() != "attribute_item" {
-            break;
-        }
-        if attribute
-            .utf8_text(source)
-            .is_ok_and(|text| text.trim().starts_with("#[doc"))
-            && parse_rust_documentation_attribute(attribute, source).is_none()
-        {
-            return true;
-        }
-        sibling = attribute.prev_named_sibling();
-    }
-    false
-}
-
-/// 执行 `rust_leading_attribute_start` 内部逻辑
-fn rust_leading_attribute_start(node: Node<'_>) -> usize {
-    let mut start = node.start_byte();
-    let mut sibling = node.prev_named_sibling();
-    while let Some(attribute) = sibling {
-        if attribute.kind() != "attribute_item" {
-            break;
-        }
-        start = attribute.start_byte();
-        sibling = attribute.prev_named_sibling();
-    }
-    start
-}
-
-/// 执行 `rust_has_unrestricted_public_visibility` 内部逻辑
+/// 判断 Rust 声明是否具有不受限的公开可见性
 fn rust_has_unrestricted_public_visibility(
     node: Node<'_>,
     source: &[u8],
@@ -3402,7 +3242,7 @@ fn rust_has_unrestricted_public_visibility(
     })
 }
 
-/// 执行 `rust_public_ancestor` 内部逻辑
+/// 判断指定类型的 Rust 上层声明是否公开
 fn rust_public_ancestor(node: Node<'_>, source: &[u8], kind: &str) -> bool {
     let mut ancestor = node.parent();
     while let Some(current) = ancestor {
@@ -3414,7 +3254,7 @@ fn rust_public_ancestor(node: Node<'_>, source: &[u8], kind: &str) -> bool {
     false
 }
 
-/// 执行 `native_family_documentation_capability_needed` 内部逻辑
+/// 识别需要文档的 C/C++ 非函数声明
 fn native_family_documentation_capability_needed(node: Node<'_>) -> bool {
     matches!(
         node.kind(),
@@ -3429,7 +3269,7 @@ fn native_family_documentation_capability_needed(node: Node<'_>) -> bool {
         && descendant_of_kind(node, "function_declarator").is_none())
 }
 
-/// 执行 `documentation_subject_name` 内部逻辑
+/// 提取文档所属声明的名称
 fn documentation_subject_name(
     language: Language,
     node: Node<'_>,
@@ -3450,7 +3290,7 @@ fn documentation_subject_name(
     })
 }
 
-/// 执行 `callable_parameters` 内部逻辑
+/// 提取参数名称并判断信息是否完整且无重复
 fn callable_parameters(
     language: Language,
     node: Node<'_>,
@@ -3612,18 +3452,7 @@ fn python_parameter_names(
         ) {
             continue;
         }
-        let candidate = match parameter.kind() {
-            "identifier" => Some(parameter),
-            "default_parameter" | "typed_default_parameter" => parameter
-                .child_by_field_name("name")
-                .filter(|name| name.kind() == "identifier"),
-            "typed_parameter" => single_identifier_child(parameter),
-            "list_splat_pattern" | "dictionary_splat_pattern" => {
-                single_identifier_child(parameter)
-            }
-            _ => None,
-        };
-        if let Some(identifier) = candidate
+        if let Some(identifier) = python_parameter_identifier(parameter)
             && let Ok(text) = identifier.utf8_text(source)
         {
             names.push(text.to_owned());
@@ -3645,7 +3474,9 @@ fn rust_parameter_names(
     for parameter in parameters.named_children(&mut cursor) {
         match parameter.kind() {
             "self_parameter" | "attribute_item" => {}
-            "parameter" => {
+            // variadic_parameter 只有 identifier 模式才暴露稳定名；
+            // 匿名 `...` 保持参数不完整
+            "parameter" | "variadic_parameter" => {
                 let candidate = parameter
                     .child_by_field_name("pattern")
                     .filter(|pattern| pattern.kind() == "identifier");
@@ -3685,26 +3516,34 @@ fn native_family_parameter_names(
     {
         return true;
     }
-    let mut complete = parameters
-        .utf8_text(source)
-        .is_ok_and(|text| !text.contains("..."));
+    // 裸 `...` 在 C 家族参数表里是参数表的直接匿名节点，不会出现在
+    // 命名子节点中；命名参数包的 `...` 藏在命名声明内部，不受影响
+    let mut complete = {
+        let mut cursor = parameters.walk();
+        !parameters
+            .children(&mut cursor)
+            .any(|child| child.kind() == "...")
+    };
     for parameter in items {
-        if !matches!(
-            parameter.kind(),
-            "parameter_declaration" | "optional_parameter_declaration"
-        ) {
-            complete = false;
-            continue;
-        }
-        let candidate = parameter
-            .child_by_field_name("declarator")
-            .and_then(find_declarator_identifier);
-        if let Some(identifier) = candidate
-            && let Ok(text) = identifier.utf8_text(source)
-        {
-            names.push(text.to_owned());
-        } else {
-            complete = false;
+        match parameter.kind() {
+            // 命名参数与 C++ 命名参数包都暴露 declarator 内稳定名；匿名
+            // 参数或匿名包置为不完整，且完整性单调：后续命名参数不得
+            // 恢复先前的匿名缺口
+            "parameter_declaration"
+            | "optional_parameter_declaration"
+            | "variadic_parameter_declaration" => {
+                let candidate = parameter
+                    .child_by_field_name("declarator")
+                    .and_then(find_declarator_identifier);
+                if let Some(identifier) = candidate
+                    && let Ok(text) = identifier.utf8_text(source)
+                {
+                    names.push(text.to_owned());
+                } else {
+                    complete = false;
+                }
+            }
+            _ => complete = false,
         }
     }
     complete
@@ -3731,7 +3570,7 @@ fn callable_return_shape(
 ) -> ReturnShape {
     match language {
         Language::Python => python_return_shape(node, source),
-        Language::Rust => rust_return_shape(node),
+        Language::Rust => rust_return_shape(node, source),
         Language::ProceduralSource | Language::Cplusplus => {
             native_family_return_shape(language, node, source)
         }
@@ -3739,6 +3578,10 @@ fn callable_return_shape(
 }
 
 /// 提取 Python 可由直接语法证明的返回值形状
+///
+/// 直接注解 `None` 判为 NoValue
+/// 精确注解 `Never`、`NoReturn`、`typing.Never` 和 `typing.NoReturn` 判为 Never
+/// 其他完整注解判为 Value，不解析别名；缺失注解保持 Unknown
 fn python_return_shape(node: Node<'_>, source: &[u8]) -> ReturnShape {
     let Some(kind) = node.child_by_field_name("return_type") else {
         return ReturnShape::Unknown;
@@ -3748,56 +3591,52 @@ fn python_return_shape(node: Node<'_>, source: &[u8]) -> ReturnShape {
     } else {
         kind
     };
-    let Ok(spelling) = kind.utf8_text(source) else {
-        return ReturnShape::Unknown;
-    };
-    if kind.kind() == "none" || spelling == "None" {
-        return ReturnShape::NoValue;
-    }
-    if kind.kind() == "identifier"
-        && matches!(
-            spelling,
-            "bool"
-                | "bytearray"
-                | "bytes"
-                | "complex"
-                | "dict"
-                | "float"
-                | "frozenset"
-                | "int"
-                | "list"
-                | "object"
-                | "range"
-                | "set"
-                | "str"
-                | "tuple"
-        )
-    {
-        ReturnShape::Value
-    } else {
-        ReturnShape::Unknown
-    }
+    direct_return_shape(Language::Python, kind, source)
 }
 
 /// 提取 Rust 可由直接语法证明的返回值形状
-fn rust_return_shape(node: Node<'_>) -> ReturnShape {
+fn rust_return_shape(node: Node<'_>, source: &[u8]) -> ReturnShape {
     let Some(kind) = node.child_by_field_name("return_type") else {
         return ReturnShape::NoValue;
     };
     match kind.kind() {
-        "unit_type" => ReturnShape::NoValue,
-        "never_type" => ReturnShape::Never,
         "macro_invocation" | "metavariable" => ReturnShape::Unknown,
-        _ => ReturnShape::Value,
+        _ => direct_return_shape(Language::Rust, kind, source),
     }
 }
 
-/// 提取 C 家族 callable 的返回值形状
+/// 根据语言规则将直接返回类型归入四种返回状态
+fn direct_return_shape(
+    language: Language,
+    kind: Node<'_>,
+    source: &[u8],
+) -> ReturnShape {
+    let Ok(spelling) = kind.utf8_text(source).map(str::trim) else {
+        return ReturnShape::Unknown;
+    };
+    let law = &profile_law(language.key()).return_surface;
+    if law.no_value.contains(&spelling) {
+        ReturnShape::NoValue
+    } else if law.never.contains(&spelling) {
+        ReturnShape::Never
+    } else {
+        ReturnShape::Value
+    }
+}
+
+/// 提取 C/C++ 函数的返回状态
+///
+/// 优先识别不会返回的声明：C 的 `_Noreturn` 说明符
+/// 或 C/C++ 声明及其声明结构上无前缀的 `[[noreturn]]` 属性判为 Never
+/// 其余按直接类型判断；构造、析构及直接或后置 void 返回类型判为 NoValue
 fn native_family_return_shape(
     language: Language,
     node: Node<'_>,
     source: &[u8],
 ) -> ReturnShape {
+    if native_family_proves_never(language, node, source) {
+        return ReturnShape::Never;
+    }
     let function_declarator = descendant_of_kind(node, "function_declarator");
     if language == Language::Cplusplus
         && let Some(trailing) = function_declarator.and_then(|declarator| {
@@ -3807,10 +3646,17 @@ fn native_family_return_shape(
         && let Some(kind) = descriptor.child_by_field_name("type")
     {
         return native_family_type_shape(
+            language,
             kind,
             descriptor.child_by_field_name("declarator"),
             source,
         );
+    }
+    if language == Language::Cplusplus
+        && let Some(target) = descendant_of_kind(node, "operator_cast")
+        && let Some(kind) = target.child_by_field_name("type")
+    {
+        return native_family_type_shape(language, kind, None, source);
     }
     let Some(kind) = node.child_by_field_name("type") else {
         return if language == Language::Cplusplus
@@ -3821,13 +3667,77 @@ fn native_family_return_shape(
             ReturnShape::Unknown
         };
     };
-    let result_declarator = function_declarator
-        .and_then(|declarator| declarator.child_by_field_name("declarator"));
-    native_family_type_shape(kind, result_declarator, source)
+    let result_declarator = node.child_by_field_name("declarator");
+    native_family_type_shape(language, kind, result_declarator, source)
 }
 
-/// 提取 C 家族直接类型节点的返回值形状
+/// 判断 C/C++ 声明是否直接标明不会返回
+///
+/// C 支持 `_Noreturn` 说明符
+/// 两种语言均支持声明或其声明结构上无前缀的 `[[noreturn]]` 属性
+/// 不解释裸 `noreturn` 或 `__attribute__` 等其他形式，仍按返回类型判断
+fn native_family_proves_never(
+    language: Language,
+    node: Node<'_>,
+    source: &[u8],
+) -> bool {
+    let law = &profile_law(language.key()).return_surface;
+    let mut surface = Some(node);
+    let mut declaration = true;
+    while let Some(current) = surface {
+        let mut nested = current.walk();
+        for candidate in current.named_children(&mut nested) {
+            if candidate.kind() == "attribute_declaration"
+                && attribute_declaration_is_never(
+                    candidate,
+                    source,
+                    law.never_attribute,
+                )
+            {
+                return true;
+            }
+            if declaration
+                && language == Language::ProceduralSource
+                && candidate.kind() == "type_qualifier"
+                && candidate
+                    .utf8_text(source)
+                    .is_ok_and(|text| law.never.contains(&text.trim()))
+            {
+                return true;
+            }
+        }
+        declaration = false;
+        surface = current.child_by_field_name("declarator");
+    }
+    false
+}
+
+/// 判断 attribute_declaration 是否恰为无前缀的 noreturn 属性
+fn attribute_declaration_is_never(
+    node: Node<'_>,
+    source: &[u8],
+    expected: Option<&str>,
+) -> bool {
+    let mut cursor = node.walk();
+    node.named_children(&mut cursor)
+        .filter(|child| child.kind() == "attribute")
+        .any(|attribute| {
+            attribute.named_child_count() == 1
+                && attribute.child_by_field_name("prefix").is_none()
+                && attribute
+                    .child_by_field_name("name")
+                    .and_then(|name| name.utf8_text(source).ok())
+                    .is_some_and(|name| Some(name) == expected)
+        })
+}
+
+/// 根据 C/C++ 直接类型节点判断返回状态
+///
+/// 完整具名类型判为 Value，包括长度修饰后的类型、限定名和模板类型
+/// 未推导的 `auto`、`decltype(auto)` 及宏等无法确定的类型保持 Unknown
+/// 不从函数体或别名定义推导类型
 fn native_family_type_shape(
+    language: Language,
     kind: Node<'_>,
     declarator: Option<Node<'_>>,
     source: &[u8],
@@ -3836,25 +3746,16 @@ fn native_family_type_shape(
         return ReturnShape::Value;
     }
     match kind.kind() {
-        "primitive_type" => kind.utf8_text(source).ok().map(str::trim).map_or(
-            ReturnShape::Unknown,
-            |spelling| {
-                if spelling == "void" {
-                    ReturnShape::NoValue
-                } else {
-                    ReturnShape::Value
-                }
-            },
-        ),
-        "sized_type_specifier" => {
-            if descendant_of_kind(kind, "type_identifier").is_some() {
-                ReturnShape::Unknown
-            } else {
-                ReturnShape::Value
-            }
-        }
-        "class_specifier" | "enum_specifier" | "struct_specifier"
+        "primitive_type" => direct_return_shape(language, kind, source),
+        "sized_type_specifier"
+        | "class_specifier"
+        | "enum_specifier"
+        | "struct_specifier"
         | "union_specifier" => ReturnShape::Value,
+        "type_identifier"
+        | "scoped_type_identifier"
+        | "qualified_identifier"
+        | "template_type" => ReturnShape::Value,
         _ => ReturnShape::Unknown,
     }
 }
@@ -3871,17 +3772,14 @@ fn direct_child_of_kind<'tree>(
 
 /// 判断 declarator 是否直接保证返回一个指针或引用值
 fn declarator_proves_return_value(node: Node<'_>) -> bool {
-    if matches!(
+    matches!(
         node.kind(),
         "pointer_declarator"
             | "reference_declarator"
             | "abstract_reference_declarator"
-    ) {
-        return true;
-    }
-    let mut cursor = node.walk();
-    node.named_children(&mut cursor)
-        .any(declarator_proves_return_value)
+    ) || node
+        .child_by_field_name("declarator")
+        .is_some_and(declarator_proves_return_value)
 }
 
 /// 判断 C++ callable 是否为可证明的构造或析构函数
@@ -3924,7 +3822,7 @@ fn cplusplus_requires_effect(node: Node<'_>, source: &[u8]) -> bool {
         })
 }
 
-/// 执行 `callable_name` 内部逻辑
+/// 从函数声明中读取名称
 fn callable_name(
     language: Language,
     node: Node<'_>,
@@ -3941,7 +3839,7 @@ fn callable_name(
     name.utf8_text(source).ok().map(str::to_owned)
 }
 
-/// 执行 `find_declarator_identifier` 内部逻辑
+/// 沿声明结构查找函数名称节点
 fn find_declarator_identifier(node: Node<'_>) -> Option<Node<'_>> {
     if matches!(
         node.kind(),
@@ -3967,7 +3865,7 @@ fn find_declarator_identifier(node: Node<'_>) -> Option<Node<'_>> {
     None
 }
 
-/// 执行 `descendant_of_kind` 内部逻辑
+/// 递归查找指定类型的语法节点
 fn descendant_of_kind<'tree>(
     node: Node<'tree>,
     kind: &str,
@@ -3984,18 +3882,20 @@ fn descendant_of_kind<'tree>(
     None
 }
 
-/// 执行 `observe_documentation_visibility` 内部逻辑
+/// 根据源码结构判断文档应采用公开或内部要求
 fn observe_documentation_visibility(
     language: Language,
     node: Node<'_>,
     source: &[u8],
     nested: bool,
     name: &str,
+    rust_attribute: Option<&RustAttributeFacts<'_>>,
 ) -> DocumentationVisibility {
     match language {
         Language::Python => {
-            if python_protocol_method(node, source)
-                || (!nested && !name.starts_with('_'))
+            if !nested
+                && (python_protocol_method(node, source)
+                    || !name.starts_with('_'))
             {
                 DocumentationVisibility::Public
             } else {
@@ -4007,7 +3907,7 @@ fn observe_documentation_visibility(
                 && rust_has_unrestricted_public_visibility(node, source))
                 || (node.kind() == "function_signature_item"
                     && rust_public_ancestor(node, source, "trait_item"))
-                || rust_public_documentation_item(node, source)
+                || rust_public_documentation_item(node, source, rust_attribute)
             {
                 DocumentationVisibility::Public
             } else {
@@ -4032,16 +3932,21 @@ fn resolve_native_public_visibility(
     path: &str,
     callables: &mut [Callable],
 ) {
-    let Some(public_names) = authority.public_callables.get(path) else {
+    let Some(public_names) = authority.public_names(path) else {
         return;
     };
     for callable in callables {
         if matches!(
             callable.language,
             Language::ProceduralSource | Language::Cplusplus
-        ) && public_names.contains(&callable.name)
-        {
-            callable.visibility = DocumentationVisibility::Public;
+        ) {
+            if public_names.contains(&callable.name) {
+                callable.visibility = DocumentationVisibility::Public;
+            } else if callable.visibility
+                == DocumentationVisibility::Unresolved
+            {
+                callable.visibility = DocumentationVisibility::Internal;
+            }
         }
     }
 }
@@ -4056,15 +3961,20 @@ fn observe_python_decorated_visibility(
     if decorators.is_empty() {
         return None;
     }
-    let [decorator] = decorators.as_slice() else {
-        return Some(DocumentationVisibility::Unresolved);
+    let property_decorator = |decorator: &str| {
+        decorator == "@property"
+            || python_property_accessor(decorator).is_some()
     };
-    let direct_class = python_direct_class_body(node);
-    if matches!(decorator.as_str(), "@classmethod" | "@staticmethod") {
-        return direct_class
-            .is_none()
+    let [decorator] = decorators.as_slice() else {
+        return decorators
+            .iter()
+            .any(|decorator| property_decorator(decorator))
             .then_some(DocumentationVisibility::Unresolved);
+    };
+    if !property_decorator(decorator) {
+        return None;
     }
+    let direct_class = python_direct_class_body(node);
     let Some((class_body, class)) = direct_class else {
         return Some(DocumentationVisibility::Unresolved);
     };
@@ -4076,7 +3986,7 @@ fn observe_python_decorated_visibility(
             return Some(DocumentationVisibility::Unresolved);
         };
         owner == name
-            && matches!(accessor, "setter" | "deleter")
+            && matches!(accessor, "setter" | "getter" | "deleter")
             && python_direct_property_getter_count(class_body, source, name)
                 == 1
     };
@@ -4167,9 +4077,11 @@ fn python_property_accessor(decorator: &str) -> Option<(&str, &str)> {
     .then_some((owner, accessor))
 }
 
-/// 执行 `python_protocol_method` 内部逻辑
+/// 判断 Python 类方法是否使用双下划线协议名称
 fn python_protocol_method(node: Node<'_>, source: &[u8]) -> bool {
-    if node.kind() != "function_definition" {
+    if node.kind() != "function_definition"
+        || python_direct_class_body(node).is_none()
+    {
         return false;
     }
     node.child_by_field_name("name")
@@ -4179,7 +4091,7 @@ fn python_protocol_method(node: Node<'_>, source: &[u8]) -> bool {
         })
 }
 
-/// 执行 `native_family_callable_is_proven_internal` 内部逻辑
+/// 判断 C/C++ 函数是否由源码证明为内部函数
 fn native_family_callable_is_proven_internal(
     node: Node<'_>,
     source: &[u8],
@@ -4198,73 +4110,33 @@ fn native_family_callable_is_proven_internal(
         .is_some_and(|specifier| specifier.trim() == "static")
 }
 
-/// 执行 `documentation_carrier` 内部逻辑
+/// 按语言读取声明附带的原生文档
 fn documentation_carrier(
     language: Language,
     node: Node<'_>,
     source: &[u8],
+    rust_attribute: Option<&RustAttributeFacts<'_>>,
 ) -> Option<String> {
-    match language {
-        Language::Python => python_docstring(node, source),
-        Language::Rust => rust_documentation_attribute(node, source)
-            .or_else(|| preceding_rustdoc(node, source)),
-        Language::ProceduralSource => preceding_controlled_block(node, source),
-        Language::Cplusplus => preceding_controlled_block(
-            cplusplus_template_declaration(node).unwrap_or(node),
-            source,
-        ),
-    }
-}
-
-/// 执行 `rust_documentation_attribute` 内部逻辑
-fn rust_documentation_attribute(
-    node: Node<'_>,
-    source: &[u8],
-) -> Option<String> {
-    let mut lines = Vec::new();
-    let mut cursor = node.walk();
-    for child in node.named_children(&mut cursor) {
-        if child.kind() == "attribute_item"
-            && let Some(line) =
-                parse_rust_documentation_attribute(child, source)
-        {
-            lines.push(line);
+    match profile_law(language.key()).documentation.carrier {
+        DocumentationCarrierLaw::PythonSuite => python_docstring(node, source),
+        DocumentationCarrierLaw::RustOuter => {
+            let attribute = rust_attribute?;
+            (!attribute.documentation.is_empty())
+                .then(|| attribute.documentation.join("\n"))
+                .or_else(|| preceding_rustdoc(source, attribute))
+        }
+        DocumentationCarrierLaw::NativeAdjacent => {
+            let node = if language == Language::Cplusplus {
+                cplusplus_template_declaration(node).unwrap_or(node)
+            } else {
+                node
+            };
+            preceding_controlled_block(node, source)
         }
     }
-    if lines.is_empty() {
-        let mut sibling = node.prev_named_sibling();
-        while let Some(attribute) = sibling {
-            if attribute.kind() != "attribute_item" {
-                break;
-            }
-            if let Some(line) =
-                parse_rust_documentation_attribute(attribute, source)
-            {
-                lines.push(line);
-            }
-            sibling = attribute.prev_named_sibling();
-        }
-        lines.reverse();
-    }
-    (!lines.is_empty()).then(|| lines.join("\n"))
 }
 
-/// 执行 `parse_rust_documentation_attribute` 内部逻辑
-fn parse_rust_documentation_attribute(
-    node: Node<'_>,
-    source: &[u8],
-) -> Option<String> {
-    let text = node.utf8_text(source).ok()?.trim();
-    let value = text
-        .strip_prefix("#[doc")?
-        .strip_suffix(']')?
-        .trim()
-        .strip_prefix('=')?
-        .trim();
-    serde_json::from_str(value).ok()
-}
-
-/// 执行 `python_docstring` 内部逻辑
+/// 读取 Python 函数或类的首条文档字符串
 fn python_docstring(node: Node<'_>, source: &[u8]) -> Option<String> {
     let string = python_suite_first_docstring(node, source)?;
     let text = string.utf8_text(source).ok()?;
@@ -4279,7 +4151,7 @@ fn python_string_ends_physical_line(string: Node<'_>, source: &[u8]) -> bool {
         .is_some_and(|tail| tail.iter().all(u8::is_ascii_whitespace))
 }
 
-/// 执行 `python_module_docstring` 内部逻辑
+/// 识别 Python 模块首条语句中的文档字符串
 fn python_module_docstring<'tree>(
     node: Node<'tree>,
     source: &[u8],
@@ -4366,21 +4238,15 @@ fn python_string_literal_is_text(node: Node<'_>, source: &[u8]) -> bool {
         .to_ascii_lowercase();
     !prefix.contains(['b', 'f'])
 }
-/// 执行 `preceding_rustdoc` 内部逻辑
-fn preceding_rustdoc(node: Node<'_>, source: &[u8]) -> Option<String> {
-    let mut attachment_start = rust_leading_attribute_start(node);
-    let mut sibling = node.prev_named_sibling();
-    while let Some(attribute) = sibling {
-        if attribute.kind() != "attribute_item" {
-            break;
-        }
-        attachment_start = attribute.start_byte();
-        sibling = attribute.prev_named_sibling();
-    }
-    let candidate = sibling?;
+/// 读取紧邻 Rust 声明的外层文档注释
+fn preceding_rustdoc(
+    source: &[u8],
+    attribute: &RustAttributeFacts<'_>,
+) -> Option<String> {
+    let candidate = attribute.preceding?;
     if !source_gap_is_whitespace(
         candidate.end_byte(),
-        attachment_start,
+        attribute.attachment_start,
         source,
     ) {
         return None;
@@ -4398,7 +4264,7 @@ fn preceding_rustdoc(node: Node<'_>, source: &[u8]) -> Option<String> {
     }
     let mut comments = vec![text.trim_end_matches(['\r', '\n']).to_owned()];
     let mut next_start = candidate.start_byte();
-    sibling = candidate.prev_named_sibling();
+    let mut sibling = candidate.prev_named_sibling();
     while let Some(comment) = sibling {
         let Ok(text) = comment.utf8_text(source) else {
             break;
@@ -4432,7 +4298,7 @@ fn source_gap_is_whitespace(start: usize, end: usize, source: &[u8]) -> bool {
         .get(start..end)
         .is_some_and(|gap| gap.iter().all(u8::is_ascii_whitespace))
 }
-/// 执行 `preceding_controlled_block` 内部逻辑
+/// 读取紧邻 C/C++ 声明的规范文档块
 fn preceding_controlled_block(
     node: Node<'_>,
     source: &[u8],
@@ -4457,49 +4323,56 @@ fn preceding_controlled_block(
     }
     Some(carrier.to_owned())
 }
-/// 执行 `documentation_lines` 内部逻辑
-fn documentation_lines(language: Language, carrier: &str) -> Vec<String> {
-    if language == Language::Rust {
-        return rust_documentation_lines(carrier);
+/// 保存去除 carrier decoration 后的正文及其原始缩进前缀
+struct DocumentationLine<'carrier> {
+    text: &'carrier str,
+    left_padding: &'carrier str,
+}
+
+/// 分离有效正文的首尾空白与 carrier-relative 缩进
+fn documentation_line(line: &str) -> Option<DocumentationLine<'_>> {
+    let text = line.trim();
+    (!matches!(text, "\"\"\"" | "/**" | "*/" | "/")).then_some(
+        DocumentationLine {
+            text,
+            left_padding: &line[..line.len() - line.trim_start().len()],
+        },
+    )
+}
+
+/// 返回保留 carrier-relative 缩进的文档正文行
+fn documentation_lines(
+    language: Language,
+    carrier: &str,
+) -> Vec<DocumentationLine<'_>> {
+    match profile_law(language.key()).documentation.carrier {
+        DocumentationCarrierLaw::PythonSuite => {
+            carrier.lines().filter_map(documentation_line).collect()
+        }
+        DocumentationCarrierLaw::RustOuter => {
+            rust_documentation_lines(carrier)
+        }
+        DocumentationCarrierLaw::NativeAdjacent => {
+            native_family_documentation_lines(carrier)
+        }
     }
-    if matches!(language, Language::ProceduralSource | Language::Cplusplus) {
-        return native_family_documentation_lines(carrier);
-    }
+}
+/// 去除 C 家族 carrier decoration 并保留正文缩进
+fn native_family_documentation_lines(
+    carrier: &str,
+) -> Vec<DocumentationLine<'_>> {
     carrier
         .lines()
         .filter_map(|line| {
-            let normalized = match language {
-                Language::Python => line.trim(),
-                Language::Rust => unreachable!(),
-                Language::ProceduralSource | Language::Cplusplus => {
-                    unreachable!()
-                }
-            };
-            if matches!(normalized, "\"\"\"" | "/**" | "*/" | "/") {
-                None
-            } else {
-                Some(normalized.to_owned())
-            }
+            let decoration = line.trim_start();
+            let content = decoration.strip_prefix('*').unwrap_or(decoration);
+            let content = content.strip_prefix(' ').unwrap_or(content);
+            documentation_line(content)
         })
         .collect()
 }
-/// 规范化 C 家族受控文档块的逐行正文
-fn native_family_documentation_lines(carrier: &str) -> Vec<String> {
-    carrier
-        .lines()
-        .filter_map(|line| {
-            let normalized =
-                line.trim().strip_prefix('*').unwrap_or(line.trim()).trim();
-            if matches!(normalized, "/**" | "*/" | "/") {
-                None
-            } else {
-                Some(normalized.to_owned())
-            }
-        })
-        .collect()
-}
-/// 规范化 Rust outer rustdoc 的逐行正文
-fn rust_documentation_lines(carrier: &str) -> Vec<String> {
+/// 去除 Rust outer rustdoc decoration 并保留正文缩进
+fn rust_documentation_lines(carrier: &str) -> Vec<DocumentationLine<'_>> {
     if let Some(body) = carrier
         .strip_prefix("/**")
         .and_then(|body| body.strip_suffix("*/"))
@@ -4508,7 +4381,7 @@ fn rust_documentation_lines(carrier: &str) -> Vec<String> {
         let body = body.strip_suffix(' ').unwrap_or(body);
         return body
             .lines()
-            .map(|line| {
+            .filter_map(|line| {
                 let decoration = line.trim_start_matches([' ', '\t']);
                 let content = decoration
                     .strip_prefix('*')
@@ -4516,47 +4389,17 @@ fn rust_documentation_lines(carrier: &str) -> Vec<String> {
                         content.strip_prefix(' ').unwrap_or(content)
                     })
                     .unwrap_or(line);
-                content.to_owned()
+                documentation_line(content)
             })
             .collect();
     }
     carrier
         .lines()
-        .map(|line| {
+        .filter_map(|line| {
             let content = line.strip_prefix("///").unwrap_or(line);
-            content.strip_prefix(' ').unwrap_or(content).to_owned()
+            documentation_line(content.strip_prefix(' ').unwrap_or(content))
         })
         .collect()
-}
-/// 执行 `documentation_has_summary` 内部逻辑
-fn documentation_has_summary(
-    authority: &CompiledAuthority,
-    language: Language,
-    lines: &[String],
-) -> bool {
-    let summary = if language == Language::Python {
-        lines.first().filter(|line| !line.is_empty())
-    } else {
-        lines.iter().find(|line| !line.is_empty())
-    };
-    let Some(summary) = summary else {
-        return false;
-    };
-    if language == Language::Rust
-        && rust_markdown_line_is_indented_code(summary)
-    {
-        return false;
-    }
-    let contract = authority.profile_contract(language.key());
-    !([
-        contract.arguments_label.as_str(),
-        contract.returns_label.as_str(),
-        contract.failures_label.as_str(),
-    ]
-    .contains(&summary.as_str())
-        || language == Language::Cplusplus
-            && documentation_heading(Language::Cplusplus, summary))
-        && contains_chinese_phrase(summary)
 }
 /// 判断 Rust Markdown 行是否属于缩进代码块
 fn rust_markdown_line_is_indented_code(line: &str) -> bool {
@@ -4573,26 +4416,14 @@ fn rust_markdown_line_is_indented_code(line: &str) -> bool {
     }
     false
 }
-/// 判断受控字段正文是否可作为 Markdown 内容
-fn controlled_field_body_is_markdown_content(
-    language: Language,
-    lines: &[String],
-) -> bool {
-    language != Language::Rust
-        || lines
-            .iter()
-            .all(|line| !rust_markdown_line_is_indented_code(line))
-}
 /// 判断文本是否含有至少两个连续中文字符
 fn contains_chinese_phrase(text: &str) -> bool {
     let mut consecutive = 0_u8;
+    let law = narrative_law();
     for character in text.chars() {
-        if matches!(
-            character,
-            '\u{3400}'..='\u{4dbf}' | '\u{4e00}'..='\u{9fff}'
-        ) {
+        if law.is_cjk(character) {
             consecutive += 1;
-            if consecutive >= 2 {
+            if consecutive >= law.minimum_cjk_run {
                 return true;
             }
         } else {
@@ -4601,512 +4432,409 @@ fn contains_chinese_phrase(text: &str) -> bool {
     }
     false
 }
-/// 执行 `public_contract_is_complete` 内部逻辑
-fn public_contract_is_complete(
-    authority: &CompiledAuthority,
+/// 公开契约内部缺陷种类（私有诊断，不进入公共接口）
+enum PublicContractDefect {
+    /// 摘要之后缺少规定的空行
+    Narrative,
+    /// 受控标题多重、失序或存在未归属标题
+    RoleOrder,
+    /// 角色正文与结构事实不符
+    RoleContent { role: &'static str },
+    /// 结构化字段的分隔符或填充不符合语言要求
+    Delimiter { role: &'static str },
+    /// 结构化字段未对齐到规范 identity 与 description 列
+    Alignment { role: &'static str },
+}
+
+impl PublicContractDefect {
+    /// 生成文档违规的具体说明
+    fn observation(&self, subject: &str) -> String {
+        match self {
+            Self::Narrative => format!(
+                "observed documentation for {subject} without the mandatory blank line after Summary"
+            ),
+            Self::RoleOrder => format!(
+                "observed controlled headings for {subject} that are duplicated, out of profile order, or unaccounted"
+            ),
+            Self::RoleContent { role } => format!(
+                "observed {role} content for {subject} that does not close against the declared signature"
+            ),
+            Self::Delimiter { role } => format!(
+                "observed {role} structured fields for {subject} whose delimiter or padding violates the profile grammar"
+            ),
+            Self::Alignment { role } => format!(
+                "observed {role} structured fields for {subject} that do not share the canonical identity and description columns"
+            ),
+        }
+    }
+}
+
+/// 按语言格式读取字段名称、填充和描述
+struct StructuredField<'text> {
+    identity: &'text str,
+    padding: &'text str,
+    description: &'text str,
+}
+
+/// 校验一个结构化角色的分隔符邻接与最短规范对齐
+///
+/// 在此统一切分字段；空值与 Rust `- 不返回` 不参与对齐
+fn structured_field_defect(
     callable: &Callable,
-    lines: &[String],
-) -> bool {
-    if callable.language == Language::Rust
-        && !rust_controlled_headings_are_valid(lines)
+    role: DocumentationRole,
+    role_label: &'static str,
+    content: &[&DocumentationLine<'_>],
+    empty_role: &str,
+) -> Option<PublicContractDefect> {
+    let law = &profile_law(callable.language.key()).documentation.fields;
+    if !law.roles.contains(&role)
+        || content.len() == 1 && content[0].text == empty_role
     {
-        return false;
+        return None;
     }
-    let contract = authority.profile_contract(callable.language.key());
-    let mut headings = Vec::with_capacity(5);
-    if callable.language == Language::Cplusplus
-        && callable.requires_template_parameters
+    if content
+        .windows(2)
+        .any(|pair| pair[0].left_padding != pair[1].left_padding)
     {
-        headings.push(("模板参数：", DocumentationRole::TemplateParameters));
+        return Some(PublicContractDefect::Alignment { role: role_label });
     }
-    headings.extend([
-        (
-            contract.arguments_label.as_str(),
-            DocumentationRole::Arguments,
-        ),
-        (contract.returns_label.as_str(), DocumentationRole::Returns),
-        (
-            contract.failures_label.as_str(),
-            DocumentationRole::Failures,
-        ),
-    ]);
-    if callable.language == Language::Cplusplus && callable.requires_effect {
-        headings.push(("效果：", DocumentationRole::Effect));
-    }
-    if callable.language == Language::Cplusplus {
-        let observed: Vec<_> = lines
-            .iter()
-            .filter(|line| documentation_heading(Language::Cplusplus, line))
-            .map(String::as_str)
-            .collect();
-        let expected: Vec<_> =
-            headings.iter().map(|(heading, _)| *heading).collect();
-        if observed != expected {
-            return false;
-        }
-    }
-    let empty_role = contract.empty_role.as_str();
-    let mut indices = Vec::with_capacity(headings.len());
-    for (heading, role) in headings {
-        let matches: Vec<_> = lines
-            .iter()
-            .enumerate()
-            .filter_map(|(index, line)| (line == heading).then_some(index))
-            .collect();
-        let [index] = matches.as_slice() else {
-            return false;
-        };
-        if indices.last().is_some_and(|(prior, _)| index <= prior) {
-            return false;
-        }
-        indices.push((*index, role));
-    }
-    let Some(summary_index) = lines.iter().position(|line| !line.is_empty())
-    else {
-        return false;
-    };
-    if indices[0].0 != summary_index + 2
-        || !lines[summary_index + 1].is_empty()
-    {
-        return false;
-    }
-    for (start, role) in indices.iter().copied() {
-        let end = lines
-            .iter()
-            .enumerate()
-            .skip(start + 1)
-            .find_map(|(index, line)| {
-                documentation_heading(callable.language, line).then_some(index)
+    let delimiter_defect =
+        || PublicContractDefect::Delimiter { role: role_label };
+    let mut fields = Vec::with_capacity(content.len());
+    for line in content {
+        let Some((entry, delimiter_index)) =
+            line.text.strip_prefix(law.prefix).and_then(|entry| {
+                entry.find(law.delimiter).map(|index| (entry, index))
             })
-            .unwrap_or(lines.len());
+        else {
+            return Some(delimiter_defect());
+        };
+        let identity = &entry[..delimiter_index];
+        let tail = &entry[delimiter_index + law.delimiter.len_utf8()..];
+        let padding_end = tail
+            .find(|character: char| !character.is_whitespace())
+            .unwrap_or(tail.len());
+        let field = StructuredField {
+            identity,
+            padding: &tail[..padding_end],
+            description: &tail[padding_end..],
+        };
+        if law.exact_identity
+            && (field.identity.is_empty()
+                || field.identity.trim() != field.identity)
+            || field.padding.is_empty()
+            || !field
+                .padding
+                .chars()
+                .all(|character| character == law.padding)
+            || law.require_description && field.description.is_empty()
+        {
+            return Some(delimiter_defect());
+        }
+        if !contains_chinese_phrase(field.description) {
+            return Some(PublicContractDefect::RoleContent {
+                role: role_label,
+            });
+        }
+        fields.push(field);
+    }
+    let expected_names: &[String] = match role {
+        DocumentationRole::TemplateParameters => &callable.template_parameters,
+        DocumentationRole::Arguments => &callable.parameters,
+        _ => &[],
+    };
+    if !expected_names.is_empty() {
+        let observed: BTreeSet<_> =
+            fields.iter().map(|field| field.identity).collect();
+        if fields.len() != expected_names.len()
+            || observed.len() != expected_names.len()
+            || expected_names
+                .iter()
+                .any(|name| !observed.contains(name.as_str()))
+        {
+            return Some(PublicContractDefect::RoleContent {
+                role: role_label,
+            });
+        }
+    }
+    let target_width = fields
+        .iter()
+        .map(|field| field.identity.chars().count())
+        .max()?
+        + law.alignment_gap;
+    fields.into_iter().find_map(|field| {
+        let expected = target_width - field.identity.chars().count();
+        let observed = field.padding.chars().count();
+        (expected != observed)
+            .then_some(PublicContractDefect::Alignment { role: role_label })
+    })
+}
+
+/// 检查公开文档的标题、布局和字段内容
+fn public_contract_is_complete(
+    callable: &Callable,
+    lines: &[DocumentationLine<'_>],
+) -> Result<(), PublicContractDefect> {
+    let profile = profile_law(callable.language.key());
+    let contract = &profile.documentation;
+    // 按当前函数的要求逐项核对标题及其顺序
+    // 未知标题不能因位于叙述区或文档尾部而跳过检查
+    // Rust 的 # Panics 可选，# Safety 按函数安全要求判断
+    // 其他语言使用各自固定的标题
+    let required = |heading: &&crate::authority::HeadingLaw| match heading.1 {
+        DocumentationRole::Arguments
+        | DocumentationRole::Returns
+        | DocumentationRole::Failures => true,
+        DocumentationRole::TemplateParameters => {
+            callable.requires_template_parameters
+        }
+        DocumentationRole::Effect => callable.requires_effect,
+        DocumentationRole::Panics => {
+            lines.iter().any(|line| line.text == heading.0)
+        }
+        DocumentationRole::Safety => {
+            callable.requires_safety
+                && lines.iter().any(|line| line.text == heading.0)
+        }
+        DocumentationRole::Ownership => false,
+    };
+    let empty_role = contract.empty_role;
+    let mut expected = contract.headings.iter().filter(required);
+    let mut sections = Vec::new();
+    for (index, line) in lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| profile.is_documentation_heading(line.text))
+    {
+        let Some(heading) = expected.next() else {
+            return Err(PublicContractDefect::RoleOrder);
+        };
+        if line.text != heading.0 {
+            return Err(PublicContractDefect::RoleOrder);
+        }
+        sections.push((index, heading.0, heading.1));
+    }
+    if expected.next().is_some() {
+        return Err(PublicContractDefect::RoleOrder);
+    }
+    let Some(summary) = lines.iter().position(|line| !line.text.is_empty())
+    else {
+        return Err(PublicContractDefect::RoleContent { role: "Summary" });
+    };
+    let gap = narrative_law().blank_lines_after_summary;
+    let observed_gap = lines[summary + 1..]
+        .iter()
+        .take_while(|line| line.text.is_empty())
+        .count();
+    if observed_gap != gap {
+        return Err(PublicContractDefect::Narrative);
+    }
+    // 摘要后的规定空行与首个标题之间不检查中文、句号和对齐
+    // 其中被识别为标题的行仍由上方标题检查处理
+    // 不能用叙述区隐藏不允许的标题
+    for (position, &(start, label, role)) in sections.iter().enumerate() {
+        let end = sections
+            .get(position + 1)
+            .map_or(lines.len(), |section| section.0);
         let body = &lines[start + 1..end];
         let content: Vec<_> =
-            body.iter().filter(|line| !line.is_empty()).collect();
+            body.iter().filter(|line| !line.text.is_empty()).collect();
         if content.is_empty() {
-            return false;
+            return Err(PublicContractDefect::RoleContent { role: label });
+        }
+        if let Some(defect) = structured_field_defect(
+            callable, role, label, &content, empty_role,
+        ) {
+            return Err(defect);
         }
         if !documentation_role_is_complete(
             callable, role, &content, empty_role,
         ) {
-            return false;
+            return Err(PublicContractDefect::RoleContent { role: label });
         }
     }
-    true
+    Ok(())
 }
-/// 判断单个公开文档字段是否与结构事实闭合
+/// 根据声明事实检查单个公开文档字段
 fn documentation_role_is_complete(
     callable: &Callable,
     role: DocumentationRole,
-    content: &[&String],
+    content: &[&DocumentationLine<'_>],
     empty_role: &str,
 ) -> bool {
-    let is_empty = |line: &str| {
-        controlled_field_line_equals(callable.language, line, empty_role)
+    let profile = profile_law(callable.language.key());
+    let return_law = &profile.return_surface;
+    let structured = profile.documentation.fields.roles.contains(&role);
+    let is_valid = |line: &str| {
+        structured
+            || controlled_description(callable.language, line)
+                .is_some_and(contains_chinese_phrase)
     };
-    let is_valid =
-        |line: &str| documentation_role_line_is_valid(callable.language, line);
-    let has_empty = content.iter().any(|line| is_empty(line));
-    let single_empty = content.len() == 1 && is_empty(content[0]);
+    let has_empty = content.iter().any(|line| line.text == empty_role);
+    let single_empty = content.len() == 1 && content[0].text == empty_role;
     if has_empty && !single_empty {
         return false;
     }
     match role {
-        DocumentationRole::TemplateParameters => {
-            !has_empty
-                && documented_names_match(
-                    Language::Cplusplus,
-                    content,
-                    &callable.template_parameters,
-                )
-        }
         DocumentationRole::Arguments if callable.parameters.is_empty() => {
             single_empty
         }
-        DocumentationRole::Arguments => {
-            !has_empty
-                && documented_names_match(
-                    callable.language,
-                    content,
-                    &callable.parameters,
-                )
-        }
+        DocumentationRole::TemplateParameters
+        | DocumentationRole::Arguments => !has_empty,
         DocumentationRole::Returns => match callable.return_shape {
             ReturnShape::NoValue => single_empty,
             ReturnShape::Never => {
-                callable.language == Language::Rust
-                    && content.len() == 1
-                    && controlled_field_line_equals(
-                        callable.language,
-                        content[0],
-                        "- 不返回",
-                    )
+                return_law.never_documentation.is_some_and(|expected| {
+                    content.len() == 1 && content[0].text == expected
+                })
             }
             ReturnShape::Value => {
-                !has_empty && content.iter().all(|line| is_valid(line))
+                !has_empty && content.iter().all(|line| is_valid(line.text))
             }
-            ReturnShape::Unknown => false,
+            ReturnShape::Unknown => !return_law.unknown_blocks_documentation,
         },
-        DocumentationRole::Failures => {
-            content.iter().all(|line| is_empty(line) || is_valid(line))
+        DocumentationRole::Failures => content
+            .iter()
+            .all(|line| line.text == empty_role || is_valid(line.text)),
+        DocumentationRole::Effect
+        | DocumentationRole::Panics
+        | DocumentationRole::Safety => {
+            !has_empty && content.iter().all(|line| is_valid(line.text))
         }
-        DocumentationRole::Effect => {
-            !has_empty && content.iter().all(|line| is_valid(line))
-        }
+        DocumentationRole::Ownership => false,
     }
 }
-/// 比较受控字段行与规范文本
-fn controlled_field_line_equals(
-    language: Language,
-    line: &str,
-    expected: &str,
-) -> bool {
-    let line = if language == Language::Rust {
-        line.trim_start_matches([' ', '\t'])
-    } else {
-        line
-    };
-    line == expected
-}
-/// 判断文档字段是否逐一且仅逐一覆盖结构化名称
-fn documented_names_match(
-    language: Language,
-    content: &[&String],
-    expected: &[String],
-) -> bool {
-    if content.len() != expected.len() {
-        return false;
-    }
-    let mut observed = BTreeSet::new();
-    for line in content {
-        let Some(name) = documented_parameter_name(language, line) else {
+/// 检查 Rust 安全文档的标题顺序和正文
+fn rust_safety_contract_is_complete(lines: &[DocumentationLine<'_>]) -> bool {
+    let profile = profile_law(Language::Rust.key());
+    let mut previous = None;
+    let mut safety = None;
+    for (index, line) in lines.iter().enumerate() {
+        if !profile.is_documentation_heading(line.text) {
+            continue;
+        }
+        let Some((rank, heading)) = profile
+            .documentation
+            .headings
+            .iter()
+            .enumerate()
+            .find(|(_, heading)| line.text == heading.0)
+        else {
             return false;
         };
-        if !expected.iter().any(|item| item == name) || !observed.insert(name)
-        {
+        if previous.is_some_and(|prior| rank <= prior) {
             return false;
         }
+        previous = Some(rank);
+        if heading.1 == DocumentationRole::Safety {
+            safety = Some(index);
+        }
     }
-    observed.len() == expected.len()
+    let Some(start) = safety else { return false };
+    let mut body = lines[start + 1..]
+        .iter()
+        .take_while(|line| !profile.is_documentation_heading(line.text))
+        .filter(|line| !line.text.is_empty());
+    body.clone().next().is_some()
+        && body.all(|line| {
+            controlled_description(Language::Rust, line.text)
+                .is_some_and(contains_chinese_phrase)
+        })
 }
-/// 执行 `rust_safety_contract_is_complete` 内部逻辑
-fn rust_safety_contract_is_complete(lines: &[String]) -> bool {
-    if !rust_controlled_headings_are_valid(lines) {
-        return false;
-    }
-    let safety_indices: Vec<_> = lines
-        .iter()
-        .enumerate()
-        .filter_map(|(index, line)| (line == "# Safety").then_some(index))
-        .collect();
-    let [start] = safety_indices.as_slice() else {
-        return false;
-    };
-    if lines
-        .iter()
-        .position(|line| line == "# Errors")
-        .is_some_and(|errors| *start <= errors)
-        || lines
-            .iter()
-            .position(|line| line == "# Panics")
-            .is_some_and(|panics| panics >= *start)
-    {
-        return false;
-    }
-    lines[start + 1..]
-        .iter()
-        .take_while(|line| !documentation_heading(Language::Rust, line))
-        .any(|line| !line.is_empty())
-}
-/// 执行 `documented_parameter_name` 内部逻辑
-fn documented_parameter_name(language: Language, line: &str) -> Option<&str> {
+/// 提取受控描述列表的正文
+fn controlled_description(language: Language, line: &str) -> Option<&str> {
     if language == Language::Rust && rust_markdown_line_is_indented_code(line)
     {
         return None;
     }
-    let entry = match language {
-        Language::Python => line.trim(),
-        Language::Rust | Language::ProceduralSource | Language::Cplusplus => {
-            line.trim().strip_prefix('-')?.trim_start()
-        }
-    };
-    let (separator, separator_width) = entry
-        .find(':')
-        .map(|index| (index, ':'.len_utf8()))
-        .or_else(|| entry.find('：').map(|index| (index, '：'.len_utf8())))?;
-    let name = entry[..separator].trim();
-    let description = entry[separator + separator_width..].trim();
-    (!name.is_empty()
-        && !description.is_empty()
-        && contains_chinese_phrase(description))
-    .then_some(name)
+    let law = &profile_law(language.key()).documentation.fields;
+    line.strip_prefix(law.prefix)
+        .filter(|description| !description.contains(law.delimiter))
 }
-/// 执行 `documentation_role_line_is_valid` 内部逻辑
-fn documentation_role_line_is_valid(language: Language, line: &str) -> bool {
-    if language == Language::Rust && rust_markdown_line_is_indented_code(line)
-    {
-        return false;
-    }
-    match language {
-        Language::Python => {
-            let Some(separator) = line.find(':') else {
-                return false;
-            };
-            !line[..separator].trim().is_empty()
-                && !line[separator + 1..].trim().is_empty()
-                && contains_chinese_phrase(&line[separator + 1..])
-        }
-        Language::Rust | Language::ProceduralSource | Language::Cplusplus => {
-            line.trim().strip_prefix('-').is_some_and(|description| {
-                !description.trim().is_empty()
-                    && contains_chinese_phrase(description)
-            })
-        }
-    }
-}
-/// 执行 `documentation_heading` 内部逻辑
-fn documentation_heading(language: Language, line: &str) -> bool {
-    match language {
-        Language::Python => {
-            matches!(line, "Args:" | "Returns:" | "Raises:" | "Attributes:")
-        }
-        Language::Rust => line.starts_with("# "),
-        Language::ProceduralSource | Language::Cplusplus => matches!(
-            line,
-            "模板参数："
-                | "参数："
-                | "返回："
-                | "错误："
-                | "所有权："
-                | "效果："
-        ),
-    }
-}
-/// 执行 `rust_controlled_headings_are_valid` 内部逻辑
-fn rust_controlled_headings_are_valid(lines: &[String]) -> bool {
-    const HEADINGS: [&str; 5] = [
-        "# Arguments",
-        "# Returns",
-        "# Errors",
-        "# Panics",
-        "# Safety",
-    ];
-    let mut seen = BTreeSet::new();
-    let mut previous = None;
-    for (index, line) in lines.iter().enumerate() {
-        let Some(rank) = HEADINGS.iter().position(|heading| line == heading)
-        else {
-            continue;
-        };
-        if !seen.insert(rank)
-            || previous.is_some_and(|previous_rank| rank <= previous_rank)
-        {
-            return false;
-        }
-        previous = Some(rank);
-        let end = lines[index + 1..]
-            .iter()
-            .position(|candidate| candidate.starts_with("# "))
-            .map(|offset| index + 1 + offset)
-            .unwrap_or(lines.len());
-        let body = &lines[index + 1..end];
-        if !controlled_field_body_is_markdown_content(Language::Rust, body) {
-            return false;
-        }
-        if rank < 3 {
-            continue;
-        }
-        let content: Vec<_> = body
-            .iter()
-            .filter(|candidate| !candidate.is_empty())
-            .collect();
-        if content.is_empty()
-            || !content.iter().all(|candidate| {
-                documentation_role_line_is_valid(Language::Rust, candidate)
-            })
-        {
-            return false;
-        }
-    }
-    true
-}
-/// 执行 `controlled_line_has_terminator` 内部逻辑
+/// 检查摘要及受控字段是否以禁用句号结束
 fn controlled_line_has_terminator(
-    authority: &CompiledAuthority,
     language: Language,
     public: bool,
     requires_safety: bool,
-    lines: &[String],
+    lines: &[DocumentationLine<'_>],
 ) -> bool {
-    let summary = lines.iter().find(|line| !line.is_empty());
-    if summary.is_some_and(|line| ends_in_sentence_terminator(line)) {
+    let profile = profile_law(language.key());
+    let summary =
+        profile.documentation_summary(lines.iter().map(|line| line.text));
+    if summary.is_some_and(|line| {
+        !(profile.is_documentation_heading(line)
+            || language == Language::Rust
+                && rust_markdown_line_is_indented_code(line))
+            && ends_in_sentence_terminator(line)
+    }) {
         return true;
     }
-    let has_controlled_contract =
-        public || (language == Language::Rust && requires_safety);
-    if !has_controlled_contract {
+    if !(public || language == Language::Rust && requires_safety) {
         return false;
     }
-    let contract = authority.profile_contract(language.key());
-    let headings = [
-        contract.arguments_label.as_str(),
-        contract.returns_label.as_str(),
-        contract.failures_label.as_str(),
-    ];
-    let mut controlled = false;
+    let mut controlled = None;
     lines.iter().any(|line| {
-        if headings.contains(&line.as_str())
-            || (language == Language::Cplusplus
-                && documentation_heading(Language::Cplusplus, line))
-            || (language == Language::Rust
-                && requires_safety
-                && line == "# Safety")
-        {
-            controlled = true;
+        if profile.is_documentation_heading(line.text) {
+            controlled = profile
+                .documentation
+                .headings
+                .iter()
+                .find(|heading| line.text == heading.0)
+                .map(|heading| heading.1)
+                .filter(|role| {
+                    public
+                        || requires_safety
+                            && *role == DocumentationRole::Safety
+                });
             return false;
         }
-        controlled
-            && documentation_role_line_is_valid(language, line)
-            && ends_in_sentence_terminator(line)
+        controlled.is_some_and(|role| {
+            let law = &profile.documentation.fields;
+            let is_controlled = if law.roles.contains(&role) {
+                !(language == Language::Rust
+                    && rust_markdown_line_is_indented_code(line.text))
+                    && line.text.starts_with(law.prefix)
+                    && line.text.contains(law.delimiter)
+            } else {
+                controlled_description(language, line.text).is_some()
+            };
+            is_controlled && ends_in_sentence_terminator(line.text)
+        })
     })
 }
-/// 执行 `ends_in_sentence_terminator` 内部逻辑
+/// 判断文本末尾是否为禁用句号
 fn ends_in_sentence_terminator(line: &str) -> bool {
-    line.trim_end().ends_with(['。', '.'])
+    line.trim_end()
+        .ends_with(narrative_law().forbidden_terminators)
 }
-/// 将文档判定映射为 Authority 拥有的 Finding
-fn push_documentation_findings(
-    authority: &CompiledAuthority,
-    document: &OwnedDocument,
-    callable: &Callable,
-    operator: RuleOperator,
-    findings: &mut Vec<Finding>,
-) {
-    push_rule_findings(
-        authority,
-        operator,
-        &document.path,
-        callable.line,
-        callable.column,
-        &callable.name,
-        &format!("observed attached documentation for {}", callable.name),
-        findings,
-    );
-}
-
-/// 从单一规则目录构造稳定 Finding
-#[allow(clippy::too_many_arguments)]
-fn push_rule_findings(
-    authority: &CompiledAuthority,
-    operator: RuleOperator,
-    path: &str,
-    line: usize,
-    column: usize,
-    subject: &str,
-    observation: &str,
-    findings: &mut Vec<Finding>,
-) {
-    let rule = authority.rule(operator);
-    findings.push(Finding {
-        rule: rule.identity.clone(),
-        grade: rule.grade,
-        path: path.to_owned(),
-        line,
-        column,
-        subject: subject.to_owned(),
-        observation: observation.to_owned(),
-        question: rule.question.clone(),
-        message: rule.message.clone(),
-    });
-}
-/// 将 source rejection 投影为 Authority Finding 与 family blocker
+/// 将源码拒绝原因记录为规则问题和相关事实类别的受阻原因
 fn close_source_rejection(
-    authority: &CompiledAuthority,
     document: &OwnedDocument,
     physical_lines: u32,
     evidence: ParseEvidence,
-) -> (Vec<Finding>, [FactFamilyState; 7]) {
-    let method = &authority
-        .profile_contract(document.language.key())
-        .observation_method;
+) -> (Vec<Finding>, FamilyClosure) {
+    let method = &profile_law(document.language.key()).observation_method;
     let reason = format!(
         "observation method {method} rejected source at {}:{}: {}",
         evidence.line, evidence.column, evidence.reason
     );
-    let mut findings = Vec::new();
-    if authority.source_form == SourceForm::Direct {
-        push_rule_findings(
-            authority,
-            RuleOperator::SourceForm,
-            &document.path,
-            evidence.line,
-            evidence.column,
-            "<source>",
-            &reason,
-            &mut findings,
-        );
-    }
-    let blocked = || FactFamilyState::Blocked(reason.to_owned());
-    let projection =
-        |family| match authority.projection(family, document.language.key()) {
-            ProjectionState::NotApplicable => FactFamilyState::NotRequired,
-            ProjectionState::Supported | ProjectionState::NeedsAuthority => {
-                blocked()
-            }
-        };
+    let mut findings = FindingState::new(&document.path);
+    findings.push(
+        RuleOperator::SourceParseability,
+        evidence.line,
+        evidence.column,
+        "<source>",
+        &reason,
+    );
     (
-        findings,
-        [
-            FactFamilyState::Complete(1),
-            FactFamilyState::Complete(physical_lines),
-            blocked(),
-            projection("identifier"),
-            projection("documentation"),
-            if authority.families.contains("dependency") {
-                projection("dependency")
-            } else {
-                FactFamilyState::NotRequired
-            },
-            FactFamilyState::NotRequired,
-        ],
+        findings.complete(),
+        FamilyClosure::SourceRejected {
+            physical_lines,
+            reason,
+        },
     )
 }
-/// 执行 `required_family_mask` 内部逻辑
-fn required_family_mask(
-    authority: &CompiledAuthority,
-    language: Language,
-) -> u8 {
-    let mut mask = (1 << FactFamily::Capture as u8)
-        | (1 << FactFamily::PhysicalLines as u8)
-        | (1 << FactFamily::Structure as u8);
-    for (family_name, family) in [
-        ("identifier", FactFamily::Identifier),
-        ("documentation", FactFamily::Documentation),
-        ("dependency", FactFamily::DependencyDeclaration),
-    ] {
-        if authority.families.contains(family_name)
-            && authority.projection(family_name, language.key())
-                != ProjectionState::NotApplicable
-        {
-            mask |= 1 << family as u8;
-        }
-    }
-    mask
-}
-impl FactFamily {
-    /// 执行 `all` 内部逻辑
-    fn all() -> [Self; 7] {
-        [
-            Self::Capture,
-            Self::PhysicalLines,
-            Self::Structure,
-            Self::Identifier,
-            Self::Documentation,
-            Self::DependencyDeclaration,
-            Self::DeclarationOrder,
-        ]
-    }
-}
-/// 执行 `finding_order` 内部逻辑
+/// 按等级、位置和规则比较审查问题的顺序
 fn finding_order(left: &Finding, right: &Finding) -> std::cmp::Ordering {
     (
         left.grade,
@@ -5125,53 +4853,27 @@ fn finding_order(left: &Finding, right: &Finding) -> std::cmp::Ordering {
             &right.subject,
         ))
 }
-/// 执行 `seal` 内部逻辑
+/// 汇总文件证据并封存审查结果
 fn seal(
     authority: &CompiledAuthority,
     scope: ReviewedScope,
     results: Vec<FileResult>,
     metrics: ReviewMetrics,
 ) -> ReviewTerminal {
-    for result in &results {
-        if let Err(failure) = validate_family_closure(
-            &result.path,
-            result.required_mask,
-            &result.families,
-        ) {
-            return ReviewTerminal::Failed(failure);
-        }
-    }
-    let completion = if results
-        .iter()
-        .flat_map(|result| &result.families)
-        .any(|state| matches!(state, FactFamilyState::Blocked(_)))
-    {
-        Completion::Incomplete
-    } else {
-        Completion::Complete
-    };
     let mut snapshot_hasher = blake3::Hasher::new();
     let mut findings = Vec::new();
     let mut files = Vec::new();
     for result in results {
-        snapshot_hasher.update(result.path.as_bytes());
+        snapshot_hasher.update(result.coverage.path.as_bytes());
         snapshot_hasher.update(&[0]);
         snapshot_hasher.update(&result.snapshot_digest);
         findings.extend(result.findings);
-        let executed_mask = executed_mask(&result.families);
-        let families =
-            FactFamily::all().into_iter().zip(result.families).collect();
-        files.push(FileCoverage {
-            path: result.path,
-            required_mask: result.required_mask,
-            executed_mask,
-            families,
-        });
+        files.push(result.coverage);
     }
     findings.sort_by(finding_order);
     let snapshot_digest = snapshot_hasher.finalize().to_hex().to_string();
     let semantic_authority_digest =
-        blake3::Hash::from_bytes(authority.semantic_digest)
+        blake3::Hash::from_bytes(authority.semantic_digest())
             .to_hex()
             .to_string();
     let coverage = CompactCoverage { files };
@@ -5179,62 +4881,31 @@ fn seal(
         &semantic_authority_digest,
         &snapshot_digest,
         &scope,
-        completion,
         &coverage,
         &findings,
     );
     ReviewTerminal::Sealed(SealedReview {
-        schema_version: 2,
         scope,
-        completion,
         coverage,
         findings,
         metrics,
         semantic_authority_digest,
         snapshot_digest,
         seal,
-        presentation: authority.presentation.clone(),
+        presentation: authority.presentation().clone(),
     })
 }
-/// 执行 `executed_mask` 内部逻辑
-fn executed_mask(families: &[FactFamilyState; 7]) -> u8 {
-    let mut executed = 0_u8;
-    for (family, state) in FactFamily::all().into_iter().zip(families) {
-        let bit = 1 << family as u8;
-        if !matches!(state, FactFamilyState::NotRequired) {
-            executed |= bit;
-        }
-    }
-    executed
-}
-/// 执行 `validate_family_closure` 内部逻辑
-fn validate_family_closure(
-    path: &str,
-    required: u8,
-    families: &[FactFamilyState; 7],
-) -> Result<(), ReviewFailure> {
-    let executed = executed_mask(families);
-    if required != executed {
-        return Err(ReviewFailure::new(
-            "closure.mask",
-            format!(
-                "{path} required mask {required:#04x} differs from executed mask {executed:#04x}"
-            ),
-        ));
-    }
-    Ok(())
-}
-/// 执行 `compute_seal` 内部逻辑
+/// 根据输入身份和审查证据计算封存摘要
 fn compute_seal(
     semantic_authority_digest: &str,
     snapshot_digest: &str,
     scope: &ReviewedScope,
-    completion: Completion,
     coverage: &CompactCoverage,
     findings: &[Finding],
 ) -> String {
     let mut hasher = blake3::Hasher::new();
-    hasher.update(b"csu-seal-v1\0");
+    hasher.update(b"csu-seal-standard-law\0");
+    hasher.update(&REVIEW_SCHEMA_VERSION.to_le_bytes());
     hash_string(&mut hasher, semantic_authority_digest);
     hash_string(&mut hasher, snapshot_digest);
     match scope {
@@ -5249,24 +4920,20 @@ fn compute_seal(
             hash_strings(&mut hasher, files);
         }
     }
-    hasher.update(&[completion as u8]);
+    hasher.update(&[coverage.completion() as u8]);
     hasher.update(&(coverage.files.len() as u64).to_le_bytes());
     for file in &coverage.files {
         hash_string(&mut hasher, &file.path);
-        hasher.update(&[file.required_mask, file.executed_mask]);
         hasher.update(&(file.families.len() as u64).to_le_bytes());
         for (family, state) in &file.families {
             hasher.update(&[*family as u8]);
             match state {
-                FactFamilyState::NotRequired => {
-                    hasher.update(&[0]);
-                }
                 FactFamilyState::Complete(count) => {
-                    hasher.update(&[1]);
+                    hasher.update(&[0]);
                     hasher.update(&count.to_le_bytes());
                 }
                 FactFamilyState::Blocked(reason) => {
-                    hasher.update(&[2]);
+                    hasher.update(&[1]);
                     hash_string(&mut hasher, reason)
                 }
             };
@@ -5294,14 +4961,14 @@ fn compute_seal(
     }
     hasher.finalize().to_hex().to_string()
 }
-/// 执行 `hash_strings` 内部逻辑
+/// 将字符串数量和各项内容写入摘要计算
 fn hash_strings(hasher: &mut blake3::Hasher, values: &[String]) {
     hasher.update(&(values.len() as u64).to_le_bytes());
     for value in values {
         hash_string(hasher, value);
     }
 }
-/// 执行 `hash_string` 内部逻辑
+/// 将字符串长度和字节写入摘要计算
 fn hash_string(hasher: &mut blake3::Hasher, value: &str) {
     hasher.update(&(value.len() as u64).to_le_bytes());
     hasher.update(value.as_bytes());

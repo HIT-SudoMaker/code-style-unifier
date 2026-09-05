@@ -1,10 +1,7 @@
 use csu::AuthorityInput;
-use csu::Completion;
-use csu::Disposition;
 use csu::DocumentSet;
 use csu::FactFamily;
 use csu::FactFamilyState;
-use csu::FindingGrade;
 use csu::ReviewInput;
 use csu::ReviewTerminal;
 use csu::SourceDocument;
@@ -13,51 +10,14 @@ use serde_json::Value;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-/// 返回事实族的规范 JSON 拼写
-fn fact_family_name(family: FactFamily) -> &'static str {
-    match family {
-        FactFamily::Capture => "capture",
-        FactFamily::PhysicalLines => "physical_lines",
-        FactFamily::Structure => "structure",
-        FactFamily::Identifier => "identifier",
-        FactFamily::Documentation => "documentation",
-        FactFamily::DependencyDeclaration => "dependency_declaration",
-        FactFamily::DeclarationOrder => "declaration_order",
-    }
+/// 读取靶场清单的必需文本字段
+fn text<'value>(value: &'value Value, field: &str) -> &'value str {
+    value[field].as_str().expect("fixture field must be text")
 }
 
-/// 将 manifest completion 映射到公开终态
-fn expected_completion(value: &str) -> Completion {
-    match value {
-        "complete" => Completion::Complete,
-        "incomplete" => Completion::Incomplete,
-        _ => panic!("unknown fixture completion: {value}"),
-    }
-}
-
-/// 将 manifest disposition 映射到公开终态
-fn expected_disposition(value: &str) -> Disposition {
-    match value {
-        "clean" => Disposition::Clean,
-        "findings" => Disposition::Findings,
-        "incomplete" => Disposition::Incomplete,
-        _ => panic!("unknown fixture disposition: {value}"),
-    }
-}
-
-/// 将 manifest grade 映射到公开 Finding 等级
-fn expected_grade(value: &str) -> FindingGrade {
-    match value {
-        "hard_violation" => FindingGrade::HardViolation,
-        "soft_friction" => FindingGrade::SoftFriction,
-        "review_required" => FindingGrade::ReviewRequired,
-        _ => panic!("unknown fixture grade: {value}"),
-    }
-}
-
-/// 验证冻结 fixture 的每个 cell 都产生精确预期结果
+/// 验证每个冻结样例和语法损坏样例产生精确预期结果
 #[test]
-fn frozen_fixture_cells_execute_their_exact_oracles() {
+fn frozen_fixture_cells_and_syntax_damage_execute_exact_oracles() {
     let repository = Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixture_root = repository.join("docs/fixtures/core");
     let manifest: Value = serde_json::from_str(include_str!(
@@ -83,10 +43,7 @@ fn frozen_fixture_cells_execute_their_exact_oracles() {
         let sources: Vec<_> = scenario_documents
             .iter()
             .map(|document| {
-                let path = document["path"]
-                    .as_str()
-                    .expect("fixture path must be text");
-                std::fs::read(fixture_root.join(path))
+                std::fs::read(fixture_root.join(text(document, "path")))
                     .expect("fixture source must be readable")
             })
             .collect();
@@ -94,9 +51,7 @@ fn frozen_fixture_cells_execute_their_exact_oracles() {
             .iter()
             .zip(&sources)
             .map(|(document, bytes)| SourceDocument {
-                relative_path: document["path"]
-                    .as_str()
-                    .expect("fixture path must be text"),
+                relative_path: text(document, "path"),
                 bytes,
             })
             .collect();
@@ -105,24 +60,16 @@ fn frozen_fixture_cells_execute_their_exact_oracles() {
             documents: &documents,
         }));
         assert_eq!(
-            terminal.disposition(),
-            expected_disposition(
-                contract["disposition"]
-                    .as_str()
-                    .expect("fixture disposition must be text")
-            ),
+            serde_json::to_value(terminal.disposition()).unwrap(),
+            contract["disposition"],
             "{scenario} disposition"
         );
         let ReviewTerminal::Sealed(review) = terminal else {
             panic!("{scenario} must produce a sealed terminal");
         };
         assert_eq!(
-            review.completion(),
-            expected_completion(
-                contract["completion"]
-                    .as_str()
-                    .expect("fixture completion must be text")
-            ),
+            serde_json::to_value(review.completion()).unwrap(),
+            contract["completion"],
             "{scenario} completion"
         );
 
@@ -139,12 +86,8 @@ fn frozen_fixture_cells_execute_their_exact_oracles() {
         );
 
         for document in &scenario_documents {
-            let path = document["path"]
-                .as_str()
-                .expect("fixture path must be text");
-            let language = document["language"]
-                .as_str()
-                .expect("fixture language must be text");
+            let path = text(document, "path");
+            let language = text(document, "language");
             let findings: Vec<_> = review
                 .findings()
                 .iter()
@@ -153,20 +96,10 @@ fn frozen_fixture_cells_execute_their_exact_oracles() {
             assert_eq!(findings.len(), expected_findings.len(), "{path}");
             for expected in expected_findings {
                 assert!(findings.iter().any(|finding| {
-                    finding.rule()
-                        == expected["rule"]
-                            .as_str()
-                            .expect("expected rule must be text")
-                        && finding.grade()
-                            == expected_grade(
-                                expected["grade"]
-                                    .as_str()
-                                    .expect("expected grade must be text"),
-                            )
-                        && finding.subject()
-                            == expected["subject"]
-                                .as_str()
-                                .expect("expected subject must be text")
+                    finding.rule() == text(expected, "rule")
+                        && serde_json::to_value(finding.grade()).unwrap()
+                            == expected["grade"]
+                        && finding.subject() == text(expected, "subject")
                 }));
             }
 
@@ -179,17 +112,13 @@ fn frozen_fixture_cells_execute_their_exact_oracles() {
             let actual_blocked: BTreeSet<_> = coverage
                 .families()
                 .iter()
-                .filter_map(|(family, state)| {
+                .filter(|(_, state)| {
                     matches!(state, FactFamilyState::Blocked(_))
-                        .then_some(fact_family_name(*family))
                 })
+                .map(|(family, _)| serde_json::to_string(family).unwrap())
                 .collect();
-            let expected_blocked: BTreeSet<_> = expected_blocked
-                .iter()
-                .map(|family| {
-                    family.as_str().expect("blocked family must be text")
-                })
-                .collect();
+            let expected_blocked: BTreeSet<_> =
+                expected_blocked.iter().map(Value::to_string).collect();
             assert_eq!(actual_blocked, expected_blocked, "{path}");
 
             if let Some(anchor) = contract["parse_anchors"].get(language) {
@@ -206,13 +135,7 @@ fn frozen_fixture_cells_execute_their_exact_oracles() {
                         }
                     })
                     .expect("parse anchor requires a Structure blocker");
-                assert_eq!(
-                    structure_reason,
-                    anchor["reason"]
-                        .as_str()
-                        .expect("parse reason must be text"),
-                    "{path}"
-                );
+                assert_eq!(structure_reason, text(anchor, "reason"), "{path}");
             }
         }
         let metrics = review.metrics();

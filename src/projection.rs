@@ -5,6 +5,7 @@ use crate::model::FactFamilyState;
 use crate::model::Finding;
 use crate::model::FindingGrade;
 use crate::model::PresentationPlan;
+use crate::model::REVIEW_SCHEMA_VERSION;
 use crate::model::ReviewMetrics;
 use crate::model::ReviewTerminal;
 use crate::model::ReviewedScope;
@@ -40,7 +41,6 @@ struct BlockedFamilyDetail<'projection> {
 struct FindingSummary {
     total: usize,
     hard_violation: usize,
-    soft_friction: usize,
     review_required: usize,
 }
 #[derive(Serialize)]
@@ -58,7 +58,7 @@ struct ErrorBody<'projection> {
 /// 将审查终态投影为稳定 JSON
 ///
 /// # Arguments
-/// - terminal：待投影的唯一审查终态
+/// - terminal： 待投影的唯一审查终态
 /// # Returns
 /// - 对外 JSON 字节
 /// # Errors
@@ -71,7 +71,7 @@ pub fn project_javascript_object_notation(
             let blocked_family_details = blocked_family_details(review);
             let finding_summary = summarize(review);
             serde_json::to_vec(&SealedProjection {
-                schema_version: 2,
+                schema_version: REVIEW_SCHEMA_VERSION,
                 terminal: "sealed",
                 disposition: terminal.disposition(),
                 review: SealedBody {
@@ -89,7 +89,7 @@ pub fn project_javascript_object_notation(
         }
         ReviewTerminal::Rejected(rejection) => {
             serde_json::to_vec(&ErrorProjection {
-                schema_version: 2,
+                schema_version: REVIEW_SCHEMA_VERSION,
                 terminal: "rejected",
                 disposition: Disposition::Rejected,
                 error: ErrorBody {
@@ -100,7 +100,7 @@ pub fn project_javascript_object_notation(
         }
         ReviewTerminal::Failed(failure) => {
             serde_json::to_vec(&ErrorProjection {
-                schema_version: 2,
+                schema_version: REVIEW_SCHEMA_VERSION,
                 terminal: "failed",
                 disposition: Disposition::Failed,
                 error: ErrorBody {
@@ -111,7 +111,7 @@ pub fn project_javascript_object_notation(
         }
     }
 }
-/// 执行 `summarize` 内部逻辑
+/// 按等级统计审查问题数量
 fn summarize(review: &SealedReview) -> FindingSummary {
     let mut summary = FindingSummary {
         total: review.findings().len(),
@@ -120,13 +120,12 @@ fn summarize(review: &SealedReview) -> FindingSummary {
     for finding in review.findings() {
         match finding.grade() {
             FindingGrade::HardViolation => summary.hard_violation += 1,
-            FindingGrade::SoftFriction => summary.soft_friction += 1,
             FindingGrade::ReviewRequired => summary.review_required += 1,
         }
     }
     summary
 }
-/// 返回不改变封存结果的认知顺序 Finding 引用
+/// 按展示顺序返回审查问题的引用，不改变封存结果
 fn presentation_ordered_findings(review: &SealedReview) -> Vec<&Finding> {
     let mut findings: Vec<_> = review.findings().iter().collect();
     findings.sort_by_key(|finding| {
@@ -137,7 +136,7 @@ fn presentation_ordered_findings(review: &SealedReview) -> Vec<&Finding> {
     });
     findings
 }
-/// 返回规则在认知展示中的全序位置与章节
+/// 返回规则的展示顺序和所属章节
 fn presentation_entry<'review>(
     review: &'review SealedReview,
     rule: &str,
@@ -161,7 +160,7 @@ fn presentation_entry<'review>(
 fn blocked_family_details(
     review: &SealedReview,
 ) -> Vec<BlockedFamilyDetail<'_>> {
-    let mut details: Vec<_> = review
+    review
         .coverage()
         .files()
         .iter()
@@ -177,16 +176,12 @@ fn blocked_family_details(
                 })
             })
         })
-        .collect();
-    details.sort_by(|left, right| {
-        (left.file, left.family).cmp(&(right.file, right.family))
-    });
-    details
+        .collect()
 }
 /// 将审查终态投影为人类可读文本
 ///
 /// # Arguments
-/// - terminal：待投影的唯一审查终态
+/// - terminal： 待投影的唯一审查终态
 /// # Returns
 /// - 人类可读终态文本
 /// # Errors
@@ -276,7 +271,7 @@ pub fn project_human(terminal: &ReviewTerminal) -> String {
         }
     }
 }
-/// 执行 `scope_label` 内部逻辑
+/// 生成包含来源和文件数的审查范围说明
 fn scope_label(scope: &ReviewedScope) -> String {
     match scope {
         ReviewedScope::Documents { revision, files } => {

@@ -1,34 +1,38 @@
-# CSU 靶场
+# CSU 冻结源码靶场
 
-这里保存固定版本的真实项目代码，供 CSU 检验检出能力、误报、完成性、确定性和性能。它们不是“零问题示范工程”：不能为了少报 Issue 修改靶场、加项目特供 suppressions，或缩小真实源码范围。
+本目录保存真实项目固定版本的源码子集，供 CSU 暴露检出缺口、误报、检查不完整和资源开销。
+它们不是零问题示范工程，也不是完整、可构建的上游项目；无关文档、配置、数据和工具构件已移除。
 
-- 每个目录都是一次冻结；要更新上游时新增目录，不原地覆盖。
-- 靶场当前不接入旧 CSU runner、旧测试或旧基线。
-- 外部项目的许可证文件随原项目保留。
+目录位置、构建语料、测量和验收统一见 [靶场指南](../../docs/fixtures/core/README.md)。
+项目修订、源码扩展名和摘要以 [benchmark-manifest.json](../../docs/fixtures/core/benchmark-manifest.json) 为准；
+解析排除项另见 [parseability-exclusions.json](../../docs/fixtures/core/parseability-exclusions.json)。
+这些清单限定性能工作负载，不是面向用户项目的规则豁免。
 
-| 目录 | 固定版本 | 用途 |
-| --- | --- | --- |
-| `chromatixnext-5b3411fc` | `scientific-foundation-final-seal@5b3411fc9b710a5a79620eea0d3ce1ef0d11eb28` | 科学计算与光学 Python 项目 |
-| `metacraft-f51be8ad` | `experiment/continuous-achromatic-native-test@f51be8ad4db700b6af0274bf82ca6fd463ad7e90` | Python + Rust 的科学编排项目 |
-| `onns-0245bd34` | `experiment/restoration-sonnet-architecture@0245bd346fb1451ddaa91348ec99f44a1d96a91e` | 实验与数据管线 Python 项目 |
-| `ripgrep-3fce3b5b` | `ripgrep@3fce3b5bb0236da2df6d99672afb8a719642eca7` | 多 crate Rust CLI 与平台条件编译 |
-| `serde-a874a1b1` | `serde@a874a1b1bb1cc16cf5ee3b1b7b527af5705742bb` | Rust 宏、泛型、attribute 与 `no_std` |
-| `zlib-e3dc0a85` | `zlib@e3dc0a85b7032e98380dec011bc8f2c2ee0d8fca` | 紧凑 C、宏与可移植性分支 |
-| `curl-72dfda5f` | `curl@72dfda5f5ac3825fc26b82fa404225f3e7a0fc31` | 大型跨平台 C 网络代码 |
-| `fmt-e27cc20b` | `fmt@e27cc20bd93a4e280fb9268d41cd131069a9c73f` | 现代 C++ 模板、`constexpr` 与 Unicode |
+## 项目用途
 
-## 首轮性能靶场锁定
+| 快照目录 | 主要覆盖 |
+|---|---|
+| `chromatixnext-5b3411fc` | Python 科学计算与光学结构 |
+| `metacraft-f51be8ad` | Python 与 Rust 科学编排 |
+| `onns-0245bd34` | Python 实验与数据管线 |
+| `ripgrep-3fce3b5b` | Rust 多包命令行程序与平台条件编译 |
+| `serde-a874a1b1` | Rust 宏、泛型、属性与 `no_std` |
+| `zlib-e3dc0a85` | C 宏与可移植性分支 |
+| `curl-72dfda5f` | 大型跨平台 C 网络代码 |
+| `fmt-e27cc20b` | C++ 模板、`constexpr` 与 Unicode |
 
-上表的八个目录共同构成 CSU 首轮唯一的固定性能靶场：三份真实科学 Python 项目、两份 Rust 项目、两份 C 项目和一份 C++ 项目。它们用于暴露规则缺口、完成性问题、确定性问题与资源成本；某个靶场尚未被当前 Language Profile 接纳，不等于可以从集合中删除或以较小范围替代。
+目录后缀帮助定位版本，不代替文件内容校验。完整修订只在机器清单中维护，本文不另抄统计与性能门槛。
+原始导入可追溯 CSU 提交 `25cd2a2314fef565ad4bab7ba2d600b9d46551cd` 中的对应目录。
 
-- 靶场身份由目录名中的上游提交、表中的完整 revision，以及每次 Review 生成的 Snapshot 身份共同确定。目录名不是对运行中工作区的信任替代。
-- 任何上游更新都新增一个带新提交后缀的目录；不得原地刷新、重写、删减或为性能结果修改现有靶场。
-- 性能比较必须使用相同的 Compiled Authority、接纳范围与完整性语义。Finding 数量不是优化目标，也不能用项目专用 suppression 换取更快的结果。
+## 维护约束
 
-## 性能使用规则
+- 保留性能和解析校准范围内的全部源码及必要许可证、版权材料；源码的路径与字节不变
+- 保留范围取两种校准输入的并集，不仅保留已选入 20 万行语料的文件；许可证链接及其目标同时保留
+- 不为减少问题、提高通过率或改善性能而改写快照、缩小范围或增加项目特例
+- 更新上游时新增带新修订后缀的目录，并重新校准清单和证据；不原地刷新旧目录
+- 解析器暂不支持的源码必须有明确排除记录，不能因无法检查而静默删除
+- 不在快照内写 CSU 结果、临时清单或重测产物；生成位置由靶场指南规定
+- 上游构建、测试运行与工具使用不是此源码子集的承诺；不要补造已移除的项目配置来冒充完整工程
 
-首轮工作负载是冷启动、离线、只读、单工作区的完整批处理 Review；靶场不接入守护进程、增量状态、持久缓存、自动修复或 Compatibility Layer。
-
-“越快越好”在这里是受语义约束的优化目标：先保证相同 Authority/Snapshot 下完整性与 Seal 一致，再比较冷启动耗时和峰值 RSS。首条可接受的语义切片会为每个已接纳靶场记录冷启动基线；之后同一语义输入的实现不能以更慢的 p95 冷启动或更高的峰值 RSS 换取所谓优化。若二者存在真实权衡，必须单独记录所有者决议。
-
-当前没有虚构的全局毫秒上限。历史 `200k LOC / <= 6s` 仅作为校准警报和回归调查触发条件，不自动成为不同规则范围或不同机器上的通过线。每次比较仍必须报告 Authority、Snapshot、接纳/受阻数、读取/parse次数与字节数、阶段耗时、峰值 RSS、Finding/Receipt 计数和跨 worker 数的 Seal 一致性。
+单个项目的发现不能直接证明 CSU 存在缺陷。先提取最小正反例、对照编码规范，
+再通过公共接口验证；测试预期不明确时保留问题，不靠修改样例获得绿灯。

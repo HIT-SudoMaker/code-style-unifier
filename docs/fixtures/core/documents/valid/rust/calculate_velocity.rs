@@ -1,8 +1,8 @@
 /// 计算平均速度
 ///
 /// # Arguments
-/// - distance_m：行进距离
-/// - duration_s：持续时间
+/// - distance_m： 行进距离
+/// - duration_s： 持续时间
 /// # Returns
 /// - 平均速度
 /// # Errors
@@ -16,4 +16,9 @@ pub fn calculate_velocity(
     }
     let velocity_m_per_s = distance_m / duration_s;
     Ok(velocity_m_per_s)
+}
+
+/// 计算持续时间
+fn calculate_duration(distance_m: f64, velocity_m_per_s: f64) -> f64 {
+    distance_m / velocity_m_per_s
 }

@@ -14,3 +14,10 @@ def calculate_velocity(distance_m: float, duration_s: float) -> float:
         raise ValueError("持续时间必须大于零")
     velocity_m_per_s = distance_m / duration_s
     return velocity_m_per_s
+
+
+def _calculate_duration(distance_m: float, velocity_m_per_s: float) -> float:
+    """
+    计算持续时间
+    """
+    return distance_m / velocity_m_per_s

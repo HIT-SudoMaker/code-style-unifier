@@ -3,6 +3,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::Path;
+
+pub(crate) const REVIEW_SCHEMA_VERSION: u32 = 4;
 /// 表示一份待审查的内存源码文档
 #[derive(Clone, Copy, Debug)]
 pub struct SourceDocument<'source> {
@@ -33,7 +35,7 @@ pub enum ReviewInput<'review> {
 pub enum Disposition {
     /// 审查完整且未发现问题
     Clean,
-    /// 审查完整且存在 Findings
+    /// 审查完整且存在问题
     Findings,
     /// 审查未能覆盖全部必需事实族
     Incomplete,
@@ -52,19 +54,15 @@ pub enum Completion {
     /// 至少一个必需事实族被阻塞
     Incomplete = 1,
 }
-/// 表示 Finding 的规范等级
-#[derive(
-    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize,
-)]
+/// 表示审查问题的规范等级
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum FindingGrade {
     /// 必须修复的规范违反
     HardViolation = 0,
-    /// 建议处理的轻度摩擦
-    SoftFriction = 1,
     /// 需要人工判断的候选问题
-    ReviewRequired = 2,
+    ReviewRequired = 1,
 }
 /// 表示一个绑定到源码声明的审查发现
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -80,7 +78,7 @@ pub struct Finding {
     pub(crate) message: String,
 }
 impl Finding {
-    /// 返回产生 Finding 的规则身份
+    /// 返回产生问题的规则身份
     ///
     /// # Arguments
     /// - 无
@@ -91,7 +89,7 @@ impl Finding {
     pub fn rule(&self) -> &str {
         &self.rule
     }
-    /// 返回 Finding 的规范等级
+    /// 返回问题的规范等级
     ///
     /// # Arguments
     /// - 无
@@ -102,7 +100,7 @@ impl Finding {
     pub fn grade(&self) -> FindingGrade {
         self.grade
     }
-    /// 返回 Finding 所属源码路径
+    /// 返回问题所属源码路径
     ///
     /// # Arguments
     /// - 无
@@ -113,7 +111,7 @@ impl Finding {
     pub fn path(&self) -> &str {
         &self.path
     }
-    /// 返回 Finding 的一基行号
+    /// 返回问题所在行号，从一开始
     ///
     /// # Arguments
     /// - 无
@@ -124,7 +122,7 @@ impl Finding {
     pub fn line(&self) -> usize {
         self.line
     }
-    /// 返回 Finding 的一基列号
+    /// 返回问题所在列号，从一开始
     ///
     /// # Arguments
     /// - 无
@@ -135,7 +133,7 @@ impl Finding {
     pub fn column(&self) -> usize {
         self.column
     }
-    /// 返回 Finding 对应的声明主体
+    /// 返回问题对应的声明主体
     ///
     /// # Arguments
     /// - 无
@@ -162,18 +160,18 @@ impl Finding {
     /// # Arguments
     /// - 无
     /// # Returns
-    /// - 需要确认的问题；确定性 Finding 返回空值
+    /// - 需要确认的问题；无需确认时返回空值
     /// # Errors
     /// - 无
     pub fn question(&self) -> Option<&str> {
         self.question.as_deref()
     }
-    /// 返回便于人工理解的 Finding 说明
+    /// 返回便于人工理解的问题说明
     ///
     /// # Arguments
     /// - 无
     /// # Returns
-    /// - Finding 说明
+    /// - 问题说明
     /// # Errors
     /// - 无
     pub fn message(&self) -> &str {
@@ -197,19 +195,67 @@ pub enum FactFamily {
     Documentation = 4,
     /// 依赖声明事实
     DependencyDeclaration = 5,
-    /// 声明顺序事实
-    DeclarationOrder = 6,
 }
 /// 表示单个事实族的终态
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "state", content = "value", rename_all = "snake_case")]
 pub enum FactFamilyState {
-    /// 当前文件无需执行该事实族
-    NotRequired,
     /// 事实族完成并记录事实数量
     Complete(u32),
     /// 事实族无法可靠完成并记录原因
     Blocked(String),
+}
+/// 表示单文件的读取失败、源码拒绝或事实提取结果
+pub(crate) enum FamilyClosure {
+    CaptureBlocked(String),
+    SourceRejected {
+        physical_lines: u32,
+        reason: String,
+    },
+    Observed {
+        physical_lines: u32,
+        identifier_subjects: u32,
+        documentation: FactFamilyState,
+        dependency: FactFamilyState,
+    },
+}
+impl FamilyClosure {
+    /// 将单一观察结果投影到指定事实族
+    fn state(&self, family: FactFamily) -> FactFamilyState {
+        match self {
+            Self::CaptureBlocked(reason) => {
+                FactFamilyState::Blocked(reason.clone())
+            }
+            Self::SourceRejected {
+                physical_lines,
+                reason,
+            } => match family {
+                FactFamily::Capture => FactFamilyState::Complete(1),
+                FactFamily::PhysicalLines => {
+                    FactFamilyState::Complete(*physical_lines)
+                }
+                _ => FactFamilyState::Blocked(reason.clone()),
+            },
+            Self::Observed {
+                physical_lines,
+                identifier_subjects,
+                documentation,
+                dependency,
+            } => match family {
+                FactFamily::Capture | FactFamily::Structure => {
+                    FactFamilyState::Complete(1)
+                }
+                FactFamily::PhysicalLines => {
+                    FactFamilyState::Complete(*physical_lines)
+                }
+                FactFamily::Identifier => {
+                    FactFamilyState::Complete(*identifier_subjects)
+                }
+                FactFamily::Documentation => documentation.clone(),
+                FactFamily::DependencyDeclaration => dependency.clone(),
+            },
+        }
+    }
 }
 /// 保存按文件压缩的事实覆盖账本
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -228,16 +274,40 @@ impl CompactCoverage {
     pub fn files(&self) -> &[FileCoverage] {
         &self.files
     }
+    /// 从唯一覆盖账本派生完成状态
+    pub(crate) fn completion(&self) -> Completion {
+        if self
+            .files
+            .iter()
+            .flat_map(FileCoverage::families)
+            .any(|(_, state)| matches!(state, FactFamilyState::Blocked(_)))
+        {
+            Completion::Incomplete
+        } else {
+            Completion::Complete
+        }
+    }
 }
 /// 保存单个文件的事实族覆盖状态
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct FileCoverage {
     pub(crate) path: String,
-    pub(crate) required_mask: u8,
-    pub(crate) executed_mask: u8,
-    pub(crate) families: Vec<(FactFamily, FactFamilyState)>,
+    pub(crate) families: [(FactFamily, FactFamilyState); 6],
 }
 impl FileCoverage {
+    /// 将单一观察路径构造为六格终态账本
+    pub(crate) fn close(path: String, closure: FamilyClosure) -> Self {
+        let families = [
+            FactFamily::Capture,
+            FactFamily::PhysicalLines,
+            FactFamily::Structure,
+            FactFamily::Identifier,
+            FactFamily::Documentation,
+            FactFamily::DependencyDeclaration,
+        ]
+        .map(|family| (family, closure.state(family)));
+        Self { path, families }
+    }
     /// 返回覆盖记录所属源码路径
     ///
     /// # Arguments
@@ -260,27 +330,30 @@ impl FileCoverage {
     pub fn families(&self) -> &[(FactFamily, FactFamilyState)] {
         &self.families
     }
-    /// 返回该文件必须执行的事实族位图
-    ///
-    /// # Arguments
-    /// - 无
-    /// # Returns
-    /// - 必需事实族位图
-    /// # Errors
-    /// - 无
-    pub fn required_mask(&self) -> u8 {
-        self.required_mask
-    }
-    /// 返回该文件已经执行的事实族位图
-    ///
-    /// # Arguments
-    /// - 无
-    /// # Returns
-    /// - 已执行事实族位图
-    /// # Errors
-    /// - 无
-    pub fn executed_mask(&self) -> u8 {
-        self.executed_mask
+}
+#[cfg(test)]
+mod coverage {
+    use super::CompactCoverage;
+    use super::Completion;
+    use super::FactFamilyState;
+    use super::FamilyClosure;
+    use super::FileCoverage;
+
+    /// 验证读取失败会将所有事实类别标记为受阻
+    #[test]
+    fn capture_blocked_closes_all_families() {
+        let file = FileCoverage::close(
+            "src/value.py".to_owned(),
+            FamilyClosure::CaptureBlocked("capture failed".to_owned()),
+        );
+        assert_eq!(file.families().len(), 6);
+        assert!(file.families().iter().all(|(_, state)| {
+            matches!(state, FactFamilyState::Blocked(reason) if reason == "capture failed")
+        }));
+        assert_eq!(
+            CompactCoverage { files: vec![file] }.completion(),
+            Completion::Incomplete
+        );
     }
 }
 /// 记录一次审查的生命周期工作量
@@ -288,7 +361,7 @@ impl FileCoverage {
 pub struct ReviewMetrics {
     /// 读取的源码文件数量
     pub files_read: u64,
-    /// 完成的单次字节扫描数量
+    /// 完成的物理行观察次数，不含哈希、UTF-8 校验与错误定位的字节访问
     pub byte_sweeps: u64,
     /// 完成的结构解析数量
     pub structural_parses: u64,
@@ -313,36 +386,31 @@ pub enum ReviewedScope {
     },
 }
 /// 表示确定性封存的完整审查结果
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SealedReview {
-    pub(crate) schema_version: u32,
     pub(crate) scope: ReviewedScope,
-    pub(crate) completion: Completion,
     pub(crate) coverage: CompactCoverage,
     pub(crate) findings: Vec<Finding>,
     pub(crate) metrics: ReviewMetrics,
     pub(crate) semantic_authority_digest: String,
     pub(crate) snapshot_digest: String,
     pub(crate) seal: String,
-    #[serde(skip)]
     pub(crate) presentation: PresentationPlan,
 }
-/// 保存单个语言画像对认知章节的证据状态
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+/// 保存单个语言在展示章节中的证据状态
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum PresentationCell {
     Supported { contract: String },
-    NotApplicable { reason: String },
-    NeedsAuthority { capability: String },
 }
-/// 保存一个认知章节及其规则与四语言证据
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+/// 保存展示章节及其规则和四语言证据
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub(crate) struct PresentationChapter {
     pub(crate) chapter: String,
     pub(crate) rules: Vec<String>,
     pub(crate) profiles: BTreeMap<String, PresentationCell>,
 }
-/// 保存不参与科学身份的完整认知展示关系
+/// 保存不参与语义身份计算的展示关系
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub(crate) struct PresentationPlan {
     pub(crate) chapters: Vec<PresentationChapter>,
@@ -368,7 +436,7 @@ impl SealedReview {
     /// # Errors
     /// - 无
     pub fn completion(&self) -> Completion {
-        self.completion
+        self.coverage.completion()
     }
     /// 返回本次审查的紧凑覆盖账本
     ///
@@ -381,12 +449,12 @@ impl SealedReview {
     pub fn coverage(&self) -> &CompactCoverage {
         &self.coverage
     }
-    /// 返回本次审查产生的全部 Findings
+    /// 返回本次审查发现的全部问题
     ///
     /// # Arguments
     /// - 无
     /// # Returns
-    /// - 按稳定顺序排列的 Finding 切片
+    /// - 按稳定顺序排列的问题切片
     /// # Errors
     /// - 无
     pub fn findings(&self) -> &[Finding] {
@@ -423,7 +491,30 @@ impl SealedReview {
     /// # Errors
     /// - 无
     pub fn canonical_bytes(&self) -> Vec<u8> {
-        serde_json::to_vec(self).expect("sealed review is serializable")
+        #[derive(Serialize)]
+        struct CanonicalReview<'review> {
+            schema_version: u32,
+            scope: &'review ReviewedScope,
+            completion: Completion,
+            coverage: &'review CompactCoverage,
+            findings: &'review [Finding],
+            metrics: ReviewMetrics,
+            semantic_authority_digest: &'review str,
+            snapshot_digest: &'review str,
+            seal: &'review str,
+        }
+        serde_json::to_vec(&CanonicalReview {
+            schema_version: REVIEW_SCHEMA_VERSION,
+            scope: &self.scope,
+            completion: self.completion(),
+            coverage: &self.coverage,
+            findings: &self.findings,
+            metrics: self.metrics,
+            semantic_authority_digest: &self.semantic_authority_digest,
+            snapshot_digest: &self.snapshot_digest,
+            seal: &self.seal,
+        })
+        .expect("sealed review is serializable")
     }
 }
 /// 表示审查开始后发生的执行失败
@@ -433,7 +524,7 @@ pub struct ReviewFailure {
     message: String,
 }
 impl ReviewFailure {
-    /// 执行 `new` 内部逻辑
+    /// 根据错误代码和说明创建失败结果
     pub(crate) fn new(code: &str, message: impl Into<String>) -> Self {
         Self {
             code: code.to_owned(),
@@ -486,7 +577,7 @@ impl ReviewTerminal {
         match self {
             Self::Rejected(_) => Disposition::Rejected,
             Self::Failed(_) => Disposition::Failed,
-            Self::Sealed(review) => match review.completion {
+            Self::Sealed(review) => match review.completion() {
                 Completion::Incomplete => Disposition::Incomplete,
                 Completion::Complete if review.findings.is_empty() => {
                     Disposition::Clean

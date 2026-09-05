@@ -1,5 +1,3 @@
-#include <stdbool.h>
-
 /**
  * 计算平均速度
  *

@@ -2,6 +2,7 @@
 /target/
 /dist/
 /.csu/runs/
+/docs/fixtures/core/self_check.json
 
 # Agent process state
 /.superpowers/

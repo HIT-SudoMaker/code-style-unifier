@@ -1,8 +1,8 @@
 /// 计算平均速度
 ///
 /// # Arguments
-/// - d：行进距离
-/// - duration_s：持续时间
+/// - d：          行进距离
+/// - duration_s： 持续时间
 /// # Returns
 /// - 平均速度
 /// # Errors

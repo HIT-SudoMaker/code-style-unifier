@@ -1,1 +1,0 @@
-{"schema_identifier":"metacraft.analysis.brief_stage_binding","values":{"purpose":"read-only material sampling with qualified response kinds","response_kinds":["periodic_transmission_response","periodic_polarization_response","periodic_reference_surface_response"]}}

@@ -1,0 +1,2 @@
+* text=auto eol=lf
+/bench/targets/** text=auto eol=crlf

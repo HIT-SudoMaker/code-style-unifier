@@ -1,4 +1,4 @@
 interface:
   display_name: "CSU Review"
-  short_description: "Run sealed semantic source reviews"
-  default_prompt: "Use $csu-review to review this source scope with its project-owned Authority and report the sealed result."
+  short_description: "Run or interpret CSU source reviews"
+  default_prompt: "Use $csu-review to handle this source-review request and report the evidence and next action."

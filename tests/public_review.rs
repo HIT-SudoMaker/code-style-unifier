@@ -1,83 +1,40 @@
 use csu::AuthorityDocument;
 use csu::AuthorityInput;
 use csu::Completion;
-use csu::Disposition;
-use csu::DocumentSet;
 use csu::FactFamily;
 use csu::FactFamilyState;
-use csu::ReviewInput;
 use csu::ReviewTerminal;
 use csu::SealedReview;
-use csu::SourceDocument;
 use csu::WorkspaceReviewer;
 
-const AUTHORITY: &str = include_str!("../docs/fixtures/core/authority.json");
+mod review_fixture;
+
+use review_fixture::review_sources;
+
 const PYTHON_PATH: &str = "src/velocity.py";
 const RUST_PATH: &str = "src/velocity.rs";
 const PROCEDURAL_HEADER_PATH: &str = "api/velocity.h";
 const OBJECT_ORIENTED_HEADER_PATH: &str = "api/velocity.hpp";
 
-const PYTHON_VALID: &str = r#"def calculate_velocity(distance_m: float, duration_s: float) -> float:
-    """
-    计算平均速度
+const PYTHON_VALID: &str = include_str!(
+    "../docs/fixtures/core/documents/valid/python/calculate_velocity.py"
+);
+const RUST_VALID: &str = include_str!(
+    "../docs/fixtures/core/documents/valid/rust/calculate_velocity.rs"
+);
+const PROCEDURAL_VALID: &str = include_str!(
+    "../docs/fixtures/core/documents/valid/c/calculate_velocity.h"
+);
+const OBJECT_ORIENTED_VALID: &str = include_str!(
+    "../docs/fixtures/core/documents/valid/cpp/calculate_velocity.hpp"
+);
 
-    Args:
-        distance_m: 行进距离
-        duration_s: 持续时间
-    Returns:
-        float: 平均速度
-    Raises:
-        ValueError: 持续时间不大于零
-    """
-    return distance_m / duration_s
-"#;
-
-const RUST_VALID: &str = r#"/// 计算平均速度
-///
-/// # Arguments
-/// - distance_m：行进距离
-/// - duration_s：持续时间
-/// # Returns
-/// - 平均速度
-/// # Errors
-/// - 持续时间不大于零时返回错误
-pub fn calculate_velocity(distance_m: f64, duration_s: f64) -> Result<f64, ()> {
-    Ok(distance_m / duration_s)
-}
-"#;
-
-const PROCEDURAL_VALID: &str = r#"/**
- * 计算平均速度
- *
- * 参数：
- * - distance_m：行进距离
- * - duration_s：持续时间
- * 返回：
- * - 平均速度
- * 错误：
- * - 无
- */
-double calculate_velocity(double distance_m, double duration_s);
-"#;
-
-const OBJECT_ORIENTED_VALID: &str = r#"/**
- * 计算平均速度
- *
- * 参数：
- * - distance_m：行进距离
- * - duration_s：持续时间
- * 返回：
- * - 平均速度
- * 错误：
- * - 无
- */
-double calculate_velocity(double distance_m, double duration_s);
-"#;
-
-/// 构造测试 Reviewer
+/// 创建测试审查器
 fn reviewer() -> WorkspaceReviewer {
-    let mut authority: serde_json::Value =
-        serde_json::from_str(AUTHORITY).expect("fixture Authority is JSON");
+    let mut authority: serde_json::Value = serde_json::from_str(include_str!(
+        "../docs/fixtures/core/authority.json"
+    ))
+    .unwrap();
     authority["public_callables"] = serde_json::json!({
         PROCEDURAL_HEADER_PATH: ["calculate_velocity"],
         OBJECT_ORIENTED_HEADER_PATH: ["calculate_velocity"]
@@ -87,13 +44,10 @@ fn reviewer() -> WorkspaceReviewer {
     authority["token_vocabulary"]
         .as_array_mut()
         .expect("vocabulary is an array")
-        .extend([
-            serde_json::json!("engine"),
-            serde_json::json!("inner"),
-            serde_json::json!("object"),
-            serde_json::json!("result"),
-            serde_json::json!("value"),
-        ]);
+        .extend(
+            ["engine", "inner", "object", "result", "value"]
+                .map(serde_json::Value::from),
+        );
     let bytes = serde_json::to_vec(&authority).unwrap();
     WorkspaceReviewer::compile(AuthorityInput::Documents(&[
         AuthorityDocument {
@@ -109,17 +63,7 @@ fn review<'source>(
     revision: &'source str,
     sources: &'source [(&'source str, &'source str)],
 ) -> SealedReview {
-    let documents: Vec<_> = sources
-        .iter()
-        .map(|(relative_path, source)| SourceDocument {
-            relative_path,
-            bytes: source.as_bytes(),
-        })
-        .collect();
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision,
-        documents: &documents,
-    }));
+    let terminal = review_sources(&reviewer(), revision, sources);
     let ReviewTerminal::Sealed(review) = terminal else {
         panic!("direct source must produce a sealed terminal: {terminal:#?}");
     };
@@ -134,7 +78,7 @@ fn has_rule(review: &SealedReview, path: &str, rule: &str) -> bool {
         .any(|finding| finding.path() == path && finding.rule() == rule)
 }
 
-/// 验证公共审查证据场景
+/// 验证四语言分别检查公开文档的必需部分
 #[test]
 fn public_roles_are_checked_in_parallel_across_four_languages() {
     let roles = [
@@ -153,10 +97,11 @@ fn public_roles_are_checked_in_parallel_across_four_languages() {
         ("failures", "    Raises:\n", "/// # Errors\n", " * 错误：\n"),
     ];
     for (revision, python_role, rust_role, native_role) in roles {
-        let python = PYTHON_VALID.replace(python_role, "");
-        let rust = RUST_VALID.replace(rust_role, "");
-        let procedural = PROCEDURAL_VALID.replace(native_role, "");
-        let object_oriented = OBJECT_ORIENTED_VALID.replace(native_role, "");
+        let python = (PYTHON_VALID).replacen(python_role, "", 1);
+        let rust = (RUST_VALID).replacen(rust_role, "", 1);
+        let procedural = (PROCEDURAL_VALID).replacen(native_role, "", 1);
+        let object_oriented =
+            (OBJECT_ORIENTED_VALID).replacen(native_role, "", 1);
         let sources = [
             (PYTHON_PATH, python.as_str()),
             (RUST_PATH, rust.as_str()),
@@ -175,106 +120,25 @@ fn public_roles_are_checked_in_parallel_across_four_languages() {
     }
 }
 
-/// 验证公共审查证据场景
+/// 验证四语言均拒绝不规范的空参数标记
 #[test]
-fn return_shape_and_empty_marker_contracts_hold_in_all_languages() {
-    let value_sources = [
-        (
-            PYTHON_PATH,
-            PYTHON_VALID.replace("        float: 平均速度\n", "        无\n"),
-        ),
-        (
-            RUST_PATH,
-            RUST_VALID.replace("/// - 平均速度\n", "/// - 无\n"),
-        ),
-        (
-            PROCEDURAL_HEADER_PATH,
-            PROCEDURAL_VALID.replace(" * - 平均速度\n", " * - 无\n"),
-        ),
-        (
-            OBJECT_ORIENTED_HEADER_PATH,
-            OBJECT_ORIENTED_VALID.replace(" * - 平均速度\n", " * - 无\n"),
-        ),
-    ];
-    for (path, source) in &value_sources {
-        let review = review("value-return-empty", &[(path, source)]);
-        assert!(has_rule(&review, path, "documentation.public_contract"));
-    }
-
-    let no_value_sources = [
-        (
-            PYTHON_PATH,
-            PYTHON_VALID
-                .replace(" -> float", " -> None")
-                .replace("        float: 平均速度\n", "        已完成计算\n"),
-        ),
-        (
-            RUST_PATH,
-            RUST_VALID
-                .replace(" -> Result<f64, ()>", "")
-                .replace("    Ok(distance_m / duration_s)", "")
-                .replace("/// - 平均速度\n", "/// - 已完成计算\n"),
-        ),
-        (
-            PROCEDURAL_HEADER_PATH,
-            PROCEDURAL_VALID
-                .replace(
-                    "double calculate_velocity",
-                    "void calculate_velocity",
-                )
-                .replace(" * - 平均速度\n", " * - 已完成计算\n"),
-        ),
-        (
-            OBJECT_ORIENTED_HEADER_PATH,
-            OBJECT_ORIENTED_VALID
-                .replace(
-                    "double calculate_velocity",
-                    "void calculate_velocity",
-                )
-                .replace(" * - 平均速度\n", " * - 已完成计算\n"),
-        ),
-    ];
-    for (path, source) in &no_value_sources {
-        let review = review("empty-return-value", &[(path, source)]);
-        assert!(has_rule(&review, path, "documentation.public_contract"));
-    }
-
+fn noncanonical_empty_parameter_markers_stay_hard_in_all_profiles() {
     let noncanonical_empty = [
         (
             PYTHON_PATH,
-            PYTHON_VALID
-                .replace("distance_m: float, duration_s: float", "")
-                .replace(
-                    "        distance_m: 行进距离\n        duration_s: 持续时间\n",
-                    "        None\n",
-                ),
+            ((PYTHON_VALID).replacen("distance_m: float, duration_s: float", "", 1)).replacen("        distance_m: 行进距离\n        duration_s: 持续时间\n", "        None\n", 1),
         ),
         (
             RUST_PATH,
-            RUST_VALID
-                .replace("distance_m: f64, duration_s: f64", "")
-                .replace(
-                    "/// - distance_m：行进距离\n/// - duration_s：持续时间\n",
-                    "/// - None\n",
-                ),
+            ((RUST_VALID).replacen("    distance_m: f64,\n    duration_s: f64,\n", "", 1)).replacen("/// - distance_m： 行进距离\n/// - duration_s： 持续时间\n", "/// - None\n", 1),
         ),
         (
             PROCEDURAL_HEADER_PATH,
-            PROCEDURAL_VALID
-                .replace("double distance_m, double duration_s", "void")
-                .replace(
-                    " * - distance_m：行进距离\n * - duration_s：持续时间\n",
-                    " * - None\n",
-                ),
+            ((PROCEDURAL_VALID).replacen("    double distance_m,\n    double duration_s,\n    double *velocity_m_per_s\n", "    void\n", 1)).replacen(" * - distance_m：       行进距离\n * - duration_s：       持续时间\n * - velocity_m_per_s： 平均速度输出位置\n", " * - None\n", 1),
         ),
         (
             OBJECT_ORIENTED_HEADER_PATH,
-            OBJECT_ORIENTED_VALID
-                .replace("double distance_m, double duration_s", "")
-                .replace(
-                    " * - distance_m：行进距离\n * - duration_s：持续时间\n",
-                    " * - None\n",
-                ),
+            ((OBJECT_ORIENTED_VALID).replacen("double distance_m, double duration_s", "", 1)).replacen(" * - distance_m： 行进距离\n * - duration_s： 持续时间\n", " * - None\n", 1),
         ),
     ];
     for (path, source) in &noncanonical_empty {
@@ -283,12 +147,12 @@ fn return_shape_and_empty_marker_contracts_hold_in_all_languages() {
     }
 }
 
-/// 验证公共审查证据场景
+/// 验证文档缺失与函数签名未知分别记录
 #[test]
-fn missing_carrier_is_conclusive_even_when_signature_facts_are_unknown() {
+fn missing_carrier_and_unknown_signature_remain_independent() {
     let missing =
         "def calculate_velocity(distance_m):\n    return distance_m\n";
-    let unresolved_with_carrier = r#"def calculate_velocity() -> Velocity:
+    let unresolved_with_carrier = r#"def calculate_velocity():
     """
     计算平均速度
 
@@ -303,7 +167,7 @@ fn missing_carrier_is_conclusive_even_when_signature_facts_are_unknown() {
 "#;
     let missing_review =
         review("missing-unknown-signature", &[(PYTHON_PATH, missing)]);
-    assert_eq!(missing_review.completion(), Completion::Complete);
+    assert_eq!(missing_review.completion(), Completion::Incomplete);
     assert!(has_rule(
         &missing_review,
         PYTHON_PATH,
@@ -326,83 +190,81 @@ fn missing_carrier_is_conclusive_even_when_signature_facts_are_unknown() {
     );
 }
 
-/// 验证公共审查证据场景
+/// 验证四语言均拒绝文档尾部的未知标题
 #[test]
-fn python_property_decorator_ownership_never_uses_guess() {
-    let proven = r#"class Velocity:
-    @property
-    def value(self) -> float:
-        """
-        返回速度值
-
-        Args:
-            无
-        Returns:
-            float: 速度值
-        Raises:
-            无
-        """
-        return 1.0
-"#;
-    let unknown = r#"@custom.decorator
-def calculate_velocity() -> float:
-    """
-    计算平均速度。
-
-    Args:
-        无
-    Returns:
-        float: 平均速度
-    Raises:
-        无
-    """
-    return 1.0
-"#;
-    let valid = review("property-owner", &[(PYTHON_PATH, proven)]);
-    assert_eq!(valid.completion(), Completion::Complete);
-
-    let blocked = review("unknown-decorator", &[(PYTHON_PATH, unknown)]);
-    assert_eq!(blocked.completion(), Completion::Incomplete);
-    assert!(has_rule(&blocked, PYTHON_PATH, "documentation.punctuation"));
-}
-
-/// 验证公共审查证据场景
-#[test]
-fn unsafe_rust_and_python_module_docstrings_keep_distinct_hard_evidence() {
-    let unsafe_rust = RUST_VALID.replace(
-        "pub fn calculate_velocity",
-        "pub unsafe fn calculate_velocity",
+fn unknown_tail_headings_close_hard_in_all_four_profiles() {
+    let python = (PYTHON_VALID).replacen(
+        "    Raises:\n        ValueError: 持续时间不大于零\n",
+        concat!(
+            "    Raises:\n        ValueError: 持续时间不大于零\n",
+            "    Attributes:\n        engine: 引擎描述\n",
+        ),
+        1,
     );
-    let python_module = format!("\"\"\"\n模块文档\n\"\"\"\n{PYTHON_VALID}");
+    let rust = (RUST_VALID).replacen(
+        "/// # Errors\n/// - 持续时间不大于零时返回错误\n",
+        concat!(
+            "/// # Errors\n/// - 持续时间不大于零时返回错误\n",
+            "/// # Examples\n/// - 演示基本用法\n",
+        ),
+        1,
+    );
+    let procedural = (PROCEDURAL_VALID).replacen(" * 错误：\n * - duration_s不大于零时返回false\n", " * 错误：\n * - duration_s不大于零时返回false\n * 所有权：\n * - 调用方持有结果\n", 1);
+    let object_oriented = (OBJECT_ORIENTED_VALID).replacen(" * 错误：\n * - duration_s不大于零时抛出std::invalid_argument\n", " * 错误：\n * - duration_s不大于零时抛出std::invalid_argument\n * 所有权：\n * - 调用方持有结果\n", 1);
     let sources = [
-        (RUST_PATH, unsafe_rust.as_str()),
-        (PYTHON_PATH, python_module.as_str()),
+        (PYTHON_PATH, python.as_str()),
+        (RUST_PATH, rust.as_str()),
+        (PROCEDURAL_HEADER_PATH, procedural.as_str()),
+        (OBJECT_ORIENTED_HEADER_PATH, object_oriented.as_str()),
     ];
-    let review = review("special-documentation-owners", &sources);
-
-    assert!(has_rule(&review, RUST_PATH, "documentation.safety"));
-    assert!(review.findings().iter().any(|finding| {
-        finding.path() == PYTHON_PATH
-            && finding.rule() == "documentation.carrier"
-            && finding.subject() == "<module>"
-            && finding.message()
-                == "documentation subject has a missing or forbidden profile carrier"
-    }));
+    let review = review("unknown-tail-headings", &sources);
+    for (path, _) in sources {
+        assert!(
+            has_rule(&review, path, "documentation.public_contract"),
+            "{path}: {:#?}",
+            review.findings()
+        );
+    }
 }
 
-/// 验证公共审查证据场景
+/// 验证四语言均拒绝次序错误的必需标题
 #[test]
-fn terminal_disposition_never_calls_incomplete_or_hard_findings_clean() {
-    let incomplete = r#"@custom.decorator
-def calculate_velocity() -> float:
-    return 1.0
-"#;
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "terminal-projection",
-        documents: &[SourceDocument {
-            relative_path: PYTHON_PATH,
-            bytes: incomplete.as_bytes(),
-        }],
-    }));
-    assert_eq!(terminal.disposition(), Disposition::Incomplete);
+fn reordered_required_headings_stay_hard_in_all_profiles() {
+    let python = (PYTHON_VALID).replacen(
+        concat!(
+            "    Args:\n",
+            "        distance_m: 行进距离\n",
+            "        duration_s: 持续时间\n",
+            "    Returns:\n",
+            "        float: 平均速度\n",
+        ),
+        concat!(
+            "    Returns:\n",
+            "        float: 平均速度\n",
+            "    Args:\n",
+            "        distance_m: 行进距离\n",
+            "        duration_s: 持续时间\n",
+        ),
+        1,
+    );
+    let rust = (RUST_VALID).replacen("/// # Arguments\n/// - distance_m： 行进距离\n/// - duration_s： 持续时间\n/// # Returns\n/// - 平均速度\n", "/// # Returns\n/// - 平均速度\n/// # Arguments\n/// - distance_m： 行进距离\n/// - duration_s： 持续时间\n", 1);
+    let native_reordered = (PROCEDURAL_VALID).replacen(" * 参数：\n * - distance_m：       行进距离\n * - duration_s：       持续时间\n * - velocity_m_per_s： 平均速度输出位置\n * 返回：\n * - 计算是否成功\n", " * 返回：\n * - 计算是否成功\n * 参数：\n * - distance_m：       行进距离\n * - duration_s：       持续时间\n * - velocity_m_per_s： 平均速度输出位置\n", 1);
+    let object_oriented_reordered = (OBJECT_ORIENTED_VALID).replacen(" * 参数：\n * - distance_m： 行进距离\n * - duration_s： 持续时间\n * 返回：\n * - 平均速度\n", " * 返回：\n * - 平均速度\n * 参数：\n * - distance_m： 行进距离\n * - duration_s： 持续时间\n", 1);
+    let sources = [
+        (PYTHON_PATH, python.as_str()),
+        (RUST_PATH, rust.as_str()),
+        (PROCEDURAL_HEADER_PATH, native_reordered.as_str()),
+        (
+            OBJECT_ORIENTED_HEADER_PATH,
+            object_oriented_reordered.as_str(),
+        ),
+    ];
+    let review = review("heading-order", &sources);
+    for (path, _) in sources {
+        assert!(
+            has_rule(&review, path, "documentation.public_contract"),
+            "{path}: {:#?}",
+            review.findings()
+        );
+    }
 }

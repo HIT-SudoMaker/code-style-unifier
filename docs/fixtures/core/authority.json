@@ -1,64 +1,45 @@
 {
-  "schema_version": 2,
-  "source_form": "external",
-  "families": [
-    {
-      "name": "identifier",
-      "operator": "identifier_v1",
-      "projections": {
-        "python": "supported",
-        "rust": "supported",
-        "c": "supported",
-        "cpp": "supported"
-      }
-    },
-    {
-      "name": "documentation",
-      "operator": "documentation_v1",
-      "projections": {
-        "python": "supported",
-        "rust": "supported",
-        "c": "supported",
-        "cpp": "supported"
-      }
-    }
-  ],
+  "schema_version": 4,
   "public_callables": {
     "documents/missing_field/c/calculate_velocity.h": ["calculate_velocity"],
-    "documents/missing_field/cpp/calculate_velocity.hpp": ["calculate_velocity"],
+    "documents/missing_field/cpp/calculate_velocity.hpp": [
+      "calculate_velocity"
+    ],
     "documents/ordinary_comment/c/calculate_velocity.h": ["calculate_velocity"],
-    "documents/ordinary_comment/cpp/calculate_velocity.hpp": ["calculate_velocity"],
+    "documents/ordinary_comment/cpp/calculate_velocity.hpp": [
+      "calculate_velocity"
+    ],
     "documents/short_symbol/c/calculate_velocity.h": ["calculate_velocity"],
     "documents/short_symbol/cpp/calculate_velocity.hpp": ["calculate_velocity"],
     "documents/syntax_damaged/c/calculate_velocity.h": ["calculate_velocity"],
-    "documents/syntax_damaged/cpp/calculate_velocity.hpp": ["calculate_velocity"],
+    "documents/syntax_damaged/cpp/calculate_velocity.hpp": [
+      "calculate_velocity"
+    ],
     "documents/valid/c/calculate_velocity.h": ["calculate_velocity"],
     "documents/valid/cpp/calculate_velocity.hpp": ["calculate_velocity"]
   },
-  "token_vocabulary": [
-    "calculate",
-    "distance",
-    "duration",
-    "velocity"
-  ],
-  "candidate_token_matching": "unicode_case_fold_exact_token",
-  "candidate_tokens": [
-    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l",
-    "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x",
-    "y", "z",
-    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L",
-    "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X",
-    "Y", "Z",
-    "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta",
-    "theta", "iota", "kappa", "lambda", "mu", "nu", "xi", "omicron",
-    "pi", "rho", "sigma", "tau", "upsilon", "phi", "chi", "psi",
-    "omega",
-    "α", "Α", "β", "Β", "γ", "Γ", "δ", "Δ", "ε", "Ε", "ζ", "Ζ",
-    "η", "Η", "θ", "Θ", "ι", "Ι", "κ", "Κ", "λ", "Λ", "μ", "Μ",
-    "ν", "Ν", "ξ", "Ξ", "ο", "Ο", "π", "Π", "ρ", "Ρ", "σ", "Σ",
-    "τ", "Τ", "υ", "Υ", "φ", "Φ", "χ", "Χ", "ψ", "Ψ", "ω", "Ω",
-    "ϕ", "ϑ", "ϵ", "ϖ", "ϱ", "ς"
-  ],
+  "token_vocabulary": ["calculate", "distance", "duration", "velocity"],
+  "quantity_concepts": {
+    "duration": ["s", "ms", "us"],
+    "time_interval": ["s", "ms", "us"],
+    "timestamp": ["s", "ms", "us"],
+    "distance": ["m", "mm", "um"],
+    "length": ["m", "mm", "um"],
+    "width": ["m", "mm", "um"],
+    "height": ["m", "mm", "um"],
+    "temperature": ["k"],
+    "pressure": ["pa"],
+    "voltage": ["v"],
+    "electric_current": ["a"],
+    "frequency": ["hz"],
+    "power": ["w"],
+    "energy": ["j"],
+    "velocity": ["m_per_s"],
+    "acceleration": ["m_per_s2"],
+    "electric_field": ["v_per_m"],
+    "phase": ["rad", "deg"],
+    "efficiency": ["ratio", "percent"]
+  },
   "header_languages": {
     "documents/missing_field/c/calculate_velocity.h": "c",
     "documents/ordinary_comment/c/calculate_velocity.h": "c",
@@ -66,122 +47,6 @@
     "documents/syntax_damaged/c/calculate_velocity.h": "c",
     "documents/valid/c/calculate_velocity.h": "c"
   },
-  "profile_contracts": {
-    "python": {
-      "observation_method": "tree-sitter-python@0.25.0+direct-source-facts-v1",
-      "documentation_carrier": "suite_first_triple_double_quoted_string",
-      "arguments_label": "Args:",
-      "returns_label": "Returns:",
-      "failures_label": "Raises:",
-      "empty_role": "无"
-    },
-    "rust": {
-      "observation_method": "tree-sitter-rust@0.24.2+direct-source-facts-v1",
-      "documentation_carrier": "outer_rustdoc",
-      "arguments_label": "# Arguments",
-      "returns_label": "# Returns",
-      "failures_label": "# Errors",
-      "empty_role": "- 无"
-    },
-    "c": {
-      "observation_method": "tree-sitter-c@0.24.2+direct-source-facts-v1",
-      "documentation_carrier": "controlled_adjacent_block",
-      "arguments_label": "参数：",
-      "returns_label": "返回：",
-      "failures_label": "错误：",
-      "empty_role": "- 无"
-    },
-    "cpp": {
-      "observation_method": "tree-sitter-cpp@8b5b49eb+direct-source-facts-v1",
-      "documentation_carrier": "controlled_adjacent_block",
-      "arguments_label": "参数：",
-      "returns_label": "返回：",
-      "failures_label": "错误：",
-      "empty_role": "- 无"
-    }
-  },
-  "semantic_role_prefixes": [
-      "is",
-      "has",
-      "can",
-      "should",
-      "needs",
-      "lower",
-      "upper",
-      "minimum",
-      "maximum"
-  ],
-  "representation_suffixes": [
-      "s",
-      "ms",
-      "us",
-      "m",
-      "mm",
-      "um",
-      "kg",
-      "k",
-      "pa",
-      "v",
-      "a",
-      "hz",
-      "w",
-      "j",
-      "m_per_s",
-      "m_per_s2",
-      "v_per_m",
-      "rad",
-      "deg",
-      "count",
-      "ratio",
-      "percent",
-      "index"
-  ],
-  "quantity_concepts": {
-      "duration": ["s", "ms", "us"],
-      "time_interval": ["s", "ms", "us"],
-      "timestamp": ["s", "ms", "us"],
-      "distance": ["m", "mm", "um"],
-      "length": ["m", "mm", "um"],
-      "width": ["m", "mm", "um"],
-      "height": ["m", "mm", "um"],
-      "temperature": ["k"],
-      "pressure": ["pa"],
-      "voltage": ["v"],
-      "electric_current": ["a"],
-      "frequency": ["hz"],
-      "power": ["w"],
-      "energy": ["j"],
-      "velocity": ["m_per_s"],
-      "acceleration": ["m_per_s2"],
-      "electric_field": ["v_per_m"],
-      "phase": ["rad", "deg"],
-    "efficiency": ["ratio", "percent"]
-  },
-  "presentation": [
-    {"chapter": "Admit", "rules": [], "profiles": {"python": {"state": "needs_authority", "capability": "admission_contract"}, "rust": {"state": "needs_authority", "capability": "admission_contract"}, "c": {"state": "needs_authority", "capability": "admission_contract"}, "cpp": {"state": "needs_authority", "capability": "admission_contract"}}},
-    {"chapter": "Structure", "rules": ["source.parseability"], "profiles": {"python": {"state": "supported", "contract": "parseability_v1"}, "rust": {"state": "supported", "contract": "parseability_v1"}, "c": {"state": "supported", "contract": "parseability_v1"}, "cpp": {"state": "supported", "contract": "parseability_v1"}}},
-    {"chapter": "Relate", "rules": ["dependency.wildcard", "dependency.module_placement", "dependency.order"], "profiles": {"python": {"state": "needs_authority", "capability": "dependency_access_declaration"}, "rust": {"state": "needs_authority", "capability": "dependency_access_declaration"}, "c": {"state": "needs_authority", "capability": "dependency_access_declaration"}, "cpp": {"state": "needs_authority", "capability": "dependency_access_declaration"}}},
-    {"chapter": "Expose", "rules": [], "profiles": {"python": {"state": "needs_authority", "capability": "exposure_contract"}, "rust": {"state": "needs_authority", "capability": "exposure_contract"}, "c": {"state": "needs_authority", "capability": "exposure_contract"}, "cpp": {"state": "needs_authority", "capability": "exposure_contract"}}},
-    {"chapter": "Name", "rules": ["identifier.candidate", "identifier.reserved", "identifier.canonical_form", "identifier.representation_suffix", "identifier.unknown_token"], "profiles": {"python": {"state": "supported", "contract": "identifier_v1"}, "rust": {"state": "supported", "contract": "identifier_v1"}, "c": {"state": "supported", "contract": "identifier_v1"}, "cpp": {"state": "supported", "contract": "identifier_v1"}}},
-    {"chapter": "Explain", "rules": ["documentation.carrier", "documentation.summary", "documentation.punctuation", "documentation.public_contract", "documentation.safety"], "profiles": {"python": {"state": "supported", "contract": "documentation_v1"}, "rust": {"state": "supported", "contract": "documentation_v1"}, "c": {"state": "supported", "contract": "documentation_v1"}, "cpp": {"state": "supported", "contract": "documentation_v1"}}},
-    {"chapter": "Shape", "rules": [], "profiles": {"python": {"state": "needs_authority", "capability": "shape_contract"}, "rust": {"state": "needs_authority", "capability": "shape_contract"}, "c": {"state": "needs_authority", "capability": "shape_contract"}, "cpp": {"state": "needs_authority", "capability": "shape_contract"}}},
-    {"chapter": "Behave", "rules": [], "profiles": {"python": {"state": "needs_authority", "capability": "behavior_contract"}, "rust": {"state": "needs_authority", "capability": "behavior_contract"}, "c": {"state": "needs_authority", "capability": "behavior_contract"}, "cpp": {"state": "needs_authority", "capability": "behavior_contract"}}},
-    {"chapter": "Close", "rules": [], "profiles": {"python": {"state": "needs_authority", "capability": "closure_contract"}, "rust": {"state": "needs_authority", "capability": "closure_contract"}, "c": {"state": "needs_authority", "capability": "closure_contract"}, "cpp": {"state": "needs_authority", "capability": "closure_contract"}}}
-  ],
-  "rules": [
-    {"id": "source.parseability", "family": "structure", "fact": "source_parseability", "operator": "source_form", "grade": "hard_violation", "message": "managed source must satisfy its pinned Profile parseability contract"},
-    {"id": "identifier.candidate", "family": "identifier", "fact": "declaration_name", "operator": "identifier_candidate", "grade": "review_required", "message": "candidate symbolic form requires an Authority-backed rename", "question": "该符号对应哪个完整 Canonical Concept？"},
-    {"id": "identifier.reserved", "family": "identifier", "fact": "declaration_name", "operator": "identifier_reserved", "grade": "hard_violation", "message": "project declaration uses a language-reserved identifier form"},
-    {"id": "identifier.canonical_form", "family": "identifier", "fact": "declaration_name", "operator": "identifier_canonical_form", "grade": "hard_violation", "message": "identifier does not satisfy its language-local canonical form"},
-    {"id": "identifier.representation_suffix", "family": "identifier", "fact": "declaration_name", "operator": "identifier_representation_suffix", "grade": "hard_violation", "message": "quantity-bearing value must use its registered representation suffix"},
-    {"id": "identifier.unknown_token", "family": "identifier", "fact": "declaration_name", "operator": "identifier_unknown_token", "grade": "review_required", "message": "identifier contains a token absent from the compiled vocabulary", "question": "该 token 是否应先加入 Authority 并重新审查？"},
-    {"id": "documentation.carrier", "family": "documentation", "fact": "callable_documentation", "operator": "documentation_carrier", "grade": "hard_violation", "message": "documentation subject has a missing or forbidden profile carrier"},
-    {"id": "documentation.summary", "family": "documentation", "fact": "callable_documentation", "operator": "documentation_summary", "grade": "hard_violation", "message": "documentation carrier must contain a non-empty summary"},
-    {"id": "documentation.punctuation", "family": "documentation", "fact": "callable_documentation", "operator": "documentation_terminator", "grade": "hard_violation", "message": "summary and controlled field descriptions must not end in a sentence terminator"},
-    {"id": "documentation.public_contract", "family": "documentation", "fact": "callable_documentation", "operator": "documentation_public_contract", "grade": "hard_violation", "message": "public callable must provide every structurally required controlled role in profile order"},
-    {"id": "documentation.safety", "family": "documentation", "fact": "callable_documentation", "operator": "documentation_safety", "grade": "hard_violation", "message": "unsafe Rust subject must provide a non-empty # Safety section"},
-    {"id": "dependency.wildcard", "family": "dependency", "fact": "dependency_declaration", "operator": "dependency_wildcard", "grade": "hard_violation", "message": "wildcard dependency binding is forbidden"},
-    {"id": "dependency.module_placement", "family": "dependency", "fact": "dependency_declaration", "operator": "dependency_module_placement", "grade": "hard_violation", "message": "C++ module import must precede ordinary top-level declarations"},
-    {"id": "dependency.order", "family": "dependency", "fact": "dependency_declaration", "operator": "dependency_order", "grade": "hard_violation", "message": "dependencies must follow the language-local canonical order"}
-  ]
+  "external_fixed_identifiers": [],
+  "dependency_authority": null
 }

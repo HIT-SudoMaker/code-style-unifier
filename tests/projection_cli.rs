@@ -1,15 +1,16 @@
 use csu::AuthorityDocument;
 use csu::AuthorityInput;
-use csu::DocumentSet;
-use csu::ReviewInput;
 use csu::ReviewTerminal;
-use csu::SourceDocument;
 use csu::WorkspaceReviewer;
 use csu::project_human;
 use csu::project_javascript_object_notation;
 use serde_json::Value;
 use std::fs;
 use std::process::Command;
+
+mod review_fixture;
+
+use review_fixture::review_sources;
 
 const AUTHORITY: &str = include_str!("../docs/fixtures/core/authority.json");
 
@@ -35,150 +36,80 @@ const EVIDENCE_PROCEDURAL_SOURCE: &str = concat!(
     "double calculate_distance(double distance_m);\n",
 );
 
-const UNRESOLVED_RETURN_PYTHON: &str = r#"def calculate_velocity() -> Velocity:
-    """
-    计算平均速度
+/// 根据测试 Authority 创建审查器
+fn reviewer() -> WorkspaceReviewer {
+    WorkspaceReviewer::compile(AuthorityInput::Documents(&[
+        AuthorityDocument {
+            relative_path: "authority.json",
+            bytes: AUTHORITY.as_bytes(),
+        },
+    ]))
+    .unwrap()
+}
 
-    Args:
-        无
-    Returns:
-        Velocity: 平均速度
-    Raises:
-        无
-    """
-    return Velocity()
-"#;
-
-const UNRESOLVED_CARRIER_RUST: &str = r#"#[doc = include_str!("carrier.md")]
-pub fn calculate_velocity() -> f64 { 1.0 }
-"#;
-
-const UNRESOLVED_PARAMETERS_PROCEDURAL_SOURCE: &str = r#"/**
- * 计算平均速度
- *
- * 参数：
- * - 无
- * 返回：
- * - 平均速度
- * 错误：
- * - 无
- */
-double calculate_velocity(double);
-"#;
-
-const UNRESOLVED_TEMPLATE_CPP: &str = r#"/**
- * 计算平均速度
- *
- * 参数：
- * - input_value：输入数值
- * 返回：
- * - 平均速度
- * 错误：
- * - 无
- */
-double calculate_velocity(auto input_value);
-"#;
-
-/// 验证终态投影证据场景
+/// 构造已封存的审查结果
 fn sealed_terminal() -> ReviewTerminal {
-    let authority_documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: AUTHORITY.as_bytes(),
-    }];
-    let reviewer = WorkspaceReviewer::compile(AuthorityInput::Documents(
-        &authority_documents,
-    ))
-    .unwrap();
-    let sources = [SourceDocument {
-        relative_path: "src/velocity.py",
-        bytes: SOURCE.as_bytes(),
-    }];
-    reviewer.review(ReviewInput::Documents(DocumentSet {
-        revision: "projection",
-        documents: &sources,
-    }))
+    review_sources(&reviewer(), "projection", &[("src/velocity.py", SOURCE)])
 }
 
-/// 验证终态投影证据场景
+/// 构造带有规则问题和事实缺口的审查结果
 fn evidence_terminal() -> ReviewTerminal {
-    let mut authority: Value = serde_json::from_str(AUTHORITY).unwrap();
-    authority["public_callables"]["api/parameters.h"] =
-        serde_json::json!(["calculate_velocity"]);
-    authority["public_callables"]["api/template.hpp"] =
-        serde_json::json!(["calculate_velocity"]);
-    authority["header_languages"]["api/parameters.h"] = serde_json::json!("c");
-    let authority = serde_json::to_vec(&authority).unwrap();
-    let authority_documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &authority,
-    }];
-    let reviewer = WorkspaceReviewer::compile(AuthorityInput::Documents(
-        &authority_documents,
-    ))
-    .unwrap();
-    let sources = [
-        SourceDocument {
-            relative_path: "src/candidate.py",
-            bytes: EVIDENCE_PYTHON.as_bytes(),
-        },
-        SourceDocument {
-            relative_path: "src/unowned.c",
-            bytes: EVIDENCE_PROCEDURAL_SOURCE.as_bytes(),
-        },
-        SourceDocument {
-            relative_path: "src/return.py",
-            bytes: UNRESOLVED_RETURN_PYTHON.as_bytes(),
-        },
-        SourceDocument {
-            relative_path: "src/carrier.rs",
-            bytes: UNRESOLVED_CARRIER_RUST.as_bytes(),
-        },
-        SourceDocument {
-            relative_path: "api/parameters.h",
-            bytes: UNRESOLVED_PARAMETERS_PROCEDURAL_SOURCE.as_bytes(),
-        },
-        SourceDocument {
-            relative_path: "api/template.hpp",
-            bytes: UNRESOLVED_TEMPLATE_CPP.as_bytes(),
-        },
-    ];
-    reviewer.review(ReviewInput::Documents(DocumentSet {
-        revision: "evidence-projection",
-        documents: &sources,
-    }))
+    review_sources(
+        &reviewer(),
+        "evidence-projection",
+        &[
+            ("src/candidate.py", EVIDENCE_PYTHON),
+            ("src/unowned.c", EVIDENCE_PROCEDURAL_SOURCE),
+        ],
+    )
 }
 
-/// 验证终态投影证据场景
+/// 验证文本与 JSON 展示不改变审查终态
 #[test]
 fn human_and_json_are_read_only_terminal_projections() {
     let terminal = sealed_terminal();
     let human = project_human(&terminal);
     assert!(human.contains("Terminal: Sealed"));
     assert!(human.contains("Completion: Complete"));
-    assert!(human.contains("Blocked families: 0"));
 
     let structured_output: Value = serde_json::from_slice(
         &project_javascript_object_notation(&terminal).unwrap(),
     )
     .unwrap();
-    assert_eq!(structured_output["schema_version"], 2);
-    assert_eq!(structured_output["terminal"], "sealed");
+    assert_eq!(structured_output["schema_version"], 4);
     assert_eq!(structured_output["disposition"], "clean");
-    assert!(structured_output.get("passed").is_none());
+    assert_eq!(
+        structured_output["review"]["finding_summary"],
+        serde_json::json!({
+            "total": 0, "hard_violation": 0, "review_required": 0
+        })
+    );
     let ReviewTerminal::Sealed(review) = terminal else {
         panic!("fixture must seal");
     };
     assert_eq!(structured_output["review"]["seal"], review.seal());
-    assert_eq!(
-        structured_output["review"]["presentation"]["chapters"][4]["profiles"]
-            ["python"]["state"],
-        "supported"
-    );
-    assert_eq!(
-        structured_output["review"]["presentation"]["chapters"][2]["profiles"]
-            ["cpp"]["state"],
-        "needs_authority"
-    );
+    let rejected =
+        reviewer().review(csu::ReviewInput::Documents(csu::DocumentSet {
+            revision: "",
+            documents: &[],
+        }));
+    let rejected: Value = serde_json::from_slice(
+        &project_javascript_object_notation(&rejected).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(rejected["schema_version"], 4);
+    assert_eq!(rejected["terminal"], "rejected");
+    let failure: csu::ReviewFailure = serde_json::from_value(
+        serde_json::json!({"code": "runtime.test", "message": "failure"}),
+    )
+    .unwrap();
+    let failed = ReviewTerminal::Failed(failure);
+    let failed: Value = serde_json::from_slice(
+        &project_javascript_object_notation(&failed).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(failed["schema_version"], 4);
+    assert_eq!(failed["terminal"], "failed");
     assert_eq!(
         structured_output["review"]["findings"],
         serde_json::json!([])
@@ -189,7 +120,7 @@ fn human_and_json_are_read_only_terminal_projections() {
     );
 }
 
-/// 验证终态投影证据场景
+/// 验证证据展示完整、稳定且不改变封存结果
 #[test]
 fn sealed_evidence_projection_is_complete_stable_and_read_only() {
     let terminal = evidence_terminal();
@@ -242,46 +173,15 @@ fn sealed_evidence_projection_is_complete_stable_and_read_only() {
             "calculate_velocity@4:1[tier]",
         )
     );
-    let expected_reasons = [
-        (
-            "api/parameters.h",
-            concat!(
-                "unresolved callable documentation facts: ",
-                "calculate_velocity@11:1[parameters]",
-            ),
-        ),
-        (
-            "api/template.hpp",
-            concat!(
-                "unresolved callable documentation facts: ",
-                "calculate_velocity@11:1[template]",
-            ),
-        ),
-        (
-            "src/carrier.rs",
-            concat!(
-                "unresolved callable documentation facts: ",
-                "calculate_velocity@2:1[carrier]",
-            ),
-        ),
-        (
-            "src/return.py",
-            concat!(
-                "unresolved callable documentation facts: ",
-                "calculate_velocity@1:1[return]",
-            ),
-        ),
-    ];
-    for (path, reason) in expected_reasons {
-        assert!(blocked.iter().any(|detail| {
-            detail["file"] == path
-                && detail["family"] == "documentation"
-                && detail["reason"] == reason
-        }));
-    }
     assert_eq!(
         structured_output["review"]["finding_summary"]["total"],
         findings.len()
+    );
+    let summary = &structured_output["review"]["finding_summary"];
+    assert_eq!(
+        summary["total"],
+        summary["hard_violation"].as_u64().unwrap()
+            + summary["review_required"].as_u64().unwrap()
     );
     assert_eq!(
         structured_output["review"]["blocked_families"],
@@ -300,7 +200,7 @@ fn sealed_evidence_projection_is_complete_stable_and_read_only() {
     )));
 }
 
-/// 验证终态投影证据场景
+/// 验证命令行遵循参数约定并为干净结果返回零
 #[test]
 fn cli_uses_frozen_review_command_and_clean_exit_code() {
     let temporary = tempfile::tempdir().unwrap();
@@ -334,7 +234,7 @@ fn cli_uses_frozen_review_command_and_clean_exit_code() {
     assert_eq!(structured_output["disposition"], "clean");
 }
 
-/// 验证终态投影证据场景
+/// 验证命令行输出带定位信息的封存证据
 #[test]
 fn cli_projects_actionable_sealed_evidence() {
     let temporary = tempfile::tempdir().unwrap();

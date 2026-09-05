@@ -1,7 +1,6 @@
 use csu::AuthorityInput;
 use csu::Completion;
 use csu::Disposition;
-use csu::FindingGrade;
 use csu::ReviewInput;
 use csu::ReviewTerminal;
 use csu::WorkspaceReviewer;
@@ -22,25 +21,11 @@ fn review_three_zero(source: &Path) {
         panic!("CSU self-check must produce a sealed terminal");
     };
     assert_eq!(review.completion(), Completion::Complete);
-    for grade in [
-        FindingGrade::HardViolation,
-        FindingGrade::SoftFriction,
-        FindingGrade::ReviewRequired,
-    ] {
-        assert_eq!(
-            review
-                .findings()
-                .iter()
-                .filter(|finding| finding.grade() == grade)
-                .count(),
-            0,
-            "self-check must have zero {grade:?} findings"
-        );
-    }
+    assert!(review.findings().is_empty());
     assert!(review.coverage().files().iter().all(|file| {
-        file.required_mask() == file.executed_mask()
+        file.families().len() == 6
             && file.families().iter().all(|(_, state)| {
-                !matches!(state, csu::FactFamilyState::Blocked(_))
+                matches!(state, csu::FactFamilyState::Complete(_))
             })
     }));
     let metrics = review.metrics();
@@ -50,29 +35,41 @@ fn review_three_zero(source: &Path) {
     assert_eq!(metrics.structural_parses, files);
 }
 
-/// 验证 CSU 三零自检场景
+/// 验证产品源码通过完整三零自检
 #[test]
 fn product_source_has_complete_three_zero_self_check() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     review_three_zero(&root.join("src"));
 }
 
-/// 验证 CSU 三零自检场景
+/// 验证测试源码通过完整三零自检
 #[test]
 fn test_source_has_complete_three_zero_self_check() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     review_three_zero(&root.join("tests"));
 }
 
-/// 验证发布文档一致使用产品身份
+/// 验证文档中的产品身份和两端技能包一致
 #[test]
 fn review_documents_have_product_identity() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let first =
-        fs::read(root.join(".agents/skills/csu-review/SKILL.md")).unwrap();
-    let second =
-        fs::read(root.join(".claude/skills/csu-review/SKILL.md")).unwrap();
-    assert_eq!(first, second);
+    for (first, second) in [(".agents", ".claude"), (".claude", ".agents")] {
+        let first = root.join(first).join("skills/csu-review");
+        let second = root.join(second).join("skills/csu-review");
+        assert!(first.join("SKILL.md").is_file());
+        for entry in walkdir::WalkDir::new(&first) {
+            let entry = entry.unwrap();
+            let path = entry.path().strip_prefix(&first).unwrap();
+            if entry.file_type().is_file()
+                && path != Path::new("agents/openai.yaml")
+            {
+                assert_eq!(
+                    fs::read(entry.path()).unwrap(),
+                    fs::read(second.join(path)).unwrap()
+                );
+            }
+        }
+    }
     let other_identity = ["ss", "re", "2"].concat();
     let entries = [
         root.join("README.md"),

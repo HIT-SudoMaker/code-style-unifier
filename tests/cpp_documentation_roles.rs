@@ -2,39 +2,46 @@ use csu::AuthorityDocument;
 use csu::AuthorityInput;
 use csu::Completion;
 use csu::Disposition;
-use csu::DocumentSet;
 use csu::FactFamily;
 use csu::FactFamilyState;
-use csu::ReviewInput;
 use csu::ReviewTerminal;
-use csu::SourceDocument;
 use csu::WorkspaceReviewer;
 
-const AUTHORITY: &str = include_str!("../docs/fixtures/core/authority.json");
+mod review_fixture;
+
+use review_fixture::review_sources;
+
 const PATH: &str = "api/velocity_roles.hpp";
 
-/// 构造测试 Reviewer
+/// 创建测试审查器
 fn reviewer(public_callables: &[&str]) -> WorkspaceReviewer {
-    let mut authority: serde_json::Value =
-        serde_json::from_str(AUTHORITY).unwrap();
+    let mut authority: serde_json::Value = serde_json::from_str(include_str!(
+        "../docs/fixtures/core/authority.json"
+    ))
+    .unwrap();
     authority["public_callables"][PATH] = serde_json::json!(public_callables);
     authority["token_vocabulary"]
         .as_array_mut()
         .unwrap()
-        .extend([
-            serde_json::json!("calculator"),
-            serde_json::json!("input"),
-            serde_json::json!("left"),
-            serde_json::json!("right"),
-            serde_json::json!("sample"),
-            serde_json::json!("type"),
-            serde_json::json!("value"),
-        ]);
-    let authority = serde_json::to_vec(&authority).unwrap();
+        .extend(
+            [
+                "calculator",
+                "count",
+                "input",
+                "left",
+                "pack",
+                "right",
+                "sample",
+                "type",
+                "value",
+            ]
+            .map(serde_json::Value::from),
+        );
+    let bytes = serde_json::to_vec(&authority).unwrap();
     WorkspaceReviewer::compile(AuthorityInput::Documents(&[
         AuthorityDocument {
             relative_path: "authority.json",
-            bytes: &authority,
+            bytes: &bytes,
         },
     ]))
     .unwrap()
@@ -42,16 +49,14 @@ fn reviewer(public_callables: &[&str]) -> WorkspaceReviewer {
 
 /// 审查内存源码并返回封存终态
 fn review(source: &str, public_callables: &[&str]) -> ReviewTerminal {
-    reviewer(public_callables).review(ReviewInput::Documents(DocumentSet {
-        revision: "cpp-structural-documentation-roles",
-        documents: &[SourceDocument {
-            relative_path: PATH,
-            bytes: source.as_bytes(),
-        }],
-    }))
+    review_sources(
+        &reviewer(public_callables),
+        "cpp-structural-documentation-roles",
+        &[(PATH, source)],
+    )
 }
 
-/// 判断审查是否包含公共契约 Finding
+/// 判断审查是否包含公开文档合同违规
 fn has_public_contract_finding(terminal: &ReviewTerminal) -> bool {
     let ReviewTerminal::Sealed(review) = terminal else {
         panic!("documentation judgment must seal: {terminal:#?}");
@@ -62,7 +67,7 @@ fn has_public_contract_finding(terminal: &ReviewTerminal) -> bool {
         .any(|finding| finding.rule() == "documentation.public_contract")
 }
 
-/// 验证 C++ 文档角色证据场景
+/// 验证公开自由运算符的文档以非空作用说明结束
 #[test]
 fn manifest_owned_free_operator_requires_nonempty_effect_last() {
     let valid = r#"struct Velocity {};
@@ -70,8 +75,8 @@ fn manifest_owned_free_operator_requires_nonempty_effect_last() {
  * 比较速度值
  *
  * 参数：
- * - left_value：左侧速度值
- * - right_value：右侧速度值
+ * - left_value：  左侧速度值
+ * - right_value： 右侧速度值
  * 返回：
  * - 比较结果
  * 错误：
@@ -88,14 +93,18 @@ bool operator==(const Velocity &left_value, const Velocity &right_value);
     );
 
     for invalid in [
-        valid.replace(" * 效果：\n * - 比较两个速度值\n", ""),
-        valid.replace(" * - 比较两个速度值\n", " * - 无\n"),
-        valid.replace(
+        (valid).replacen(" * 效果：\n * - 比较两个速度值\n", "", 1),
+        (valid).replacen(" * - 比较两个速度值\n", " * - 无\n", 1),
+        (valid).replacen(
             " * 错误：\n * - 无\n * 效果：",
             " * 效果：\n * - 比较两个速度值\n * 错误：",
+            1,
         ),
-        valid
-            .replace(" * 效果：", " * 效果：\n * - 比较两个速度值\n * 效果："),
+        (valid).replacen(
+            " * 效果：",
+            " * 效果：\n * - 比较两个速度值\n * 效果：",
+            1,
+        ),
     ] {
         let terminal = review(&invalid, &["operator=="]);
         assert!(
@@ -105,24 +114,24 @@ bool operator==(const Velocity &left_value, const Velocity &right_value);
     }
 }
 
-/// 验证 C++ 文档角色证据场景
+/// 验证公开函数模板的文档覆盖每个直接模板参数
 #[test]
 fn manifest_owned_function_template_covers_each_direct_parameter() {
     let valid = r#"/**
  * 计算抽样速度
  *
  * 模板参数：
- * - ValueType：输入数值类型
- * - SampleCount：抽样次数类型
+ * - ValueType：    输入数值类型
+ * - SAMPLE_COUNT： 抽样次数类型
  * 参数：
- * - input_value：输入数值
- * - sample_count：抽样次数
+ * - input_value：  输入数值
+ * - sample_count： 抽样次数
  * 返回：
  * - 平均速度
  * 错误：
  * - 无
  */
-template <typename ValueType, int SampleCount>
+template <typename ValueType, int SAMPLE_COUNT>
 double calculate_velocity(ValueType input_value, int sample_count);
 "#;
     let valid_terminal = review(valid, &["calculate_velocity"]);
@@ -132,38 +141,53 @@ double calculate_velocity(ValueType input_value, int sample_count);
     );
 
     for invalid in [
-        valid.replace(" * - SampleCount：抽样次数类型\n", ""),
-        valid.replace(
-            " * - SampleCount：抽样次数类型\n",
-            " * - ValueType：重复类型说明\n",
+        (valid).replacen(" * - SAMPLE_COUNT： 抽样次数类型\n", "", 1),
+        (valid).replacen(
+            " * - SAMPLE_COUNT： 抽样次数类型\n",
+            " * - SAMPLE_COUNT： 抽样次数类型\n * - ValueType：    重复类型说明\n",
+            1,
         ),
-        valid.replace(
+        (valid).replacen(
             concat!(
                 " * 模板参数：\n",
-                " * - ValueType：输入数值类型\n",
-                " * - SampleCount：抽样次数类型\n",
+                " * - ValueType：    输入数值类型\n",
+                " * - SAMPLE_COUNT： 抽样次数类型\n",
             ),
             " * 模板参数：\n * - 无\n",
+            1,
         ),
-        valid.replace(
+        (valid).replacen(
+            " * - ValueType：    输入数值类型\n * - SAMPLE_COUNT： 抽样次数类型\n",
+            " * - 不返回\n",
+            1,
+        ),
+        (valid).replacen(
             concat!(
                 " * 模板参数：\n",
-                " * - ValueType：输入数值类型\n",
-                " * - SampleCount：抽样次数类型\n",
+                " * - ValueType：    输入数值类型\n",
+                " * - SAMPLE_COUNT： 抽样次数类型\n",
                 " * 参数：",
             ),
             " * 参数：",
+            1,
         ),
     ] {
         let terminal = review(&invalid, &["calculate_velocity"]);
-        assert!(
-            has_public_contract_finding(&terminal),
-            "terminal: {terminal:#?}"
-        );
+        let ReviewTerminal::Sealed(sealed) = terminal else {
+            panic!("template mutation must seal: {terminal:#?}")
+        };
+        assert_eq!(sealed.completion(), Completion::Complete);
+        let [finding] = sealed.findings() else {
+            panic!("template mutation expects exactly one Finding: {sealed:#?}")
+        };
+        assert_eq!(finding.path(), PATH);
+        assert_eq!(finding.rule(), "documentation.public_contract");
+        assert_eq!(finding.grade(), csu::FindingGrade::HardViolation);
+        assert_eq!(finding.subject(), "calculate_velocity");
     }
 }
 
-/// 验证 C++ 文档角色证据场景
+/// 验证公开构造和析构函数必须说明作用
 #[test]
 fn manifest_owned_constructor_and_destructor_require_effect() {
     let valid = r#"class VelocityCalculator {
@@ -205,7 +229,7 @@ public:
     );
 
     let invalid =
-        valid.replace("     * 效果：\n     * - 释放计算器状态\n", "");
+        (valid).replacen("     * 效果：\n     * - 释放计算器状态\n", "", 1);
     let invalid_terminal = review(&invalid, &owners);
     assert!(
         has_public_contract_finding(&invalid_terminal),
@@ -213,16 +237,16 @@ public:
     );
 }
 
-/// 验证 C++ 文档角色证据场景
+/// 验证未命名模板参数使文档检查保持不完整
 #[test]
 fn unnamed_direct_template_parameter_blocks_documentation_closure() {
     let source = r#"/**
  * 计算抽样速度
  *
  * 模板参数：
- * - ValueType：输入数值类型
+ * - ValueType： 输入数值类型
  * 参数：
- * - input_value：输入数值
+ * - input_value： 输入数值
  * 返回：
  * - 平均速度
  * 错误：
@@ -250,7 +274,7 @@ double calculate_velocity(double input_value);
     );
 }
 
-/// 验证 C++ 文档角色证据场景
+/// 验证无法确定参数身份的简写函数模板不能判为完整
 #[test]
 fn abbreviated_function_template_cannot_seal_without_stable_identity() {
     let carriers = [
@@ -258,7 +282,7 @@ fn abbreviated_function_template_cannot_seal_without_stable_identity() {
  * 计算抽样速度
  *
  * 参数：
- * - input_value：输入数值
+ * - input_value： 输入数值
  * 返回：
  * - 平均速度
  * 错误：
@@ -272,9 +296,9 @@ concept NumericValue = true;
  * 计算抽样速度
  *
  * 模板参数：
- * - GuessedType：猜测模板类型
+ * - GuessedType： 猜测模板类型
  * 参数：
- * - input_value：输入数值
+ * - input_value： 输入数值
  * 返回：
  * - 平均速度
  * 错误：
@@ -299,4 +323,163 @@ double calculate_velocity(NumericValue auto input_value);
             finding.rule() == "documentation.public_contract"
         }));
     }
+}
+
+/// 验证已命名参数不能掩盖其他种类的未命名参数
+#[test]
+fn parameter_completeness_is_monotone_across_parameter_kinds() {
+    let named_then_pack = r#"/**
+ * 计算抽样速度
+ *
+ * 模板参数：
+ * - ValueType： 输入数值类型
+ * - Pack：      参数包类型
+ * 参数：
+ * - input：  输入数值
+ * - sample： 参数包
+ * 返回：
+ * - 平均速度
+ * 错误：
+ * - 无
+ */
+template <typename ValueType, typename... Pack>
+double calculate_velocity(int input, Pack... sample);
+"#;
+    let sealed_terminal = review(named_then_pack, &["calculate_velocity"]);
+    assert!(
+        !has_public_contract_finding(&sealed_terminal),
+        "terminal: {sealed_terminal:#?}"
+    );
+    let ReviewTerminal::Sealed(sealed) = sealed_terminal else {
+        panic!(
+            "named parameters plus named pack must seal: {sealed_terminal:#?}"
+        )
+    };
+    assert_eq!(
+        sealed.completion(),
+        Completion::Complete,
+        "{:#?}",
+        sealed.findings()
+    );
+
+    let anonymous_then_pack = (named_then_pack.replacen(
+        "int input,",
+        "int,",
+        1,
+    ))
+    .replacen(" * - input：  输入数值\n", "", 1);
+    let terminal = review(&anonymous_then_pack, &["calculate_velocity"]);
+    assert_eq!(terminal.disposition(), Disposition::Incomplete);
+    let ReviewTerminal::Sealed(sealed) = terminal else {
+        panic!("unnamed parameter must seal as incomplete: {terminal:#?}")
+    };
+    assert_eq!(sealed.completion(), Completion::Incomplete);
+    assert!(sealed.coverage().files()[0].families().iter().any(
+        |(family, state)| {
+            *family == FactFamily::Documentation
+                && matches!(state, FactFamilyState::Blocked(_))
+        }
+    ));
+    assert!(
+        !sealed.findings().iter().any(|finding| {
+            finding.rule() == "documentation.public_contract"
+        })
+    );
+
+    let anonymous_pack_tail =
+        (named_then_pack).replacen("Pack... sample", "Pack...", 1);
+    let terminal = review(&anonymous_pack_tail, &["calculate_velocity"]);
+    let ReviewTerminal::Sealed(sealed) = terminal else {
+        panic!("unnamed pack must seal: {terminal:#?}")
+    };
+    assert_eq!(sealed.completion(), Completion::Incomplete);
+    assert!(sealed.coverage().files()[0].families().iter().any(
+        |(family, state)| {
+            *family == FactFamily::Documentation
+                && matches!(state, FactFamilyState::Blocked(_))
+        }
+    ));
+}
+
+/// 验证 C++ 非函数文档不依赖公开函数名单
+#[test]
+fn cpp_non_callable_subject_does_not_require_public_tier() {
+    let authority = include_bytes!("../docs/fixtures/core/authority.json");
+    let reviewer = WorkspaceReviewer::compile(AuthorityInput::Documents(&[
+        AuthorityDocument {
+            relative_path: "authority.json",
+            bytes: authority,
+        },
+    ]))
+    .unwrap();
+    for (identity, source, expected, blocked) in [
+        (
+            "named",
+            "/**\n * 速度值类型\n */\nclass Velocity {};\n",
+            Completion::Complete,
+            false,
+        ),
+        (
+            "anonymous",
+            "/**\n * 速度值类型\n */\nstruct { int velocity; } state;\n",
+            Completion::Incomplete,
+            true,
+        ),
+    ] {
+        let terminal = review_sources(&reviewer, identity, &[(PATH, source)]);
+        let ReviewTerminal::Sealed(review) = terminal else {
+            panic!("documented subject must seal: {terminal:#?}")
+        };
+        assert_eq!(review.completion(), expected, "{identity}");
+        assert_eq!(
+            review.coverage().files()[0].families().iter().any(
+                |(family, state)| {
+                    *family == FactFamily::Documentation
+                        && matches!(state, FactFamilyState::Blocked(_))
+                }
+            ),
+            blocked,
+            "{identity}"
+        );
+    }
+}
+
+/// 验证确有重载歧义时不猜测文档归属
+#[test]
+fn genuine_overload_ambiguity_stays_conservative() {
+    let source = r#"/**
+ * 计算整数速度
+ *
+ * 参数：
+ * - input： 输入整数
+ * 返回：
+ * - 整数速度
+ * 错误：
+ * - 无
+ */
+int calculate_velocity(int input);
+
+/**
+ * 计算浮点速度
+ *
+ * 参数：
+ * - input： 输入浮点数
+ * 返回：
+ * - 浮点速度
+ * 错误：
+ * - 无
+ */
+double calculate_velocity(double input);
+"#;
+    let terminal = review(source, &["calculate_velocity"]);
+    let ReviewTerminal::Sealed(review) = terminal else {
+        panic!("genuine overload ambiguity must seal: {terminal:#?}")
+    };
+    assert_eq!(review.completion(), Completion::Incomplete);
+    assert!(review.coverage().files()[0].families().iter().any(
+        |(family, state)| {
+            *family == FactFamily::Documentation
+                && matches!(state, FactFamilyState::Blocked(_))
+        }
+    ));
 }

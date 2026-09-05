@@ -1,322 +1,2804 @@
 {
-  "schema_version": 2,
-  "executable_sha256": "a5a873a0b4e0700956aeb3460d3f98cea2c39425270f9b9d6880870977979c0e",
-  "authority_sha256": "c8f9c99a2d4083bc9fef2bb7df3a11951583a06eb62e644e0878b37265c173f3",
-  "workspace": "E:\\Year2026_Project_CSU\\code\\target\\csu-release-corpus-200k",
+  "schema_version": 4,
+  "recorded_at_utc": "2026-09-05T04:53:25.2242622+00:00",
+  "executable_sha256": "da2d911076dcab2f37ad2a56d2d5c292a34ad1850203c017cadec5ff1939578f",
+  "cargo_lock_sha256": "a2584b53836954972beed52400feeefca1637cd35efe1fafb257a43f5582333f",
+  "runner_identity": "win11-26200-ryzen9-9900x-96g-nvme-rust-1.96.0",
+  "runner_script_sha256": "7222bd9d63c210d228a34b52931212f164d95b1574501cf405743a5d011696e8",
+  "verifier_script_sha256": "a24e21edf6e1aeb1d4b5724a4483bea8671bf4489972760b3145b12ca9c242f0",
+  "runner_environment": {
+    "os_description": "Microsoft Windows 10.0.26200",
+    "os_architecture": "X64",
+    "cpu_name": "AMD Ryzen 9 9900X 12-Core Processor",
+    "physical_cores": 12,
+    "logical_processors": 24,
+    "installed_memory_bytes": 103079215104,
+    "storage_model": "SOLIDIGM SSDPFKKW020X7",
+    "storage_bus": "NVMe",
+    "storage_filesystem": "NTFS",
+    "observed_tools": {
+      "rustc_verbose": "rustc 1.96.0 (ac68faa20 2026-05-25)\nbinary: rustc\ncommit-hash: ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96\ncommit-date: 2026-05-25\nhost: x86_64-pc-windows-msvc\nrelease: 1.96.0\nLLVM version: 22.1.2",
+      "cargo": "cargo 1.96.0 (30a34c682 2026-05-25)",
+      "rustfmt": "rustfmt 1.9.0-stable (ac68faa20c 2026-05-25)",
+      "clippy_driver": "clippy 0.1.96 (ac68faa20c 2026-05-25)",
+      "powershell": "PowerShell Core 7.6.5",
+      "git": "git version 2.51.2.windows.1"
+    },
+    "active_power_plan_guid": "381b4222-f694-41f0-9685-ff5bb260df2e"
+  },
+  "authority_sha256": "78ad91b75394ef27d626c2fda1f0377b7244350a72bb6840ccba6d32340d1425",
+  "workspace": "E:\\Year2026_Project_CSU\\code\\target\\release-20260905\\corpus",
   "corpus_files": 617,
   "corpus_physical_lines": 200000.0,
   "corpus_digest": "fdcfa14e65efc32bc25587efe9ee6a6aa5453ba2e3eeb8b4a2b4ead5f8441703",
   "inventory_sha256": "b4d11370ba223527523a1bff366164f23562377940c9c5dd6007a65ffe1afe54",
+  "benchmark_manifest_sha256": "1e404ef1eae7e96c492cb3bdadf7ca2082ef999b4945fb72e56f0873626296ca",
+  "measured_candidate_sha256": "c96941c5da6db83e40fa23ab00e97585ae8c47a2f91d87a8e149b1d8ed4ba6af",
+  "premeasurement_full_patch_sha256": "4a12b0578e178bcd076653e1f2271e039d3e3582eac74c5fed3127f4406692c6",
   "runs": 30,
   "warmup_runs": 1,
   "p95_method": "nearest_rank_ceiling_0.95_times_n",
-  "p95_elapsed_ms": 1756.1124,
-  "maximum_peak_working_set_bytes": 61071360.0,
+  "p95_elapsed_ms": 1513.5351,
+  "p95_optimization_target_met": true,
+  "maximum_peak_working_set_bytes": 72437760.0,
   "deterministic_projection": true,
-  "diagnostic_incomplete": false,
+  "diagnostic_incomplete": true,
   "projection_digests": [
-    "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+    "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577"
   ],
+  "semantic_summary_digests": [
+    "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+  ],
+  "review_summary": {
+    "terminal": "sealed",
+    "disposition": "incomplete",
+    "completion": "incomplete",
+    "scope_kind": "workspace",
+    "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+    "finding_summary": {
+      "total": 63013,
+      "hard_violation": 18144,
+      "review_required": 44869
+    },
+    "finding_rule_summary": [
+      {
+        "grade": "hard_violation",
+        "rule": "dependency.wildcard",
+        "count": 65
+      },
+      {
+        "grade": "hard_violation",
+        "rule": "documentation.carrier",
+        "count": 11091
+      },
+      {
+        "grade": "hard_violation",
+        "rule": "documentation.public_contract",
+        "count": 976
+      },
+      {
+        "grade": "hard_violation",
+        "rule": "documentation.summary",
+        "count": 1433
+      },
+      {
+        "grade": "hard_violation",
+        "rule": "identifier.canonical_form",
+        "count": 3258
+      },
+      {
+        "grade": "hard_violation",
+        "rule": "identifier.reserved",
+        "count": 29
+      },
+      {
+        "grade": "hard_violation",
+        "rule": "source.trailing_comment",
+        "count": 1292
+      },
+      {
+        "grade": "review_required",
+        "rule": "identifier.candidate",
+        "count": 5037
+      },
+      {
+        "grade": "review_required",
+        "rule": "identifier.unknown_token",
+        "count": 39832
+      }
+    ],
+    "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+    "blocked_families": 849,
+    "blocked_family_summary": [
+      {
+        "family": "dependency_declaration",
+        "count": 556
+      },
+      {
+        "family": "documentation",
+        "count": 293
+      }
+    ],
+    "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+    "admitted_files": 617,
+    "metrics": {
+      "files_read": 617,
+      "byte_sweeps": 617,
+      "structural_parses": 617
+    },
+    "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+  },
   "measurements": [
     {
       "run": 1,
-      "elapsed_ms": 1363.9911,
-      "peak_working_set_bytes": 59658240,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1418.6311,
+      "peak_working_set_bytes": 72167424,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 2,
-      "elapsed_ms": 1337.5467,
-      "peak_working_set_bytes": 59670528,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1434.7715,
+      "peak_working_set_bytes": 68894720,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 3,
-      "elapsed_ms": 1278.4795,
-      "peak_working_set_bytes": 60600320,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1422.4683,
+      "peak_working_set_bytes": 72208384,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 4,
-      "elapsed_ms": 1371.4553,
-      "peak_working_set_bytes": 59654144,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1466.5425,
+      "peak_working_set_bytes": 72228864,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 5,
-      "elapsed_ms": 1326.113,
-      "peak_working_set_bytes": 59695104,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1454.0079,
+      "peak_working_set_bytes": 72155136,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 6,
-      "elapsed_ms": 1309.5199,
-      "peak_working_set_bytes": 59650048,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1445.0897,
+      "peak_working_set_bytes": 72208384,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 7,
-      "elapsed_ms": 1301.3916,
-      "peak_working_set_bytes": 61071360,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1416.4661,
+      "peak_working_set_bytes": 72146944,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 8,
-      "elapsed_ms": 1301.7271,
-      "peak_working_set_bytes": 60473344,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1433.1992,
+      "peak_working_set_bytes": 72187904,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 9,
-      "elapsed_ms": 1298.6859,
-      "peak_working_set_bytes": 60469248,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1453.4467,
+      "peak_working_set_bytes": 63750144,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 10,
-      "elapsed_ms": 1352.2657,
-      "peak_working_set_bytes": 60465152,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1437.3795,
+      "peak_working_set_bytes": 72437760,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 11,
-      "elapsed_ms": 1280.0747,
-      "peak_working_set_bytes": 60416000,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1414.4585,
+      "peak_working_set_bytes": 72192000,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 12,
-      "elapsed_ms": 1284.9599,
-      "peak_working_set_bytes": 59650048,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1419.1858,
+      "peak_working_set_bytes": 72339456,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 13,
-      "elapsed_ms": 1297.153,
-      "peak_working_set_bytes": 59625472,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1409.2022,
+      "peak_working_set_bytes": 72290304,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 14,
-      "elapsed_ms": 1339.4504,
-      "peak_working_set_bytes": 60485632,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1443.722,
+      "peak_working_set_bytes": 72200192,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 15,
-      "elapsed_ms": 1565.9743,
-      "peak_working_set_bytes": 59678720,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1466.1314,
+      "peak_working_set_bytes": 72179712,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 16,
-      "elapsed_ms": 1326.6136,
-      "peak_working_set_bytes": 59707392,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1461.5596,
+      "peak_working_set_bytes": 70840320,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 17,
-      "elapsed_ms": 1352.5529,
-      "peak_working_set_bytes": 59686912,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1513.9013,
+      "peak_working_set_bytes": 72232960,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 18,
-      "elapsed_ms": 1260.0708,
-      "peak_working_set_bytes": 58269696,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1408.2751,
+      "peak_working_set_bytes": 72241152,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 19,
-      "elapsed_ms": 1307.5988,
-      "peak_working_set_bytes": 60420096,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1416.5566,
+      "peak_working_set_bytes": 72196096,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 20,
-      "elapsed_ms": 1319.0003,
-      "peak_working_set_bytes": 60764160,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1417.1474,
+      "peak_working_set_bytes": 66387968,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 21,
-      "elapsed_ms": 1355.9136,
-      "peak_working_set_bytes": 60395520,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1513.5351,
+      "peak_working_set_bytes": 65241088,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 22,
-      "elapsed_ms": 1621.3196,
-      "peak_working_set_bytes": 60448768,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1432.8519,
+      "peak_working_set_bytes": 69337088,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 23,
-      "elapsed_ms": 1518.3572,
-      "peak_working_set_bytes": 60502016,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1428.2637,
+      "peak_working_set_bytes": 72192000,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 24,
-      "elapsed_ms": 1900.3115,
-      "peak_working_set_bytes": 60428288,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1472.5799,
+      "peak_working_set_bytes": 72372224,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 25,
-      "elapsed_ms": 1505.3514,
-      "peak_working_set_bytes": 59604992,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1446.3819,
+      "peak_working_set_bytes": 72298496,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 26,
-      "elapsed_ms": 1756.1124,
-      "peak_working_set_bytes": 60932096,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1487.8353,
+      "peak_working_set_bytes": 72216576,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 27,
-      "elapsed_ms": 1740.5747,
-      "peak_working_set_bytes": 59719680,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1469.5642,
+      "peak_working_set_bytes": 72298496,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 28,
-      "elapsed_ms": 1337.2973,
-      "peak_working_set_bytes": 59662336,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1430.4322,
+      "peak_working_set_bytes": 72146944,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 29,
-      "elapsed_ms": 1736.87,
-      "peak_working_set_bytes": 59715584,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1416.584,
+      "peak_working_set_bytes": 72269824,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     },
     {
       "run": 30,
-      "elapsed_ms": 1507.7174,
-      "peak_working_set_bytes": 59666432,
-      "exit_code": 1,
-      "terminal": "sealed",
-      "disposition": "findings",
-      "stdout_bytes": 18628970,
-      "stdout_sha256": "3c03b2befa7d06296e4004ce801f338060af018ceea0249fadcb2cd4bb1dfa81"
+      "elapsed_ms": 1428.8822,
+      "peak_working_set_bytes": 72220672,
+      "exit_code": 2,
+      "stdout_bytes": 23697475,
+      "stdout_sha256": "6c996dbf01abaf0781fe6aec69ba434a49434d3f8957f6567bd28c22bf130577",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "341089948ff690813b45e12cb2c25208f13520944306305f76d248d2abfb8eda",
+        "finding_summary": {
+          "total": 63013,
+          "hard_violation": 18144,
+          "review_required": 44869
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11091
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 976
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1433
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3258
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39832
+          }
+        ],
+        "findings_sha256": "82865071a24273ed5888b6201a93f47a7832620fa5498cc213526b99bfad8493",
+        "blocked_families": 849,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 556
+          },
+          {
+            "family": "documentation",
+            "count": 293
+          }
+        ],
+        "blocked_family_details_sha256": "87bc6400aab2e43aff29d5764fb45370fcd1a5a2192f661e1f4e3dc71a034c47",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "9bab55040885d0c02d9d40008aa96ab71961e64683dee77b0644cce94a44109c"
+      }
     }
-  ]
+  ],
+  "status": "verified_measurement_unpublished"
 }

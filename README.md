@@ -1,75 +1,69 @@
 # CSU
 
+**Review source contracts. Return evidence you can inspect.**
+
 High-performance semantic code style unification across Python, Rust, C, and
 C++ for next-generation scientific software engineering.
 
-Review source once. Return one sealed answer.
-
-CSU is a stateless semantic source reviewer for Python, Rust, C, and C++. It
-compiles a project-owned Authority, observes a frozen source scope, and returns
-one deterministic terminal. Target code remains read-only during review.
+CSU is a read-only source reviewer written in Rust. It checks a captured source
+scope against shared coding standards, uses project-owned facts where source
+alone is insufficient, and returns a deterministic result. It does not execute
+the target program or change its files.
 
 ## Why CSU exists
 
-Formatters make code look consistent. Compilers prove syntax and type facts.
-Linters catch common local mistakes. None of them can prove that a Python
-comment is a real docstring, that a physical symbol carries its declared
-meaning, or that four languages express the same project rule through their
-native source forms.
+Consistent formatting does not guarantee consistent meaning. A short identifier
+can hide an unresolved concept, a unit suffix can disagree with the project's
+declared convention, and an ordinary comment can leave a public function without
+a documentation contract.
 
-Those gaps are easy for generated code to exploit accidentally. A Finding can
-disappear because a declaration was renamed, documentation was changed into an
-ordinary comment, or an unsupported file was silently skipped. The report gets
-greener while the source gets less trustworthy.
+CSU makes these source obligations inspectable:
 
-CSU closes that gap with explicit source evidence. Missing evidence remains
-Incomplete. A review is Clean only when the scope is complete, every required
-fact family is closed, and no Finding remains.
+- naming follows language-native forms, explicit concepts and declared suffixes;
+- public interfaces carry documentation contracts; internal methods stay concise;
+- documentation fields align, and ordinary comments do not replace native docs;
+- trailing comments and direct dependencies follow defined, language-aware rules;
+- missing project facts remain visible instead of becoming a silent pass.
+
+The four languages share rule intent, not identical syntax. The
+[Coding Standards](docs/coding_standards.md) own the precise requirements.
 
 ## The CLI and the skill
 
-CSU ships one reviewer and one agent skill:
-
-| Entry | Use it when | Produces | Target code |
+| Entry | Use it for | Produces | Target code during review |
 |---|---|---|---|
-| `csu review` | Scripts, CI, and direct terminal use | Human text or schema-versioned JSON | `READ_ONLY` |
-| `$csu-review` | An agent should run CSU, preserve evidence, and explain the terminal | One captured JSON projection and a chat summary | `READ_ONLY` unless repair is explicitly requested |
+| `csu review` | Source review with explicit scope and Authority | Human or JSON output on stdout | `READ_ONLY` |
+| [csu-review](.agents/skills/csu-review/SKILL.md) | Agent-guided review and result interpretation | Captured evidence and a bounded next action | `READ_ONLY` |
 
-The skill is CSU's own orchestration layer. It does not replace the executable
-or invent judgments outside the returned terminal.
+The CLI owns source judgments. The skill owns invocation, evidence handling and
+interpretation; it does not add rules. A review request authorizes neither source
+repair nor Authority edits.
 
-## Four languages, one review model
+## Works alongside design and review
 
-The rule families remain parallel while each language keeps its native carrier:
+Different layers answer different questions:
 
-| Meaning | Python | Rust | C | C++ |
-|---|---|---|---|---|
-| Callable documentation | Suite-first docstring | Attached outer rustdoc | Controlled adjacent block | Controlled adjacent block |
-| Public contract | Args, Returns, Raises | Arguments, Returns, Errors | Parameters, return, errors | Parameters, return, errors |
-| Dependency declaration | `import` | `use` | `#include` | `#include` |
-| Identifier semantics | Shared role prefixes and representation suffixes through the Python profile | Shared semantics through the Rust profile | Shared semantics through the C profile | Shared semantics through the C++ profile |
+| Layer | Owns |
+|---|---|
+| Design and code review | Software architecture and fidelity to the requested change |
+| CSU | Observable source-standard conformance within its declared rule boundary |
+| Scientific review | Scientific meaning, methods, claims and their supporting evidence |
 
-The normative rules live in [Coding Standards](docs/coding_standards.md). This
-table is orientation, not a second rule source.
+Located evidence can inform another review; a pass in one layer cannot compensate
+for missing evidence in another. No companion skill is required to run CSU.
 
 ## Installation
 
-### Prebuilt packages
+### Native CLI
 
-Every version tag is built on its native GitHub runner and published on the
-[Releases](https://github.com/HIT-SudoMaker/code-style-unifier/releases) page:
+Choose a native archive and `checksums.txt` from
+[GitHub Releases](https://github.com/HIT-SudoMaker/code-style-unifier/releases).
+Verify the archive and add its `bin` directory to PATH.
 
-| Platform | Architecture | Asset |
-|---|---|---|
-| Windows | x86-64 | `csu-<version>-windows-x86_64.zip` |
-| Linux | x86-64 | `csu-<version>-linux-x86_64.tar.gz` |
-| Linux | ARM64 | `csu-<version>-linux-aarch64.tar.gz` |
-| macOS | Intel | `csu-<version>-macos-x86_64.tar.gz` |
-| macOS | Apple Silicon | `csu-<version>-macos-aarch64.tar.gz` |
+The release workflow targets Windows x86-64, Linux x86-64 and ARM64, and macOS
+Intel and Apple Silicon. Use the documentation shipped with your chosen version.
 
-Each release also publishes `checksums.txt`.
-
-### Build from source
+To build from a source checkout with Rust:
 
 ```bash
 git clone https://github.com/HIT-SudoMaker/code-style-unifier.git
@@ -77,185 +71,150 @@ cd code-style-unifier
 cargo install --path . --locked
 ```
 
-### Install the agent skill
+### Agent skill
+
+Run this inside the project that should use CSU:
 
 ```bash
-npx skills@latest add HIT-SudoMaker/code-style-unifier \
-  --skill csu-review \
-  --agent codex \
-  --agent claude-code \
-  --yes
+npx skills@latest add HIT-SudoMaker/code-style-unifier --skill csu-review --agent codex --agent claude-code --yes
 ```
 
-The repository includes matching `.agents/skills/csu-review` and
-`.claude/skills/csu-review` layouts, so either agent can discover the same
-review contract immediately after installation. The Codex copy is canonical;
-tests require the Claude projection to remain byte-identical.
-
-## Authority before review
-
-An Authority is the project-owned executable mapping from coding standards to
-a concrete source scope. It declares enabled families, language profiles,
-public callables, identifier vocabulary, header ownership, Rules, grades, and
-presentation order.
-
-An external project may keep its Authority at:
-
-```text
-.csu/authority/authority.json
-```
-
-CSU has no universal fallback Authority. Its self Authority at
-`docs/authority/csu-self/authority.json` belongs only to this repository. When
-an external project has no Authority, `$csu-review` returns
-`BLOCKED_MISSING_AUTHORITY` instead of borrowing another project's semantics.
+Add `--global` for a user-wide installation. Prefer one installation scope to avoid
+duplicate entries. The [skills installer](https://github.com/vercel-labs/skills)
+installs the skill package, not the CSU executable.
 
 ## Use
 
-With the skill:
-
-```text
-$csu-review Review src with the Authority at .csu/authority.
-```
-
-With the CLI:
+Provide the target project's typed facts in `.csu/authority/authority.json`,
+following the [Authority contract](docs/coding_standards.md#11-规则依据).
+Pass the containing directory and the source scope to CSU:
 
 ```bash
-csu review \
-  --authority .csu/authority \
-  --workspace src \
-  --format human
+csu review --authority .csu/authority --workspace src --format human
 ```
 
-Use `--format json` for automation. One invocation performs one review. Human
-and JSON output are projections of the same terminal, not two reasons to scan
-the workspace twice.
+Use `--format json` for automation. The CLI writes its result to stdout and
+creates no report files; projection errors may appear on stderr.
 
-## Where results go
-
-The executable writes the complete terminal projection to `stdout`, writes
-projection failures to `stderr`, and creates no files. This keeps the Rust core
-stateless and lets the caller own persistence.
-
-The agent skill captures the JSON projection here:
+For an agent-guided review, invoke `$csu-review` in Codex or `/csu-review` in
+Claude Code, followed by the same request:
 
 ```text
-.csu/
-├── authority/
-│   └── authority.json              project input; may be versioned
-└── runs/
-    └── <UTC-run-id>/
-        ├── CSU-REVIEW.json          authoritative terminal projection
-        ├── CSU-STDERR.txt           only when stderr is non-empty
-        └── CSU-STDOUT.txt           only when stdout is not valid JSON
+Review src with the Authority at .csu/authority. Keep source code unchanged.
 ```
 
-`.csu/runs` is generated evidence, not a cache or runtime input. It is ignored
-by this repository. The skill explains the terminal in chat; it does not write
-a second Markdown interpretation.
+You can also supply an existing result for interpretation without a new scan.
+Missing inputs or execution capability produce a setup blocker, not an invented
+source verdict. CSU's self-review Authority belongs to CSU, not to other projects.
 
-## The terminal contract
+## The CSU model
 
-| Exit | Terminal meaning |
+One lifecycle connects the three sources of authority:
+
+1. **Standard Law** fixes rules, grades and language contracts in the binary.
+2. **Project Facts** supply admitted, narrowly scoped knowledge from Authority.
+3. **Source Facts** come from captured bytes, physical-line observation and native
+   syntax structure.
+
+Physical and structural observations share the captured source. There is no
+persistent scan cache, target execution or second scan for another output format.
+The result records what was checked, what was found and what could not be judged.
+
+Authority registers facts, not exceptions. An exact vocabulary entry can close an
+unknown-token question; it cannot exempt a Candidate spelling or an independently
+proved hard violation. Facts cannot disable rule families, lower grades or invent
+a custom dependency order. CSU constrains their effects; the Owner remains
+responsible for the truth of business facts that source cannot establish.
+
+## Evidence before confidence
+
+| Exit | Meaning |
 |---:|---|
 | 0 | `Sealed + Complete + Clean` |
 | 1 | `Sealed + Complete + Findings` |
-| 2 | `Incomplete`, `Rejected`, `Failed`, or projection output failure; read the terminal to distinguish them |
+| 2 | `Incomplete`, `Rejected`, `Failed`, or projection failure; inspect the result |
 
-A sealed JSON result includes the frozen scope, Completion, Finding summary,
-ordered Findings, blocked family evidence, metrics, presentation, and Seal.
-Exit codes are transport signals and never replace those fields.
+Only a complete sealed review with zero Hard Violation, zero Review Required and
+zero Blocked families is Clean. Zero Findings alone is insufficient. A Seal binds
+the review's semantic identity; it is not a certificate of scientific correctness.
 
-## How CSU works
+The skill saves each new review under the **target project's** root:
 
 ```text
-WorkspaceReviewer::compile(Authority)
-    -> review(frozen scope)
-    -> ReviewTerminal
+.csu/runs/<UTC-run-id>/
+├── CSU-REVIEW.json
+├── RUN.txt
+├── CSU-STDERR.txt
+└── CSU-STDOUT.txt
 ```
 
-- Each source file is read once.
-- Byte and line observation handles tight lexical facts.
-- At most one pinned Tree-sitter observation handles structural ownership.
-- Both observations close inside one File Review lifecycle.
-- Each fact family ends as `NotRequired`, `Complete(count)`, or
-  `Blocked(reason)`.
-- The compact ledger closes before the deterministic Seal is projected.
-
-The product Rust source has a hard 20,000 physical LOC ceiling. Generation 0
-uses no cache, incremental graph, or persisted runtime state.
-
-## Evidence before repair
-
-The agent skill keeps review read-only by default. When repair is explicitly
-requested, it records the original Seal and Finding identity, makes the
-smallest semantic source change, and starts a new review.
-
-A real repair preserves the governed declaration and uses the language's real
-carrier. Hiding the declaration, replacing documentation with an ordinary
-comment, changing Authority to remove a Finding, or accepting Incomplete as
-Clean does not close the evidence.
-
-## Release contract
-
-A tag is publishable only when `v<version>` exactly matches the Cargo package
-version. The tag workflow runs the complete test suite on every native runner,
-builds the release binary, creates the five platform archives, generates SHA-256
-checksums, and publishes one GitHub Release at the next five-minute clock
-boundary. A failed platform prevents the release job from running.
-
-Release archives contain the executable, README, license, Coding Standards,
-design rationale, AI review protocol, and both `csu-review` skill layouts.
-Signing and macOS notarization are separate trust decisions and are not claimed
-by unsigned archives.
+`CSU-REVIEW.json` preserves the valid terminal; `RUN.txt` records the executable,
+inputs and exit code. Nonempty stderr is saved separately. Invalid, unsupported
+or incomplete output goes to `CSU-STDOUT.txt` instead of being reconstructed as a
+valid terminal. Existing runs are preserved; these files are evidence, not a cache.
 
 ## Trust and limits
 
-- A Finding proves only the rule and observation it names.
-- `ReviewRequired` asks for owner context; it is not permission to guess.
-- Incomplete, Rejected, and Failed terminals are never Clean.
-- CSU does not replace compilation, tests, architecture review, scientific
-  validation, safety assessment, or domain expertise.
+- Treat an official release's executable, standards, skills and other shipped
+  files as one unchanged deployment. Replace the release as a whole when upgrading;
+  project adaptation belongs in separate typed Authority, not edited product files.
+  Authorized source repairs and new evidence under the target project's `.csu/runs/`
+  remain separate. This deployment convention does not change the license or add
+  runtime tamper protection; archive checksums do not lock extracted files.
+- CSU does not import, execute, compile or link target code. Invalid UTF-8 or
+  syntax yields parseability evidence and blocks dependent structural judgments.
+- Rules cover direct source, not expanded macros, preprocessing, alias resolution,
+  dependency build graphs or the quality of scientific prose.
+- Comments stay brief and local: one point per line, with essential constraints
+  beside the code. Product capabilities belong here; extended technical reasoning
+  belongs in design documents. These author requirements need human or agent review.
+- Formatters, compilers, tests, code review and scientific validation remain
+  complementary. Clean means conformance within the declared review boundary.
+- Repair and registration require their own workflow. Replacing a docstring with
+  a comment or changing Authority to hide a defect does not count as a repair.
 
 ## Compatibility
 
-The executable is released natively for Windows x86-64, Linux x86-64 and
-ARM64, and macOS Intel and Apple Silicon. The portable skill uses shared
-frontmatter and keeps Codex UI metadata in `agents/openai.yaml`; both committed
-skill layouts carry the same runtime instructions.
+Authority input and JSON review output have independent schema-4 contracts;
+schema 3 is rejected rather than silently reinterpreted.
 
-Compatibility means the same review contract can be installed and invoked. It
-does not claim identical agent prose, model behavior, operating-system path
-rendering, or target compiler behavior.
+The shared skill package is maintained under `.agents/skills/csu-review` and
+mirrored byte for byte under `.claude/skills/csu-review`. Only
+`agents/openai.yaml` is platform-specific UI metadata. Shared instructions do not
+depend on a particular shell, tool name, subagent or companion skill.
+
+Package checks enforce shared-file equality. Agent interpretation still depends
+on the host, model, permissions and available evidence; compatibility does not
+promise identical behavior across all configurations.
 
 ## Development
 
+Run the local Rust checks before proposing a change:
+
 ```bash
-cargo test --locked
-cargo clippy --all-targets --all-features -- -D warnings
 cargo fmt --all -- --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
 ```
 
-- [Documentation map](docs/README.md)
-- [Coding Standards](docs/coding_standards.md)
-- [Design rationale](docs/design.md)
-- [AI evidence-first review protocol](docs/AI-REVIEW-PROTOCOL.md)
-- [Four-language fixtures and release evidence](docs/fixtures/core/README.md)
-- [Primary sources](docs/sources.md)
+The tests include CSU reviewing its own product and test source, plus skill-package
+consistency. Frozen-corpus, candidate identity and performance verification are
+separate gates described in the [fixture guide](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/README.md);
+a green unit suite alone does not establish release readiness.
 
-`bench/targets` contains frozen real-project snapshots used for calibration and
-performance evidence. They are not Clean example projects.
+## Documentation and contributions
 
-## Contributing
+Start with the [Coding Standards](docs/coding_standards.md), then the
+[Design](docs/design.md). These are the two core documents: source requirements
+and architectural reasoning. The [skill](.agents/skills/csu-review/SKILL.md) owns
+agent workflows; the [fixture guide](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/README.md) in the source
+repository owns verification procedures and receipt interpretation.
 
-Change normative wording in the Coding Standards before changing Authority or
-implementation. Include the Authority identity, source scope, Terminal, Seal,
-and a minimal four-language reproducer when reporting semantic behavior.
-
-Run the complete development commands and CSU self-review before proposing a
-change. New source capabilities must preserve the single lifecycle, explicit
-Completion, and the 20,000-line product ceiling.
+For a reproducible [issue](https://github.com/HIT-SudoMaker/code-style-unifier/issues),
+include the CSU version, language, minimal source, relevant Authority facts and
+observed result. Redact private material before sharing. Change rule meaning in
+the standards first, then align implementation, tests and documentation.
 
 ## License
 
-MIT
+[MIT](LICENSE) © HIT-SudoMaker.

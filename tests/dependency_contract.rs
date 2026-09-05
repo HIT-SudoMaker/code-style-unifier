@@ -1,77 +1,67 @@
 use csu::AuthorityDocument;
 use csu::AuthorityInput;
 use csu::Disposition;
-use csu::DocumentSet;
 use csu::FindingGrade;
-use csu::ReviewInput;
 use csu::ReviewTerminal;
-use csu::SourceDocument;
 use csu::WorkspaceReviewer;
 
-/// 构造测试 Reviewer
-fn reviewer() -> WorkspaceReviewer {
+mod review_fixture;
+
+use review_fixture::review_sources;
+
+/// 创建测试审查器
+fn reviewer(reorder_safe: bool) -> WorkspaceReviewer {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
         "../docs/fixtures/core/authority.json"
     ))
     .unwrap();
-    authority["families"]
-        .as_array_mut()
-        .unwrap()
-        .push(serde_json::json!({
-            "name": "dependency",
-            "operator": "dependency_v1",
-            "projections": {
-                "python": "supported",
-                "rust": "supported",
-                "c": "supported",
-                "cpp": "supported"
-            }
-        }));
     authority["dependency_authority"] = serde_json::json!({
-        "enabled": true,
         "python_standard_library": ["os", "sys"],
         "python_third_party": ["numpy"],
         "python_project_roots": ["project"],
-        "python_reorder_safe": true,
-        "rust_reorder_safe": true
+        "python_reorder_safe": reorder_safe,
+        "rust_reorder_safe": reorder_safe
     });
-    let authority = serde_json::to_vec(&authority).unwrap();
-    let documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &authority,
-    }];
-    WorkspaceReviewer::compile(AuthorityInput::Documents(&documents)).unwrap()
+    let bytes = serde_json::to_vec(&authority).unwrap();
+    WorkspaceReviewer::compile(AuthorityInput::Documents(&[
+        AuthorityDocument {
+            relative_path: "authority.json",
+            bytes: &bytes,
+        },
+    ]))
+    .unwrap()
 }
 
-/// 验证依赖声明证据场景
+/// 审查一组依赖声明样例
+fn review(revision: &str, sources: &[(&str, &str)]) -> ReviewTerminal {
+    review_sources(&reviewer(true), revision, sources)
+}
+
+/// 验证依赖排序和通配符按各语言规则检查
 #[test]
-fn python_and_rust_safe_groups_use_language_local_order() {
-    let python = b"import sys\nimport os\n\nimport numpy\n";
-    let rust = b"use zeta::module;\nuse alpha::module;\n";
-    let procedural = b"#include \"zeta.h\"\n#include \"alpha.h\"\n";
-    let object_oriented = b"#include <zeta>\n#include <alpha>\n";
-    let documents = [
-        SourceDocument {
-            relative_path: "src/dependencies.py",
-            bytes: python,
-        },
-        SourceDocument {
-            relative_path: "src/dependencies.rs",
-            bytes: rust,
-        },
-        SourceDocument {
-            relative_path: "src/dependencies.c",
-            bytes: procedural,
-        },
-        SourceDocument {
-            relative_path: "src/dependencies.cpp",
-            bytes: object_oriented,
-        },
-    ];
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "dependency-order",
-        documents: &documents,
-    }));
+fn dependency_order_and_wildcard_are_profile_local() {
+    let terminal = review(
+        "dependency-order",
+        &[
+            (
+                "src/dependencies.py",
+                "import sys\nimport os\n\nimport numpy\n",
+            ),
+            (
+                "src/dependencies.rs",
+                "use zeta::module;\nuse alpha::module;\n",
+            ),
+            ("src/star.c", "#include \"*\"\n"),
+            ("src/star.cpp", "#include \"*\"\n"),
+            ("src/star.py", "from os import *\n"),
+            ("src/glob.rs", "use crate::module::*;\n"),
+            ("src/groups.py", "import sys\nvalue = 1\nimport os\n"),
+            (
+                "src/groups.rs",
+                "use zeta::module;\nmod inner { use alpha::module; }\n",
+            ),
+        ],
+    );
     assert_eq!(terminal.disposition(), Disposition::Incomplete);
     let ReviewTerminal::Sealed(review) = terminal else {
         panic!("dependency order violations must seal");
@@ -83,60 +73,41 @@ fn python_and_rust_safe_groups_use_language_local_order() {
         .map(|finding| finding.path())
         .collect();
     assert_eq!(order_paths, ["src/dependencies.py", "src/dependencies.rs"]);
-}
-
-/// 验证依赖声明证据场景
-#[test]
-fn python_star_and_rust_glob_are_hard_violations() {
-    let python = b"from os import  *\n";
-    let rust = b"use crate::module :: *;\n";
-    let documents = [
-        SourceDocument {
-            relative_path: "src/star.py",
-            bytes: python,
-        },
-        SourceDocument {
-            relative_path: "src/glob.rs",
-            bytes: rust,
-        },
-    ];
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "dependency-glob",
-        documents: &documents,
-    }));
-    let ReviewTerminal::Sealed(review) = terminal else {
-        panic!("wildcard violations must seal");
-    };
-    assert_eq!(
-        review
-            .findings()
+    let wildcard_paths: Vec<_> = review
+        .findings()
+        .iter()
+        .filter(|finding| {
+            finding.rule() == "dependency.wildcard"
+                && finding.grade() == FindingGrade::HardViolation
+        })
+        .map(|finding| finding.path())
+        .collect();
+    assert_eq!(wildcard_paths, ["src/glob.rs", "src/star.py"]);
+    for path in ["src/star.c", "src/star.cpp"] {
+        let file = review
+            .coverage()
+            .files()
             .iter()
-            .filter(|finding| {
-                finding.rule() == "dependency.wildcard"
-                    && finding.grade() == FindingGrade::HardViolation
-            })
-            .count(),
-        2
-    );
+            .find(|file| file.path() == path)
+            .unwrap();
+        assert!(file.families().iter().any(|(family, state)| {
+            *family == csu::FactFamily::DependencyDeclaration
+                && matches!(state, csu::FactFamilyState::Blocked(_))
+        }));
+    }
 }
 
-/// 验证依赖声明证据场景
+/// 验证无法完整识别的 Python 和 Rust 导入不能判为干净
 #[test]
-fn python_multi_module_imports_cannot_pass_as_clean() {
-    let documents = [
-        SourceDocument {
-            relative_path: "src/third_party_first.py",
-            bytes: b"import numpy, os\n",
-        },
-        SourceDocument {
-            relative_path: "src/standard_library_first.py",
-            bytes: b"import os, numpy\n",
-        },
-    ];
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "python-multi-module-imports",
-        documents: &documents,
-    }));
+fn complex_python_and_rust_imports_cannot_pass_as_clean() {
+    let terminal = review(
+        "python-multi-module-imports",
+        &[
+            ("src/third_party_first.py", "import numpy, os\n"),
+            ("src/standard_library_first.py", "import os, numpy\n"),
+            ("src/nested.rs", "use crate::{alpha, beta};\n"),
+        ],
+    );
 
     assert_eq!(terminal.disposition(), Disposition::Incomplete);
     let ReviewTerminal::Sealed(review) = terminal else {
@@ -150,37 +121,26 @@ fn python_multi_module_imports_cannot_pass_as_clean() {
     }));
 }
 
-/// 验证依赖声明证据场景
-#[test]
-fn unknown_python_classification_blocks_instead_of_guessing() {
-    let documents = [SourceDocument {
-        relative_path: "src/unknown.py",
-        bytes: b"import unclassified_package\n",
-    }];
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "unknown-dependency",
-        documents: &documents,
-    }));
-    assert_eq!(terminal.disposition(), Disposition::Incomplete);
-}
-
-/// 验证依赖声明证据场景
+/// 验证 C++ 模块导入必须先于普通顶层声明
 #[test]
 fn cpp_module_import_must_precede_ordinary_top_level_declarations() {
-    let documents = [
-        SourceDocument {
-            relative_path: "src/valid.cpp",
-            bytes: b"export module velocity;\nimport math;\nint value;\n",
-        },
-        SourceDocument {
-            relative_path: "src/misplaced.cpp",
-            bytes: b"int value;\nimport math;\n",
-        },
-    ];
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "cpp-module-placement",
-        documents: &documents,
-    }));
+    let terminal = review(
+        "cpp-module-placement",
+        &[
+            (
+                "src/named.cpp",
+                "module;\nexport module velocity;\nexport import math;\n",
+            ),
+            (
+                "src/header.cpp",
+                "export module velocity;\nimport <vector>;\n",
+            ),
+            ("src/global.cpp", "module;\nimport math;\n"),
+            ("src/misplaced.cpp", "int value;\nimport math;\n"),
+            ("src/nested.cpp", "namespace detail { import math; }\n"),
+            ("src/private.cpp", "module :private;\nimport math;\n"),
+        ],
+    );
     let ReviewTerminal::Sealed(review) = terminal else {
         panic!("C++ module placement must seal");
     };
@@ -190,146 +150,71 @@ fn cpp_module_import_must_precede_ordinary_top_level_declarations() {
         .filter(|finding| finding.rule() == "dependency.module_placement")
         .map(|finding| finding.path())
         .collect();
-    assert_eq!(placement_paths, ["src/misplaced.cpp"]);
-}
-
-/// 验证依赖声明证据场景
-#[test]
-fn cpp_nested_module_import_cannot_pass_as_clean() {
-    let documents = [SourceDocument {
-        relative_path: "src/nested.cpp",
-        bytes: b"namespace detail { import math; }\n",
-    }];
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "cpp-nested-module-import",
-        documents: &documents,
-    }));
-    let ReviewTerminal::Sealed(review) = terminal else {
-        panic!("nested module syntax must have a terminal evidence state");
-    };
-    let dependency_blocked = review.coverage().files()[0]
-        .families()
-        .iter()
-        .any(|(family, state)| {
+    assert_eq!(
+        placement_paths,
+        [
+            "src/global.cpp",
+            "src/misplaced.cpp",
+            "src/nested.cpp",
+            "src/private.cpp"
+        ]
+    );
+    assert!(review.coverage().files().iter().all(|file| {
+        file.families().iter().any(|(family, state)| {
             *family == csu::FactFamily::DependencyDeclaration
                 && matches!(state, csu::FactFamilyState::Blocked(_))
-        });
-    let placement_finding = review
-        .findings()
-        .iter()
-        .any(|finding| finding.rule() == "dependency.module_placement");
-    assert!(dependency_blocked || placement_finding);
+        })
+    }));
 }
 
-/// 验证依赖声明证据场景
+/// 验证 Python 仅检查模块级和精确类型检查块中的依赖
 #[test]
 fn python_dependency_scope_is_module_level_or_exact_type_checking() {
-    let source = r#"def _local():
-    """
-    执行局部工作
-    """
-    import unknown_inside_function
-
-if OTHER_GUARD:
-    import unknown_inside_other_guard
-
-if TYPE_CHECKING:
-    import os
-"#;
-    let documents = [SourceDocument {
-        relative_path: "src/scopes.py",
-        bytes: source.as_bytes(),
-    }];
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "python-dependency-scope",
-        documents: &documents,
-    }));
-    assert_eq!(terminal.disposition(), Disposition::Incomplete);
-    let ReviewTerminal::Sealed(review) = terminal else {
-        panic!("dependency scope review must seal");
-    };
-    let state = review.coverage().files()[0]
-        .families()
-        .iter()
-        .find(|(family, _)| *family == csu::FactFamily::DependencyDeclaration)
-        .map(|(_, state)| state);
-    assert!(matches!(state, Some(csu::FactFamilyState::Blocked(_))));
+    for (path, source, blocked) in [
+        ("src/exact.py", "if TYPE_CHECKING:\n    import os\n", false),
+        ("src/continued.py", "import \\\n    os\n", false),
+        (
+            "src/qualified.py",
+            "if typing.TYPE_CHECKING:\n    import os\n",
+            true,
+        ),
+        ("src/other.py", "if OTHER_GUARD:\n    import os\n", true),
+        ("src/local.py", "def _local():\n    import os\n", true),
+        ("src/unknown.py", "import unclassified_package\n", true),
+    ] {
+        let ReviewTerminal::Sealed(review) =
+            review("python-dependency-scope", &[(path, source)])
+        else {
+            panic!("dependency scope review must seal");
+        };
+        let observed = review.coverage().files()[0].families().iter().any(
+            |(family, state)| {
+                *family == csu::FactFamily::DependencyDeclaration
+                    && matches!(state, csu::FactFamilyState::Blocked(_))
+            },
+        );
+        assert_eq!(observed, blocked, "{path}");
+    }
 }
 
-/// 验证依赖声明证据场景
-#[test]
-fn dependency_order_never_crosses_statement_or_scope_boundaries() {
-    let python = b"import sys\nvalue = 1\nimport os\n";
-    let rust = b"use zeta::module;\nmod inner { use alpha::module; }\n";
-    let documents = [
-        SourceDocument {
-            relative_path: "src/groups.py",
-            bytes: python,
-        },
-        SourceDocument {
-            relative_path: "src/groups.rs",
-            bytes: rust,
-        },
-    ];
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "dependency-group-boundaries",
-        documents: &documents,
-    }));
-    let ReviewTerminal::Sealed(review) = terminal else {
-        panic!("group-boundary review must seal");
-    };
-    assert!(
-        review
-            .findings()
-            .iter()
-            .all(|finding| finding.rule() != "dependency.order")
-    );
-}
-
-/// 验证依赖声明证据场景
-#[test]
-fn rust_safe_group_orders_self_super_crate_before_external_paths() {
-    let source = b"use alpha::module;\nuse self::module;\n";
-    let documents = [SourceDocument {
-        relative_path: "src/rust_roots.rs",
-        bytes: source,
-    }];
-    let terminal = reviewer().review(ReviewInput::Documents(DocumentSet {
-        revision: "rust-root-order",
-        documents: &documents,
-    }));
-    let ReviewTerminal::Sealed(review) = terminal else {
-        panic!("Rust order review must seal");
-    };
-    assert!(
-        review
-            .findings()
-            .iter()
-            .any(|finding| finding.rule() == "dependency.order")
-    );
-}
-
-/// 验证依赖声明证据场景
+/// 验证依赖分组拒绝多余空行并保持确定的排序
 #[test]
 fn dependency_groups_reject_extra_blank_lines_and_have_total_order() {
-    let python = b"import os\n\nimport sys\n";
-    let rust = b"use alpha1::module;\nuse alpha01::module;\n";
-    let documents = [
-        SourceDocument {
-            relative_path: "src/spacing.py",
-            bytes: python,
-        },
-        SourceDocument {
-            relative_path: "src/version_tie.rs",
-            bytes: rust,
-        },
-    ];
-    let ReviewTerminal::Sealed(review) =
-        reviewer().review(ReviewInput::Documents(DocumentSet {
-            revision: "dependency-spacing-and-total-order",
-            documents: &documents,
-        }))
-    else {
+    let ReviewTerminal::Sealed(review) = review(
+        "dependency-spacing-and-total-order",
+        &[
+            ("src/spacing.py", "import os\n\nimport sys\n"),
+            ("src/tiers.py", "import os\nimport numpy\n"),
+            (
+                "src/version_tie.rs",
+                "use alpha1::module;\nuse alpha01::module;\n",
+            ),
+            (
+                "src/rust_roots.rs",
+                "use alpha::module;\npub(crate) use self::module;\n",
+            ),
+        ],
+    ) else {
         panic!("dependency ordering must seal");
     };
     let paths: Vec<_> = review
@@ -339,41 +224,78 @@ fn dependency_groups_reject_extra_blank_lines_and_have_total_order() {
         .map(|finding| finding.path())
         .collect();
 
-    assert_eq!(paths, ["src/spacing.py", "src/version_tie.rs"]);
+    assert_eq!(
+        paths,
+        [
+            "src/rust_roots.rs",
+            "src/spacing.py",
+            "src/tiers.py",
+            "src/version_tie.rs",
+        ]
+    );
 }
 
-/// 验证依赖声明证据场景
+/// 验证未授权重排时保留 Python 和 Rust 原有顺序
+#[test]
+fn reorder_disabled_preserves_python_and_rust_order() {
+    let terminal = review_sources(
+        &reviewer(false),
+        "dependency-preserve-order",
+        &[
+            ("src/order.py", "import numpy\nimport os\n"),
+            ("src/order.rs", "use zeta::module;\nuse alpha::module;\n"),
+        ],
+    );
+    let ReviewTerminal::Sealed(review) = terminal else {
+        panic!("preserved order must seal")
+    };
+    assert!(
+        review
+            .findings()
+            .iter()
+            .all(|finding| finding.rule() != "dependency.order")
+    );
+}
+
+/// 验证依赖分类重叠在源码审查前被拒绝
 #[test]
 fn overlapping_dependency_classes_are_rejected_before_review() {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
         "../docs/fixtures/core/authority.json"
     ))
     .unwrap();
-    authority["families"]
-        .as_array_mut()
-        .unwrap()
-        .push(serde_json::json!({
-            "name": "dependency",
-            "operator": "dependency_v1",
-            "projections": {
-                "python": "supported", "rust": "supported",
-                "c": "supported", "cpp": "supported"
-            }
-        }));
     authority["dependency_authority"] = serde_json::json!({
-        "enabled": true,
         "python_standard_library": ["shared"],
         "python_third_party": ["shared"],
         "python_project_roots": []
     });
-    let bytes = serde_json::to_vec(&authority).unwrap();
+    let is_rejected = |authority: &serde_json::Value| {
+        let bytes = serde_json::to_vec(authority).unwrap();
+        WorkspaceReviewer::compile(AuthorityInput::Documents(&[
+            AuthorityDocument {
+                relative_path: "authority.json",
+                bytes: &bytes,
+            },
+        ]))
+        .is_err()
+    };
+    assert!(is_rejected(&authority));
+    for invalid in ["os.path", " os", "7zip"] {
+        authority["dependency_authority"] = serde_json::json!({
+            "python_standard_library": ["os"], "python_third_party": [invalid]
+        });
+        assert!(is_rejected(&authority), "{invalid}");
+    }
+    let unsupported =
+        br#"{"schema_version":4,"header_languages":{"src/a.h":"rust"}}"#;
     let documents = [AuthorityDocument {
         relative_path: "authority.json",
-        bytes: &bytes,
+        bytes: unsupported,
     }];
-
-    assert!(
+    let rejection =
         WorkspaceReviewer::compile(AuthorityInput::Documents(&documents))
-            .is_err()
-    );
+            .expect_err(
+                "unsupported Profile must reject before dependency review",
+            );
+    assert_eq!(rejection.code(), "authority.header_language");
 }
