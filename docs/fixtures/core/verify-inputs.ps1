@@ -416,7 +416,7 @@ function Get-TrackedPatchHash {
 function Get-UntrackedFileRecords {
     param(
         [Parameter(Mandatory)][string]$RepositoryRoot,
-        [Parameter(Mandatory)][string[]]$Paths
+        [Parameter(Mandatory)][AllowEmptyCollection()][string[]]$Paths
     )
 
     [object[]]$records = @(
@@ -435,7 +435,7 @@ function Get-UntrackedFileRecords {
         return [StringComparer]::Ordinal.Compare($left.path, $right.path)
     })
     [Array]::Sort($records, $comparison)
-    return $records
+    return ,$records
 }
 
 function Get-CompiledTestCatalog {
@@ -471,7 +471,7 @@ function Get-CurrentMeasuredCandidate {
 
     [string[]]$untrackedInputs = @(
         & git -C $repositoryRoot ls-files --others --exclude-standard -- `
-            src tests docs/fixtures/core .agents/skills/csu-review .claude/skills/csu-review
+            src tests docs .agents/skills/csu-review .claude/skills/csu-review
     )
     if ($LASTEXITCODE -ne 0) {
         throw "Cannot enumerate intended untracked candidate inputs"
@@ -492,11 +492,24 @@ function Get-CurrentMeasuredCandidate {
         -RepositoryRoot $repositoryRoot -Paths $untrackedMaintenance
 
     $planningRoot = ".scratch"
-    [string[]]$planningPaths = @(
-        & git -C $repositoryRoot ls-files --others --exclude-standard -- `
-            $planningRoot
+    $planningEntries = @(
+        Get-ChildItem -LiteralPath (Join-Path $repositoryRoot $planningRoot) `
+            -Recurse -Force
     )
-    if ($LASTEXITCODE -ne 0 -or @($planningPaths | Where-Object {
+    if (@($planningEntries | Where-Object {
+                $_.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint)
+            }).Count -ne 0) {
+        throw "Retained local planning material must not traverse a reparse point"
+    }
+    [string[]]$planningPaths = @(
+        $planningEntries | Where-Object { -not $_.PSIsContainer } |
+            ForEach-Object {
+                [IO.Path]::GetRelativePath(
+                    $repositoryRoot, $_.FullName
+                ).Replace("\", "/")
+            }
+    )
+    if (@($planningPaths | Where-Object {
                 [IO.Path]::GetExtension($_) -notin @(".md", ".json")
             }).Count -ne 0) {
         throw "Retained measurement planning contains an unsupported file"
@@ -879,8 +892,8 @@ $package = @($packageMetadata.packages | Where-Object {
         $_.name -ceq "code-style-unifier"
     })
 if ($LASTEXITCODE -ne 0 -or $package.Count -ne 1 -or
-    [string]$package[0].version -cne "3.0.0") {
-    throw "Package metadata and lockfile must identify version 3.0.0"
+    [string]$package[0].version -cne "3.0.1") {
+    throw "Package metadata and lockfile must identify version 3.0.1"
 }
 $releaseWorkflowPath = Join-Path $repositoryRoot ".github/workflows/release.yml"
 $releaseWorkflowText = [IO.File]::ReadAllText($releaseWorkflowPath)
@@ -1040,13 +1053,13 @@ if ($parserAdmissionReceipt.schema_version -ne 1 -or
     $parserAdmissionReceipt.inputs.grammars.cargo_lock_sha256 -cne
         $cargoLockHash -or
     $parserAdmissionReceipt.inputs.grammars.python -cne
-        "tree-sitter-python@0.25.0+direct-source-facts-v3" -or
+        "tree-sitter-python@0.25.0+direct-source-facts" -or
     $parserAdmissionReceipt.inputs.grammars.rust -cne
-        "tree-sitter-rust@0.24.2+direct-source-facts-v3" -or
+        "tree-sitter-rust@0.24.2+direct-source-facts" -or
     $parserAdmissionReceipt.inputs.grammars.c -cne
-        "tree-sitter-c@0.24.2+direct-source-facts-v3" -or
+        "tree-sitter-c@0.24.2+direct-source-facts" -or
     $parserAdmissionReceipt.inputs.grammars.cpp -cne
-        "tree-sitter-cpp@8b5b49eb+direct-source-facts-v3" -or
+        "tree-sitter-cpp@8b5b49eb+direct-source-facts" -or
     $parserAdmissionReceipt.inputs.executable_sha256 -notmatch
         "^[0-9a-f]{64}$" -or
     $parserAdmissionReceipt.inputs.authority_sha256 -cne
@@ -1877,7 +1890,7 @@ $functionalPatchHash = Get-TrackedPatchHash -RepositoryRoot $repositoryRoot `
     -BaseHead $currentHead -ExcludedPaths $functionalExclusions
 [string[]]$untrackedInputs = @(
     & git -C $repositoryRoot ls-files --others --exclude-standard -- `
-        src tests docs/fixtures/core .agents/skills/csu-review .claude/skills/csu-review
+        src tests docs .agents/skills/csu-review .claude/skills/csu-review
 )
 [Array]::Sort($untrackedInputs, [StringComparer]::Ordinal)
 [object[]]$untrackedInputRecords = Get-UntrackedFileRecords `
@@ -1966,7 +1979,9 @@ if ($planningFiles.Count -ne $planning.files -or
 if ($LASTEXITCODE -ne 0) {
     throw "Cannot enumerate the complete untracked candidate inventory"
 }
-$classifiedPaths = @($untrackedInputs) + @($expectedMaintenance.path)
+$classifiedPaths = @($untrackedInputs) + @(
+    $expectedMaintenance | ForEach-Object { $_.path }
+)
 $unexpectedUntracked = @($allUntracked | Where-Object {
     $_ -ne "docs/fixtures/core/self_check.json" -and
     $_ -notin $classifiedPaths -and
@@ -2202,7 +2217,9 @@ foreach ($entry in @($expectedUntracked) + @($expectedMaintenance)) {
     }
 }
 $postPlanningFiles = Get-UntrackedFileRecords `
-    -RepositoryRoot $repositoryRoot -Paths @($planningFiles.path)
+    -RepositoryRoot $repositoryRoot -Paths @(
+        $planningFiles | ForEach-Object { $_.path }
+    )
 if ($postPlanningFiles.Count -ne $planningFiles.Count -or
     (Get-JsonSha256 -Value $postPlanningFiles) -ne $planningDigest) {
     throw "Retained local planning identity changed during self-check"

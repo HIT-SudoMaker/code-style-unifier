@@ -1,34 +1,82 @@
-use csu::AuthorityDocument;
-use csu::AuthorityInput;
 use csu::Completion;
 use csu::FindingGrade;
 use csu::ReviewTerminal;
 use csu::SealedReview;
 use csu::WorkspaceReviewer;
 
+#[path = "../review_fixture/mod.rs"]
 mod review_fixture;
 
+use review_fixture::compile_value;
 use review_fixture::review_sources;
 
 const VALID_PYTHON: &str = include_str!(
-    "../docs/fixtures/core/documents/valid/python/calculate_velocity.py"
+    "../../docs/fixtures/core/documents/valid/python/calculate_velocity.py"
 );
 const VALID_RUST: &str = include_str!(
-    "../docs/fixtures/core/documents/valid/rust/calculate_velocity.rs"
+    "../../docs/fixtures/core/documents/valid/rust/calculate_velocity.rs"
 );
 const VALID_PROCEDURAL: &str = include_str!(
-    "../docs/fixtures/core/documents/valid/c/calculate_velocity.h"
+    "../../docs/fixtures/core/documents/valid/c/calculate_velocity.h"
 );
 const VALID_CPP: &str = include_str!(
-    "../docs/fixtures/core/documents/valid/cpp/calculate_velocity.hpp"
+    "../../docs/fixtures/core/documents/valid/cpp/calculate_velocity.hpp"
 );
 const PROCEDURAL_PATH: &str = "api/contract.h";
 const OBJECT_ORIENTED_PATH: &str = "api/contract.hpp";
 
+/// 验证原生参数和模板列表中的普通注释不改变文档事实
+#[test]
+fn native_parameter_comments_keep_documentation_facts() {
+    for (path, source) in [
+        ("src/parameters.rs", VALID_RUST.to_owned()),
+        (PROCEDURAL_PATH, VALID_PROCEDURAL.to_owned()),
+        (OBJECT_ORIENTED_PATH, VALID_CPP.replace("calculate_velocity(double distance_m, double duration_s)", "calculate_velocity(\n    double distance_m,\n    double duration_s\n)")),
+    ] {
+        let reviewed = review("comment-control", &[(path, &source)], &["calculate_velocity"]);
+        assert_complete_clean(&reviewed, path);
+        let marker = if path.ends_with(".rs") { "    distance_m:" } else { "    double distance_m" };
+        for comment in ["    /* 输入距离 */\n", "    // 输入距离\n"] {
+            let changed = source.replacen(marker, &format!("{comment}{marker}"), 1);
+            assert_ne!(source, changed);
+            let reviewed = review("parameter-comment", &[(path, &changed)], &["calculate_velocity"]);
+            assert_complete_clean(&reviewed, path);
+        }
+    }
+}
+
+/// 验证参数列表中的独立注释不阻塞公开文档事实
+#[test]
+fn python_parameter_comments_keep_documentation_completeness() {
+    let source = "def calculate_velocity(\n    # 参数说明\n    distance_m: float,\n    *,\n    duration_s: float,\n) -> float:\n    \"\"\"\n    计算速度\n\n    Args:\n        distance_m: 输入距离\n        duration_s: 输入时间\n\n    Returns:\n        velocity_m_per_s: 输出速度\n\n    Raises:\n        无\n    \"\"\"\n    return distance_m / duration_s\n";
+    let review =
+        review("parameter-comment", &[("src/parameters.py", source)], &[]);
+    assert_complete_clean(&review, "parameter-comment");
+    let changed = source.replace(
+        "def calculate_velocity(\n",
+        "def calculate_velocity(  # 参数说明\n",
+    );
+    let reviewed = self::review(
+        "parameter-inline-comment",
+        &[("src/parameters.py", &changed)],
+        &[],
+    );
+    assert_eq!(reviewed.completion(), Completion::Complete);
+    assert!(has_rule(&reviewed, "source.trailing_comment"));
+    let changed = source.replace("        duration_s: 输入时间\n", "");
+    let reviewed = self::review(
+        "parameter-missing-field",
+        &[("src/parameters.py", &changed)],
+        &[],
+    );
+    assert_eq!(reviewed.completion(), Completion::Complete);
+    assert!(has_rule(&reviewed, "documentation.public_contract"));
+}
+
 /// 创建测试审查器
 fn reviewer(public_names: &[&str]) -> WorkspaceReviewer {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
-        "../docs/fixtures/core/authority.json"
+        "../../docs/fixtures/core/authority.json"
     ))
     .unwrap();
     authority["public_callables"] = if public_names.is_empty() {
@@ -50,14 +98,7 @@ fn reviewer(public_names: &[&str]) -> WorkspaceReviewer {
             ]
             .map(serde_json::Value::from),
         );
-    let bytes = serde_json::to_vec(&authority).unwrap();
-    WorkspaceReviewer::compile(AuthorityInput::Documents(&[
-        AuthorityDocument {
-            relative_path: "authority.json",
-            bytes: &bytes,
-        },
-    ]))
-    .unwrap()
+    compile_value(&authority).unwrap()
 }
 
 /// 审查内存源码并返回封存终态
@@ -527,6 +568,31 @@ fn python_receiver_role_and_controlled_punctuation_are_enforced() {
         finding.path() == "src/punctuation.py"
             && finding.rule() == "documentation.punctuation"
     }));
+    let class_source = receiver
+        .replace(
+            "calculate_velocity(receiver) -> float",
+            "__init_subclass__(cls) -> None",
+        )
+        .replace("float: 平均速度", "无");
+    let class_review = self::review(
+        "class-receiver",
+        &[("src/receiver.py", &class_source)],
+        &[],
+    );
+    assert_eq!(class_review.completion(), Completion::Complete);
+    assert!(!has_rule(&class_review, "documentation.public_contract"));
+    assert!(!has_rule(&class_review, "identifier.canonical_form"));
+    let class_source = class_source.replace(
+        "Args:\n            无",
+        "Args:\n            cls: 隐式类接收者",
+    );
+    let class_review = self::review(
+        "class-receiver-extra",
+        &[("src/receiver.py", &class_source)],
+        &[],
+    );
+    assert_eq!(class_review.completion(), Completion::Complete);
+    assert!(has_rule(&class_review, "documentation.public_contract"));
 }
 
 /// 验证 Rust 具名可变参数可通过检查，匿名参数仍不完整
@@ -1000,7 +1066,7 @@ fn sentence_punctuation_is_owned_per_profile() {
 #[test]
 fn target_derived_python_cases_cannot_evade_documentation_rules() {
     let fixture: serde_json::Value = serde_json::from_str(include_str!(
-        "fixtures/python_target_cases.json"
+        "../fixtures/python_target_cases.json"
     ))
     .expect("target fixture must be valid JSON");
     for case in fixture["cases"].as_array().expect("cases must be an array") {

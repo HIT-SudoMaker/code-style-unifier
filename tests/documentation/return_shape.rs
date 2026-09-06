@@ -1,5 +1,3 @@
-use csu::AuthorityDocument;
-use csu::AuthorityInput;
 use csu::Completion;
 use csu::FactFamily;
 use csu::FactFamilyState;
@@ -7,8 +5,10 @@ use csu::ReviewTerminal;
 use csu::SealedReview;
 use csu::WorkspaceReviewer;
 
+#[path = "../review_fixture/mod.rs"]
 mod review_fixture;
 
+use review_fixture::compile_value;
 use review_fixture::review_sources;
 
 const PYTHON_PATH: &str = "src/calculate_totals.py";
@@ -30,7 +30,7 @@ enum Outcome {
 /// 创建支持四语言并可补充公开函数名单的测试审查器
 fn reviewer(extra_public: &[(&str, &[&str])]) -> WorkspaceReviewer {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
-        "../docs/fixtures/core/authority.json"
+        "../../docs/fixtures/core/authority.json"
     ))
     .unwrap();
     for (path, names) in extra_public {
@@ -55,14 +55,7 @@ fn reviewer(extra_public: &[(&str, &[&str])]) -> WorkspaceReviewer {
             ]
             .map(serde_json::Value::from),
         );
-    let bytes = serde_json::to_vec(&authority).unwrap();
-    WorkspaceReviewer::compile(AuthorityInput::Documents(&[
-        AuthorityDocument {
-            relative_path: "authority.json",
-            bytes: &bytes,
-        },
-    ]))
-    .unwrap()
+    compile_value(&authority).unwrap()
 }
 
 /// 审查内存源码并返回终态

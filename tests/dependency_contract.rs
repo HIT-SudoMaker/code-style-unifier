@@ -7,7 +7,58 @@ use csu::WorkspaceReviewer;
 
 mod review_fixture;
 
+use review_fixture::compile_value;
 use review_fixture::review_sources;
+
+/// 验证相对导入保留项目依赖分类和排序检查
+#[test]
+fn python_relative_dependencies_have_project_identity() {
+    for source in [
+        "from .value import distance_m\n",
+        "from ..value import distance_m\n",
+        "from . import value\n",
+        "import sys\n\nfrom .value import distance_m\n",
+    ] {
+        let terminal = review(
+            "relative-import",
+            &[("src/project/inner/value.py", source)],
+        );
+        assert_eq!(
+            terminal.disposition(),
+            Disposition::Clean,
+            "{terminal:#?}"
+        );
+    }
+    for (source, rule) in [
+        ("from .value import *\n", "dependency.wildcard"),
+        (
+            "from .value import distance_m\nimport sys\n",
+            "dependency.order",
+        ),
+        (
+            "from .upper import value\nfrom .lower import value\n",
+            "dependency.order",
+        ),
+    ] {
+        let ReviewTerminal::Sealed(review) =
+            review("relative-import", &[("src/project/value.py", source)])
+        else {
+            panic!("relative imports must seal");
+        };
+        assert_eq!(review.completion(), csu::Completion::Complete);
+        assert!(
+            review
+                .findings()
+                .iter()
+                .any(|finding| finding.rule() == rule)
+        );
+    }
+    let terminal = review(
+        "absolute-unknown",
+        &[("src/project/value.py", "from unregistered import value\n")],
+    );
+    assert_eq!(terminal.disposition(), Disposition::Incomplete);
+}
 
 /// 创建测试审查器
 fn reviewer(reorder_safe: bool) -> WorkspaceReviewer {
@@ -22,14 +73,7 @@ fn reviewer(reorder_safe: bool) -> WorkspaceReviewer {
         "python_reorder_safe": reorder_safe,
         "rust_reorder_safe": reorder_safe
     });
-    let bytes = serde_json::to_vec(&authority).unwrap();
-    WorkspaceReviewer::compile(AuthorityInput::Documents(&[
-        AuthorityDocument {
-            relative_path: "authority.json",
-            bytes: &bytes,
-        },
-    ]))
-    .unwrap()
+    compile_value(&authority).unwrap()
 }
 
 /// 审查一组依赖声明样例
@@ -269,22 +313,12 @@ fn overlapping_dependency_classes_are_rejected_before_review() {
         "python_third_party": ["shared"],
         "python_project_roots": []
     });
-    let is_rejected = |authority: &serde_json::Value| {
-        let bytes = serde_json::to_vec(authority).unwrap();
-        WorkspaceReviewer::compile(AuthorityInput::Documents(&[
-            AuthorityDocument {
-                relative_path: "authority.json",
-                bytes: &bytes,
-            },
-        ]))
-        .is_err()
-    };
-    assert!(is_rejected(&authority));
+    assert!(compile_value(&authority).is_err());
     for invalid in ["os.path", " os", "7zip"] {
         authority["dependency_authority"] = serde_json::json!({
             "python_standard_library": ["os"], "python_third_party": [invalid]
         });
-        assert!(is_rejected(&authority), "{invalid}");
+        assert!(compile_value(&authority).is_err(), "{invalid}");
     }
     let unsupported =
         br#"{"schema_version":4,"header_languages":{"src/a.h":"rust"}}"#;

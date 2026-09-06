@@ -21,7 +21,7 @@ fn frozen_fixture_cells_and_syntax_damage_execute_exact_oracles() {
     let repository = Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixture_root = repository.join("docs/fixtures/core");
     let manifest: Value = serde_json::from_str(include_str!(
-        "../docs/fixtures/core/fixture-manifest.json"
+        "../../docs/fixtures/core/fixture-manifest.json"
     ))
     .expect("fixture manifest must be valid JSON");
     let reviewer =

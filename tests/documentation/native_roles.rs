@@ -1,5 +1,3 @@
-use csu::AuthorityDocument;
-use csu::AuthorityInput;
 use csu::Completion;
 use csu::Disposition;
 use csu::FactFamily;
@@ -7,19 +5,29 @@ use csu::FactFamilyState;
 use csu::ReviewTerminal;
 use csu::WorkspaceReviewer;
 
+#[path = "../review_fixture/mod.rs"]
 mod review_fixture;
 
+use review_fixture::compile_value;
 use review_fixture::review_sources;
 
 const PATH: &str = "api/velocity_roles.hpp";
 
 /// 创建测试审查器
 fn reviewer(public_callables: &[&str]) -> WorkspaceReviewer {
+    reviewer_for_path(public_callables, PATH)
+}
+
+/// 为指定原生源码设置公开归属
+fn reviewer_for_path(
+    public_callables: &[&str],
+    path: &str,
+) -> WorkspaceReviewer {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
-        "../docs/fixtures/core/authority.json"
+        "../../docs/fixtures/core/authority.json"
     ))
     .unwrap();
-    authority["public_callables"][PATH] = serde_json::json!(public_callables);
+    authority["public_callables"][path] = serde_json::json!(public_callables);
     authority["token_vocabulary"]
         .as_array_mut()
         .unwrap()
@@ -37,14 +45,7 @@ fn reviewer(public_callables: &[&str]) -> WorkspaceReviewer {
             ]
             .map(serde_json::Value::from),
         );
-    let bytes = serde_json::to_vec(&authority).unwrap();
-    WorkspaceReviewer::compile(AuthorityInput::Documents(&[
-        AuthorityDocument {
-            relative_path: "authority.json",
-            bytes: &bytes,
-        },
-    ]))
-    .unwrap()
+    compile_value(&authority).unwrap()
 }
 
 /// 审查内存源码并返回封存终态
@@ -65,6 +66,97 @@ fn has_public_contract_finding(terminal: &ReviewTerminal) -> bool {
         .findings()
         .iter()
         .any(|finding| finding.rule() == "documentation.public_contract")
+}
+
+/// 验证每个原生函数 declarator 独立承担文档义务
+#[test]
+fn native_declarator_documentation_subjects() {
+    for path in [PATH, "api/velocity_roles.c"] {
+        for (source, count) in [
+            ("int distance_m, calculate_velocity(int duration_s);", 1),
+            ("int calculate_velocity(int duration_s), distance_m;", 1),
+            (
+                "int (*distance_m)(int duration_s), calculate_velocity(int duration_s);",
+                1,
+            ),
+            (
+                "int calculate_velocity(int duration_s), calculate_distance(int distance_m);",
+                2,
+            ),
+            ("int (*distance_m)(int duration_s);", 0),
+        ] {
+            let terminal = review_sources(
+                &reviewer_for_path(
+                    &["calculate_velocity", "calculate_distance"],
+                    path,
+                ),
+                "native-declarators",
+                &[(path, source)],
+            );
+            let ReviewTerminal::Sealed(reviewed) = terminal else {
+                panic!("{terminal:#?}")
+            };
+            assert_eq!(
+                reviewed.completion(),
+                Completion::Complete,
+                "{source}"
+            );
+            assert_eq!(
+                reviewed
+                    .findings()
+                    .iter()
+                    .filter(|finding| finding
+                        .rule()
+                        .starts_with("documentation."))
+                    .count(),
+                count,
+                "{path}: {source}: {:#?}",
+                reviewed.findings()
+            );
+            assert!(
+                reviewed.coverage().files()[0]
+                    .families()
+                    .iter()
+                    .any(|(family, state)| *family
+                        == FactFamily::Documentation
+                        && *state == FactFamilyState::Complete(count as u32))
+            );
+        }
+        let carrier = "/**\n * 计算距离\n *\n * 参数：\n * - distance_m： 距离值\n * 返回：\n * - 无\n * 错误：\n * - 无\n */\n";
+        for declaration in [
+            "void calculate_distance(int distance_m), *calculate_velocity(int distance_m);",
+            "void calculate_distance(int distance_m), calculate_velocity(int duration_s);",
+            "void (*duration_s)(int duration_s), calculate_distance(int distance_m), *calculate_velocity(int distance_m);",
+        ] {
+            let source = format!("{carrier}{declaration}");
+            let terminal = review_sources(
+                &reviewer_for_path(
+                    &["calculate_distance", "calculate_velocity"],
+                    path,
+                ),
+                "native-contracts",
+                &[(path, &source)],
+            );
+            let ReviewTerminal::Sealed(reviewed) = terminal else {
+                panic!("{terminal:#?}")
+            };
+            assert_eq!(reviewed.completion(), Completion::Complete);
+            let subjects: Vec<_> = reviewed
+                .findings()
+                .iter()
+                .filter(|finding| {
+                    finding.rule() == "documentation.public_contract"
+                })
+                .map(|finding| finding.subject())
+                .collect();
+            assert_eq!(
+                subjects,
+                ["calculate_velocity"],
+                "{source}: {:#?}",
+                reviewed.findings()
+            );
+        }
+    }
 }
 
 /// 验证公开自由运算符的文档以非空作用说明结束
@@ -362,6 +454,19 @@ double calculate_velocity(int input, Pack... sample);
         sealed.findings()
     );
 
+    for (before, after) in [
+        ("template <typename", "template <\n// 模板说明\ntypename"),
+        ("int input, Pack", "int input,\n/* 参数说明 */\nPack"),
+    ] {
+        let changed = named_then_pack.replace(before, after);
+        let ReviewTerminal::Sealed(reviewed) =
+            review(&changed, &["calculate_velocity"])
+        else {
+            panic!("commented parameters must seal")
+        };
+        assert_eq!(reviewed.completion(), Completion::Complete);
+        assert!(reviewed.findings().is_empty(), "{:#?}", reviewed.findings());
+    }
     let anonymous_then_pack = (named_then_pack.replacen(
         "int input,",
         "int,",
@@ -404,14 +509,9 @@ double calculate_velocity(int input, Pack... sample);
 /// 验证 C++ 非函数文档不依赖公开函数名单
 #[test]
 fn cpp_non_callable_subject_does_not_require_public_tier() {
-    let authority = include_bytes!("../docs/fixtures/core/authority.json");
-    let reviewer = WorkspaceReviewer::compile(AuthorityInput::Documents(&[
-        AuthorityDocument {
-            relative_path: "authority.json",
-            bytes: authority,
-        },
-    ]))
-    .unwrap();
+    let authority = include_bytes!("../../docs/fixtures/core/authority.json");
+    let reviewer =
+        compile_value(&serde_json::from_slice(authority).unwrap()).unwrap();
     for (identity, source, expected, blocked) in [
         (
             "named",

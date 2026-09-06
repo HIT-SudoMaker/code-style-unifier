@@ -214,7 +214,7 @@ pub(crate) enum FamilyClosure {
     },
     Observed {
         physical_lines: u32,
-        identifier_subjects: u32,
+        identifier: FactFamilyState,
         documentation: FactFamilyState,
         dependency: FactFamilyState,
     },
@@ -238,7 +238,7 @@ impl FamilyClosure {
             },
             Self::Observed {
                 physical_lines,
-                identifier_subjects,
+                identifier,
                 documentation,
                 dependency,
             } => match family {
@@ -248,9 +248,7 @@ impl FamilyClosure {
                 FactFamily::PhysicalLines => {
                     FactFamilyState::Complete(*physical_lines)
                 }
-                FactFamily::Identifier => {
-                    FactFamilyState::Complete(*identifier_subjects)
-                }
+                FactFamily::Identifier => identifier.clone(),
                 FactFamily::Documentation => documentation.clone(),
                 FactFamily::DependencyDeclaration => dependency.clone(),
             },

@@ -1,5 +1,3 @@
-use csu::AuthorityDocument;
-use csu::AuthorityInput;
 use csu::Completion;
 use csu::FactFamily;
 use csu::FactFamilyState;
@@ -7,8 +5,10 @@ use csu::ReviewTerminal;
 use csu::SealedReview;
 use csu::WorkspaceReviewer;
 
+#[path = "../review_fixture/mod.rs"]
 mod review_fixture;
 
+use review_fixture::compile_value;
 use review_fixture::review_sources;
 
 const PYTHON_PATH: &str = "src/velocity.py";
@@ -17,22 +17,22 @@ const PROCEDURAL_HEADER_PATH: &str = "api/velocity.h";
 const OBJECT_ORIENTED_HEADER_PATH: &str = "api/velocity.hpp";
 
 const PYTHON_VALID: &str = include_str!(
-    "../docs/fixtures/core/documents/valid/python/calculate_velocity.py"
+    "../../docs/fixtures/core/documents/valid/python/calculate_velocity.py"
 );
 const RUST_VALID: &str = include_str!(
-    "../docs/fixtures/core/documents/valid/rust/calculate_velocity.rs"
+    "../../docs/fixtures/core/documents/valid/rust/calculate_velocity.rs"
 );
 const PROCEDURAL_VALID: &str = include_str!(
-    "../docs/fixtures/core/documents/valid/c/calculate_velocity.h"
+    "../../docs/fixtures/core/documents/valid/c/calculate_velocity.h"
 );
 const OBJECT_ORIENTED_VALID: &str = include_str!(
-    "../docs/fixtures/core/documents/valid/cpp/calculate_velocity.hpp"
+    "../../docs/fixtures/core/documents/valid/cpp/calculate_velocity.hpp"
 );
 
 /// 创建测试审查器
 fn reviewer() -> WorkspaceReviewer {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
-        "../docs/fixtures/core/authority.json"
+        "../../docs/fixtures/core/authority.json"
     ))
     .unwrap();
     authority["public_callables"] = serde_json::json!({
@@ -48,14 +48,7 @@ fn reviewer() -> WorkspaceReviewer {
             ["engine", "inner", "object", "result", "value"]
                 .map(serde_json::Value::from),
         );
-    let bytes = serde_json::to_vec(&authority).unwrap();
-    WorkspaceReviewer::compile(AuthorityInput::Documents(&[
-        AuthorityDocument {
-            relative_path: "authority.json",
-            bytes: &bytes,
-        },
-    ]))
-    .expect("test Authority must compile")
+    compile_value(&authority).expect("test Authority must compile")
 }
 
 /// 审查内存源码并返回封存终态
@@ -70,17 +63,39 @@ fn review<'source>(
     review
 }
 
-/// 判断审查是否包含指定规则
-fn has_rule(review: &SealedReview, path: &str, rule: &str) -> bool {
-    review
-        .findings()
-        .iter()
-        .any(|finding| finding.path() == path && finding.rule() == rule)
+/// 断言每份源码恰有一条公开文档硬违规且检查完整
+fn assert_contract(review: &SealedReview, paths: &[&str]) {
+    assert_eq!(review.completion(), Completion::Complete);
+    assert_eq!(review.findings().len(), paths.len(), "{review:#?}");
+    for path in paths {
+        let findings: Vec<_> = review
+            .findings()
+            .iter()
+            .filter(|finding| finding.path() == *path)
+            .collect();
+        let [finding] = findings.as_slice() else {
+            panic!("{path}: {review:#?}");
+        };
+        assert_eq!(finding.rule(), "documentation.public_contract");
+        assert_eq!(finding.grade(), csu::FindingGrade::HardViolation);
+        assert_eq!(finding.subject(), "calculate_velocity");
+    }
 }
 
 /// 验证四语言分别检查公开文档的必需部分
 #[test]
 fn public_roles_are_checked_in_parallel_across_four_languages() {
+    let baseline = review(
+        "public-control",
+        &[
+            (PYTHON_PATH, PYTHON_VALID),
+            (RUST_PATH, RUST_VALID),
+            (PROCEDURAL_HEADER_PATH, PROCEDURAL_VALID),
+            (OBJECT_ORIENTED_HEADER_PATH, OBJECT_ORIENTED_VALID),
+        ],
+    );
+    assert_eq!(baseline.completion(), Completion::Complete);
+    assert!(baseline.findings().is_empty(), "{baseline:#?}");
     let roles = [
         (
             "arguments",
@@ -110,13 +125,7 @@ fn public_roles_are_checked_in_parallel_across_four_languages() {
         ];
         let review = review(revision, &sources);
 
-        for (path, _) in sources {
-            assert!(
-                has_rule(&review, path, "documentation.public_contract"),
-                "{path}: {:#?}",
-                review.findings()
-            );
-        }
+        assert_contract(&review, &sources.map(|(path, _)| path));
     }
 }
 
@@ -143,7 +152,7 @@ fn noncanonical_empty_parameter_markers_stay_hard_in_all_profiles() {
     ];
     for (path, source) in &noncanonical_empty {
         let review = review("noncanonical-empty", &[(path, source)]);
-        assert!(has_rule(&review, path, "documentation.public_contract"));
+        assert_contract(&review, &[path]);
     }
 }
 
@@ -168,11 +177,12 @@ fn missing_carrier_and_unknown_signature_remain_independent() {
     let missing_review =
         review("missing-unknown-signature", &[(PYTHON_PATH, missing)]);
     assert_eq!(missing_review.completion(), Completion::Incomplete);
-    assert!(has_rule(
-        &missing_review,
-        PYTHON_PATH,
-        "documentation.carrier"
-    ));
+    let [finding] = missing_review.findings() else {
+        panic!("{missing_review:#?}");
+    };
+    assert_eq!(finding.path(), PYTHON_PATH);
+    assert_eq!(finding.rule(), "documentation.carrier");
+    assert_eq!(finding.grade(), csu::FindingGrade::HardViolation);
 
     let unresolved_review = review(
         "carrier-unknown-signature",
@@ -218,13 +228,7 @@ fn unknown_tail_headings_close_hard_in_all_four_profiles() {
         (OBJECT_ORIENTED_HEADER_PATH, object_oriented.as_str()),
     ];
     let review = review("unknown-tail-headings", &sources);
-    for (path, _) in sources {
-        assert!(
-            has_rule(&review, path, "documentation.public_contract"),
-            "{path}: {:#?}",
-            review.findings()
-        );
-    }
+    assert_contract(&review, &sources.map(|(path, _)| path));
 }
 
 /// 验证四语言均拒绝次序错误的必需标题
@@ -260,11 +264,5 @@ fn reordered_required_headings_stay_hard_in_all_profiles() {
         ),
     ];
     let review = review("heading-order", &sources);
-    for (path, _) in sources {
-        assert!(
-            has_rule(&review, path, "documentation.public_contract"),
-            "{path}: {:#?}",
-            review.findings()
-        );
-    }
+    assert_contract(&review, &sources.map(|(path, _)| path));
 }

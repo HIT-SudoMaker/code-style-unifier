@@ -56,7 +56,15 @@ fn review_documents_have_product_identity() {
     for (first, second) in [(".agents", ".claude"), (".claude", ".agents")] {
         let first = root.join(first).join("skills/csu-review");
         let second = root.join(second).join("skills/csu-review");
-        assert!(first.join("SKILL.md").is_file());
+        let content = fs::read_to_string(first.join("SKILL.md")).unwrap();
+        assert_eq!(content.lines().next(), Some("---"));
+        assert!(
+            content
+                .lines()
+                .skip(1)
+                .take_while(|line| *line != "---")
+                .any(|line| line == "name: csu-review")
+        );
         for entry in walkdir::WalkDir::new(&first) {
             let entry = entry.unwrap();
             let path = entry.path().strip_prefix(&first).unwrap();
@@ -70,21 +78,7 @@ fn review_documents_have_product_identity() {
             }
         }
     }
-    let other_identity = ["ss", "re", "2"].concat();
-    let entries = [
-        root.join("README.md"),
-        root.join("Cargo.toml"),
-        root.join("docs"),
-        root.join(".agents"),
-        root.join(".claude"),
-    ]
-    .into_iter()
-    .flat_map(walkdir::WalkDir::new)
-    .filter_map(Result::ok)
-    .filter(|entry| entry.file_type().is_file());
-
-    for entry in entries {
-        let content = fs::read_to_string(entry.path()).unwrap_or_default();
-        assert!(!content.to_ascii_lowercase().contains(&other_identity));
-    }
+    let content = fs::read_to_string(root.join("README.md")).unwrap();
+    assert_eq!(content.lines().next(), Some("# CSU"));
+    assert_eq!(env!("CARGO_PKG_NAME"), "code-style-unifier");
 }

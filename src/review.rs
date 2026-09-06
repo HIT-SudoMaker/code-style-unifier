@@ -117,6 +117,7 @@ struct DeclarationReview<'source> {
     language: Language,
     source: &'source [u8],
     output: Vec<Declaration>,
+    callables: Vec<Callable>,
 }
 
 #[derive(Debug)]
@@ -213,6 +214,8 @@ enum IdentifierRole {
 /// 表示从语言结构识别的标识符归属
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum IdentifierOwner {
+    /// 动态成员构造缺少可直接证明的声明角色
+    Unresolved,
     /// 语法或语言身份固定拼写，例如 Rust 类型上下文 `Self`
     LanguageFixed,
     /// 语言结构确定的约定名称，例如 Python 首位接收者
@@ -633,7 +636,24 @@ fn close_complete_source(
             "observed an ordinary comment sharing a physical line with code",
         );
     }
-    let identifier_subjects = declarations.len() as u32;
+    let unresolved: Vec<_> = declarations
+        .iter()
+        .filter(|declaration| declaration.owner == IdentifierOwner::Unresolved)
+        .map(|declaration| {
+            format!(
+                "{}@{}:{}",
+                declaration.name, declaration.line, declaration.column
+            )
+        })
+        .collect();
+    let identifier_state = if unresolved.is_empty() {
+        FactFamilyState::Complete(declarations.len() as u32)
+    } else {
+        FactFamilyState::Blocked(format!(
+            "unresolved identifier roles: {}",
+            unresolved.join(", ")
+        ))
+    };
     let documentation_state = if let Some(reason) = documentation_block_reason
     {
         FactFamilyState::Blocked(reason)
@@ -646,7 +666,7 @@ fn close_complete_source(
         findings.complete(),
         FamilyClosure::Observed {
             physical_lines,
-            identifier_subjects,
+            identifier: identifier_state,
             documentation: documentation_state,
             dependency: dependency_state,
         },
@@ -700,15 +720,7 @@ fn observe_structure(
         ));
     }
     let language = document.language;
-    let mut callables = Vec::new();
-    collect_callables(
-        language,
-        tree.root_node(),
-        &document.bytes,
-        false,
-        &mut callables,
-    );
-    let mut declarations = DeclarationReview::collect(
+    let (mut declarations, callables) = DeclarationReview::collect(
         language,
         tree.root_node(),
         &document.bytes,
@@ -1563,23 +1575,37 @@ impl<'source> DeclarationReview<'source> {
         language: Language,
         root: Node<'_>,
         source: &'source [u8],
-    ) -> Vec<Declaration> {
+    ) -> (Vec<Declaration>, Vec<Callable>) {
         let mut review = Self {
             language,
             source,
             output: Vec::new(),
+            callables: Vec::new(),
         };
-        review.collect_node(root);
-        review.output
+        review.collect_node(root, false);
+        (review.output, review.callables)
     }
 
     /// 执行一个声明节点及其后代的深度优先观察
-    fn collect_node(&mut self, node: Node<'_>) {
+    fn collect_node(&mut self, node: Node<'_>, nested: bool) {
+        let child_nested = observe_callable(
+            self.language,
+            node,
+            self.source,
+            nested,
+            &mut self.callables,
+        );
         match self.language {
             Language::Python => match node.kind() {
                 "function_definition" | "class_definition" => {
                     let role = if node.kind() == "function_definition" {
-                        IdentifierRole::Function
+                        if python_variant_member_decorator(node, self.source)
+                            == Some(true)
+                        {
+                            IdentifierRole::Constant
+                        } else {
+                            IdentifierRole::Function
+                        }
                     } else {
                         IdentifierRole::Type
                     };
@@ -1587,6 +1613,13 @@ impl<'source> DeclarationReview<'source> {
                         node.child_by_field_name("name"),
                         role,
                     );
+                    if node.kind() == "function_definition"
+                        && python_variant_member_decorator(node, self.source)
+                            .is_none()
+                        && let Some(declaration) = self.output.last_mut()
+                    {
+                        declaration.owner = IdentifierOwner::Unresolved;
+                    }
                     if let Some(parameters) =
                         node.child_by_field_name("type_parameters")
                     {
@@ -1604,6 +1637,26 @@ impl<'source> DeclarationReview<'source> {
                 "assignment" | "augmented_assignment" => {
                     if let Some(left) = node.child_by_field_name("left") {
                         let role = if node.kind() == "assignment"
+                            && node.child_by_field_name("right").is_some()
+                            && python_variant_class(node, self.source)
+                                .is_some()
+                        {
+                            if python_assignment_identity(node, self.source)
+                                .as_deref()
+                                == Some("enum.nonmember")
+                            {
+                                IdentifierRole::Value
+                            } else {
+                                IdentifierRole::Constant
+                            }
+                        } else if node.kind() == "assignment"
+                            && python_type_parameter_assignment(
+                                node,
+                                self.source,
+                            )
+                        {
+                            IdentifierRole::Type
+                        } else if node.kind() == "assignment"
                             && python_type_alias_assignment(node, self.source)
                         {
                             IdentifierRole::Alias
@@ -1616,12 +1669,26 @@ impl<'source> DeclarationReview<'source> {
                         };
                         let before = self.output.len();
                         self.push_python_binding_target(left, role);
-                        // `__all__` 只在模块体、`__slots__` 只在 class 体固定
+                        if role == IdentifierRole::Constant
+                            && !python_variant_member_is_resolved(
+                                node,
+                                self.source,
+                            )
+                        {
+                            for declaration in &mut self.output[before..] {
+                                declaration.owner =
+                                    IdentifierOwner::Unresolved;
+                            }
+                        }
+                        // 固定名称仍保留声明记录，只按已证明的归属排除命名检查
                         if self.output.len() == before + 1
                             && left.kind() == "identifier"
                             && let Some(binding) = self.output.last()
-                            && let Some(fixed) =
-                                python_fixed_binding_owner(node, &binding.name)
+                            && let Some(fixed) = python_fixed_binding_owner(
+                                node,
+                                &binding.name,
+                                self.source,
+                            )
                             && let Some(last) = self.output.last_mut()
                         {
                             last.owner = fixed;
@@ -1923,9 +1990,7 @@ impl<'source> DeclarationReview<'source> {
                     "parameter_declaration"
                     | "optional_parameter_declaration"
                     | "variadic_parameter_declaration" => {
-                        let name = node
-                            .child_by_field_name("declarator")
-                            .and_then(find_declarator_identifier);
+                        let name = parameter_binding(self.language, node);
                         let role = if node.parent().is_some_and(|parent| {
                             parent.kind() == "template_parameter_list"
                         }) {
@@ -1943,37 +2008,11 @@ impl<'source> DeclarationReview<'source> {
                             IdentifierRole::Value,
                         );
                     }
-                    "function_definition" => {
-                        if let Some(declarator) =
-                            node.child_by_field_name("declarator")
-                        {
-                            self.push_native_family_callable_declarations(
-                                declarator,
-                            );
-                        }
-                    }
-                    "declaration" | "field_declaration" => {
+                    "function_definition"
+                    | "declaration"
+                    | "field_declaration"
+                    | "for_range_loop" => {
                         self.push_native_family_value_declarations(node);
-                        if descendant_of_kind(node, "function_declarator")
-                            .is_some()
-                        {
-                            if let Some(declarator) =
-                                node.child_by_field_name("declarator")
-                            {
-                                self.push_native_family_callable_declarations(
-                                    declarator,
-                                );
-                            } else {
-                                let mut cursor = node.walk();
-                                for child in node.named_children(&mut cursor) {
-                                    if child.kind().contains("declarator") {
-                                        self.push_native_family_callable_declarations(
-                                        child,
-                                    );
-                                    }
-                                }
-                            }
-                        }
                     }
                     _ => {}
                 }
@@ -1981,7 +2020,7 @@ impl<'source> DeclarationReview<'source> {
         }
         let mut cursor = node.walk();
         for child in node.named_children(&mut cursor) {
-            self.collect_node(child);
+            self.collect_node(child, child_nested);
         }
     }
 }
@@ -2190,16 +2229,357 @@ fn python_is_module_assignment(node: Node<'_>) -> bool {
 /// 识别 Python 经典 TypeAlias 注解赋值
 fn python_type_alias_assignment(node: Node<'_>, source: &[u8]) -> bool {
     node.child_by_field_name("type")
-        .and_then(|carrier| carrier.utf8_text(source).ok())
-        .is_some_and(|text| {
-            matches!(text.trim(), "TypeAlias" | "typing.TypeAlias")
+        .and_then(|carrier| carrier.named_child(0))
+        .and_then(|reference| python_import_identity(reference, source))
+        .as_deref()
+        == Some("typing.TypeAlias")
+}
+
+/// 返回直接调用工厂的导入身份
+fn python_assignment_identity(
+    node: Node<'_>,
+    source: &[u8],
+) -> Option<String> {
+    node.child_by_field_name("right")
+        .filter(|value| value.kind() == "call")
+        .and_then(|value| value.child_by_field_name("function"))
+        .and_then(|function| python_import_identity(function, source))
+}
+
+/// 返回声明直接所属的原生枚举类
+fn python_variant_class<'tree>(
+    node: Node<'tree>,
+    source: &[u8],
+) -> Option<Node<'tree>> {
+    let statement = node
+        .parent()
+        .filter(|parent| {
+            matches!(
+                parent.kind(),
+                "expression_statement" | "decorated_definition"
+            )
         })
+        .unwrap_or(node);
+    statement
+        .parent()
+        .filter(|body| body.kind() == "block")
+        .and_then(|body| body.parent())
+        .filter(|class| class.kind() == "class_definition")
+        .filter(|class| {
+            python_class_has_native_base(
+                *class,
+                source,
+                &[
+                    "enum.Enum",
+                    "enum.IntEnum",
+                    "enum.StrEnum",
+                    "enum.Flag",
+                    "enum.IntFlag",
+                ],
+            )
+        })
+}
+
+/// 识别由直接原生成员装饰器建立的枚举声明
+fn python_variant_member_decorator(
+    node: Node<'_>,
+    source: &[u8],
+) -> Option<bool> {
+    let Some(class) = python_variant_class(node, source) else {
+        return Some(false);
+    };
+    if class.child_by_field_name("body").is_some_and(|body| {
+        python_statement_contains_binding(body, source, "_ignore_")
+    }) {
+        return None;
+    }
+    let Some(wrapper) = node
+        .parent()
+        .filter(|parent| parent.kind() == "decorated_definition")
+    else {
+        return Some(false);
+    };
+    let mut cursor = wrapper.walk();
+    let reference = wrapper
+        .named_children(&mut cursor)
+        .filter(|child| child.kind() == "decorator")
+        .filter_map(|decorator| decorator.named_child(0))
+        .next()?;
+    match python_import_identity(reference, source).as_deref() {
+        Some("enum.member") => Some(true),
+        Some(
+            "enum.nonmember"
+            | "builtins.staticmethod"
+            | "builtins.classmethod"
+            | "builtins.property",
+        ) => Some(false),
+        _ => None,
+    }
+}
+
+/// 返回赋值直接所属的 Python 类
+fn python_assignment_class(node: Node<'_>) -> Option<Node<'_>> {
+    node.parent()
+        .filter(|statement| statement.kind() == "expression_statement")
+        .and_then(|statement| statement.parent())
+        .filter(|body| body.kind() == "block")
+        .and_then(|body| body.parent())
+        .filter(|owner| owner.kind() == "class_definition")
+}
+
+/// 识别直接导入工厂创建的 Python 类型参数
+fn python_type_parameter_assignment(node: Node<'_>, source: &[u8]) -> bool {
+    node.child_by_field_name("left")
+        .is_some_and(|left| left.kind() == "identifier")
+        && python_assignment_identity(node, source).is_some_and(|identity| {
+            matches!(
+                identity.as_str(),
+                "typing.TypeVar" | "typing.ParamSpec" | "typing.TypeVarTuple"
+            )
+        })
+}
+
+/// 判断 Python 类是否直接继承已导入的原生基类
+fn python_class_has_native_base(
+    class: Node<'_>,
+    source: &[u8],
+    identities: &[&str],
+) -> bool {
+    let Some(base_arguments) = class.child_by_field_name("superclasses")
+    else {
+        return false;
+    };
+    let mut cursor = base_arguments.walk();
+    base_arguments.named_children(&mut cursor).any(|base| {
+        python_import_identity(base, source)
+            .is_some_and(|identity| identities.contains(&identity.as_str()))
+    })
+}
+
+/// 证明枚举赋值产生普通数据成员而不是未知的描述器或被忽略名称
+fn python_variant_member_is_resolved(node: Node<'_>, source: &[u8]) -> bool {
+    let has_excluded_names = python_assignment_class(node)
+        .and_then(|class| class.child_by_field_name("body"))
+        .is_some_and(|body| {
+            python_statement_contains_binding(body, source, "_ignore_")
+        });
+    if has_excluded_names
+        || node
+            .child_by_field_name("left")
+            .is_none_or(|left| left.kind() != "identifier")
+    {
+        return false;
+    }
+    node.child_by_field_name("right")
+        .is_some_and(|value| match value.kind() {
+            "integer"
+            | "float"
+            | "string"
+            | "concatenated_string"
+            | "true"
+            | "false"
+            | "none"
+            | "tuple"
+            | "list"
+            | "dictionary"
+            | "set" => true,
+            "unary_operator" => value.named_child(0).is_some_and(|argument| {
+                matches!(argument.kind(), "integer" | "float")
+            }),
+            "call" => value
+                .child_by_field_name("function")
+                .and_then(|function| python_import_identity(function, source))
+                .is_some_and(|identity| {
+                    matches!(identity.as_str(), "enum.auto" | "enum.member")
+                }),
+            _ => false,
+        })
+}
+
+/// 从直接导入和之前的绑定确定一个 Python 引用的来源
+///
+/// 只沿模块和类体查找，函数局部、条件导入及赋值别名不展开
+fn python_import_identity(
+    reference: Node<'_>,
+    source: &[u8],
+) -> Option<String> {
+    let (binding, member) = match reference.kind() {
+        "identifier" => (reference.utf8_text(source).ok()?, None),
+        "attribute" => (
+            reference
+                .child_by_field_name("object")?
+                .utf8_text(source)
+                .ok()?,
+            Some(
+                reference
+                    .child_by_field_name("attribute")?
+                    .utf8_text(source)
+                    .ok()?,
+            ),
+        ),
+        _ => return None,
+    };
+    let mut item = reference;
+    while let Some(parent) = item.parent() {
+        if matches!(parent.kind(), "function_definition" | "lambda") {
+            return None;
+        }
+        if parent.kind() == "block"
+            && parent
+                .parent()
+                .is_none_or(|owner| owner.kind() != "class_definition")
+        {
+            return None;
+        }
+        if parent.kind() == "module"
+            || parent.kind() == "block"
+                && parent
+                    .parent()
+                    .is_some_and(|owner| owner.kind() == "class_definition")
+        {
+            let mut preceding = item.prev_named_sibling();
+            while let Some(statement) = preceding {
+                if matches!(
+                    statement.kind(),
+                    "import_statement" | "import_from_statement"
+                ) {
+                    if let Some(identity) = python_direct_import_binding(
+                        statement, source, binding,
+                    ) {
+                        return identity.map(|identity| {
+                            member.map_or_else(
+                                || identity.clone(),
+                                |member| format!("{identity}.{member}"),
+                            )
+                        });
+                    }
+                } else if python_statement_contains_binding(
+                    statement, source, binding,
+                ) || member.is_some_and(|member| {
+                    python_statement_contains_binding(
+                        statement,
+                        source,
+                        &format!("{binding}.{member}"),
+                    )
+                }) {
+                    return None;
+                }
+                preceding = statement.prev_named_sibling();
+            }
+        }
+        item = parent;
+    }
+    // 只有查完可证明的词法作用域且没有绑定时，才能回退到内置装饰器。
+    (member.is_none()
+        && matches!(binding, "staticmethod" | "classmethod" | "property"))
+    .then(|| format!("builtins.{binding}"))
+}
+
+/// 读取一条直接导入对指定本地名称建立的来源
+///
+/// 外层空值表示未绑定，内层空值表示通配导入使来源不确定
+fn python_direct_import_binding(
+    node: Node<'_>,
+    source: &[u8],
+    binding: &str,
+) -> Option<Option<String>> {
+    let module = node
+        .child_by_field_name("module_name")
+        .and_then(|module| module.utf8_text(source).ok());
+    let mut cursor = node.walk();
+    for declaration in node.children_by_field_name("name", &mut cursor) {
+        let name = declaration
+            .child_by_field_name("name")
+            .unwrap_or(declaration)
+            .utf8_text(source)
+            .ok()?;
+        let local = declaration
+            .child_by_field_name("alias")
+            .and_then(|alias| alias.utf8_text(source).ok())
+            .unwrap_or_else(|| name.split('.').next().unwrap_or(name));
+        if local == binding {
+            let identity = module.map_or_else(
+                || name.to_owned(),
+                |module| format!("{module}.{name}"),
+            );
+            return Some(Some(identity));
+        }
+    }
+    let mut cursor = node.walk();
+    node.named_children(&mut cursor)
+        .any(|child| child.kind() == "wildcard_import")
+        .then_some(None)
+}
+
+/// 判断语句是否可能遮蔽一个直接导入的名称
+fn python_statement_contains_binding(
+    node: Node<'_>,
+    source: &[u8],
+    binding: &str,
+) -> bool {
+    let target = match node.kind() {
+        "function_definition" | "class_definition" => {
+            return node.child_by_field_name("name").is_some_and(|name| {
+                name.utf8_text(source).ok() == Some(binding)
+            });
+        }
+        "import_statement" | "import_from_statement" => {
+            return python_direct_import_binding(node, source, binding)
+                .is_some();
+        }
+        "assignment"
+        | "augmented_assignment"
+        | "for_statement"
+        | "for_in_clause" => node.child_by_field_name("left"),
+        "named_expression" => node.child_by_field_name("name"),
+        "as_pattern_target" | "delete_statement" | "case_pattern" => {
+            Some(node)
+        }
+        "type_alias_statement" => node.child_by_field_name("left"),
+        _ => None,
+    };
+    if target.is_some_and(|target| {
+        python_target_contains_binding(target, source, binding)
+    }) {
+        return true;
+    }
+    let mut cursor = node.walk();
+    node.named_children(&mut cursor)
+        .any(|child| python_statement_contains_binding(child, source, binding))
+}
+
+/// 检查 Python 绑定模式是否包含指定名称或精确的属性写入
+fn python_target_contains_binding(
+    node: Node<'_>,
+    source: &[u8],
+    binding: &str,
+) -> bool {
+    match node.kind() {
+        "identifier" => node.utf8_text(source).ok() == Some(binding),
+        "attribute" => {
+            binding.split_once('.').is_some_and(|(object, member)| {
+                node.child_by_field_name("object").is_some_and(|name| {
+                    name.utf8_text(source).ok() == Some(object)
+                }) && node.child_by_field_name("attribute").is_some_and(
+                    |name| name.utf8_text(source).ok() == Some(member),
+                )
+            })
+        }
+        "subscript" => false,
+        _ => {
+            let mut cursor = node.walk();
+            node.named_children(&mut cursor).any(|child| {
+                python_target_contains_binding(child, source, binding)
+            })
+        }
+    }
 }
 
 /// 返回 Python 精确结构固定绑定的归属
 fn python_fixed_binding_owner(
     node: Node<'_>,
     name: &str,
+    source: &[u8],
 ) -> Option<IdentifierOwner> {
     let statement = node
         .parent()
@@ -2212,6 +2592,22 @@ fn python_fixed_binding_owner(
             if body
                 .parent()
                 .is_some_and(|owner| owner.kind() == "class_definition") =>
+        {
+            Some(IdentifierOwner::LanguageFixed)
+        }
+        ("_fields_", "block")
+            if python_assignment_class(node).is_some_and(|class| {
+                python_class_has_native_base(
+                    class,
+                    source,
+                    &["ctypes.Structure", "ctypes.Union"],
+                )
+            }) =>
+        {
+            Some(IdentifierOwner::LanguageFixed)
+        }
+        ("_ignore_" | "_order_", "block")
+            if python_variant_class(node, source).is_some() =>
         {
             Some(IdentifierOwner::LanguageFixed)
         }
@@ -2259,7 +2655,10 @@ impl DeclarationReview<'_> {
         let mut cursor = parameters.walk();
         let mut first_parameter = true;
         for parameter in parameters.named_children(&mut cursor) {
-            let name = python_parameter_identifier(parameter);
+            if parameter_is_fixed(parameter) {
+                continue;
+            }
+            let name = parameter_binding(self.language, parameter);
             if first_parameter {
                 first_parameter = false;
                 if let Some(expected) = excluded_receiver {
@@ -2337,6 +2736,9 @@ fn python_receiver_spelling<'source>(
     node: Node<'_>,
     source: &'source [u8],
 ) -> Option<&'source str> {
+    if python_variant_member_decorator(node, source) != Some(false) {
+        return None;
+    }
     let wrapper = node
         .parent()
         .filter(|parent| parent.kind() == "decorated_definition");
@@ -2348,19 +2750,41 @@ fn python_receiver_spelling<'source>(
     if !direct_class_member {
         return None;
     }
-    let Some(wrapper) = wrapper else {
-        return Some("self");
-    };
-    let mut cursor = wrapper.walk();
-    let decorators: Vec<_> = wrapper
+    let mut cursor = item.walk();
+    let mut decorators = Vec::new();
+    for decorator in item
         .named_children(&mut cursor)
         .filter(|child| child.kind() == "decorator")
-        .filter_map(|child| child.utf8_text(source).ok())
-        .collect();
-    if decorators.contains(&"@classmethod") {
+    {
+        let reference = decorator.named_child(0)?;
+        let identity = python_import_identity(reference, source);
+        if reference.utf8_text(source).is_ok_and(|name| {
+            matches!(name, "staticmethod" | "classmethod" | "property")
+                && identity.as_deref()
+                    != Some(format!("builtins.{name}").as_str())
+        }) {
+            return None;
+        }
+        decorators.extend(identity);
+    }
+    if decorators
+        .iter()
+        .any(|identity| identity == "builtins.classmethod")
+    {
         Some("cls")
-    } else if decorators.contains(&"@staticmethod") {
+    } else if decorators
+        .iter()
+        .any(|identity| identity == "builtins.staticmethod")
+    {
         None
+    } else if node
+        .child_by_field_name("name")
+        .and_then(|name| name.utf8_text(source).ok())
+        .is_some_and(|name| {
+            matches!(name, "__init_subclass__" | "__class_getitem__")
+        })
+    {
+        Some("cls")
     } else {
         Some("self")
     }
@@ -2487,10 +2911,8 @@ impl DeclarationReview<'_> {
     fn push_rust_parameter_identifiers(&mut self, parameters: Node<'_>) {
         let mut cursor = parameters.walk();
         for parameter in parameters.named_children(&mut cursor) {
-            if parameter.kind() == "self_parameter" {
-                continue;
-            }
-            if let Some(pattern) = parameter.child_by_field_name("pattern") {
+            if let Some(pattern) = parameter_binding(self.language, parameter)
+            {
                 self.push_rust_binding_pattern(pattern);
             }
         }
@@ -2567,43 +2989,24 @@ impl DeclarationReview<'_> {
             last.owner = IdentifierOwner::Discard;
         }
     }
+}
 
-    /// 提取 C/C++ 函数及其参数的可审查名称
-    fn push_native_family_callable_declarations(
-        &mut self,
-        declarator: Node<'_>,
-    ) {
-        if let Some(function) =
-            descendant_of_kind(declarator, "function_declarator")
-        {
-            let name = function
-                .child_by_field_name("declarator")
-                .and_then(find_declarator_identifier);
-            if self.language != Language::Cplusplus
-                || !cplusplus_fixed_callable_spelling(name, self.source)
-            {
-                self.push_named_declaration(name, IdentifierRole::Function);
-            }
-            if let Some(parameters) =
-                function.child_by_field_name("parameters")
-            {
-                let mut cursor = parameters.walk();
-                for parameter in parameters.named_children(&mut cursor) {
-                    if !matches!(
-                        parameter.kind(),
-                        "parameter_declaration"
-                            | "optional_parameter_declaration"
-                    ) {
-                        continue;
-                    }
-                    let name = parameter
-                        .child_by_field_name("declarator")
-                        .and_then(find_declarator_identifier);
-                    self.push_named_declaration(name, IdentifierRole::Value);
-                }
-            }
+/// 沿声明名称向外确定对象首先是函数还是指针等派生对象
+fn native_family_function_declarator(node: Node<'_>) -> Option<Node<'_>> {
+    let declarator = node.child_by_field_name("declarator").unwrap_or(node);
+    let mut current = find_declarator_identifier(declarator)?;
+    while current.id() != node.id() {
+        let parent = current.parent()?;
+        match parent.kind() {
+            "function_declarator" => return Some(parent),
+            "pointer_declarator"
+            | "reference_declarator"
+            | "array_declarator" => return None,
+            _ => {}
         }
+        current = parent;
     }
+    None
 }
 
 /// 识别 C++ 构造、析构和运算符的固定名称
@@ -2647,7 +3050,7 @@ fn cplusplus_fixed_callable_spelling(
 }
 
 impl DeclarationReview<'_> {
-    /// 提取 C/C++ 变量、常量和数据成员名称
+    /// 统一观察 C/C++ 函数、变量、常量及范围绑定
     fn push_native_family_value_declarations(
         &mut self,
         declaration: Node<'_>,
@@ -2660,24 +3063,46 @@ impl DeclarationReview<'_> {
             let is_declarator = declaration.field_name_for_child(index)
                 == Some("declarator")
                 || child.kind() == "init_declarator"
-                || (child.kind().ends_with("declarator")
-                    && child.kind() != "function_declarator");
-            if !is_declarator
-                || descendant_of_kind(child, "function_declarator").is_some()
-            {
+                || child.kind().ends_with("declarator");
+            if !is_declarator {
                 continue;
             }
             if let Some(binding) =
                 descendant_of_kind(child, "structured_binding_declarator")
             {
-                self.push_identifier_descendants(
-                    binding,
-                    IdentifierRole::Value,
+                let constant = native_family_declaration_is_constant(
+                    declaration,
+                    child,
+                    self.source,
                 );
+                let role = if constant {
+                    IdentifierRole::Constant
+                } else {
+                    IdentifierRole::Value
+                };
+                let before = self.output.len();
+                self.push_identifier_descendants(binding, role);
+                if constant
+                    && !cplusplus_constant_binding_is_proven(
+                        declaration,
+                        self.source,
+                    )
+                {
+                    for declaration in &mut self.output[before..] {
+                        declaration.owner = IdentifierOwner::Unresolved;
+                    }
+                }
                 continue;
             }
             let name = find_declarator_identifier(child);
             if self.language == Language::Cplusplus
+                && cplusplus_fixed_callable_spelling(name, self.source)
+            {
+                continue;
+            }
+            if native_family_function_declarator(child).is_some() {
+                self.push_named_declaration(name, IdentifierRole::Function);
+            } else if self.language == Language::Cplusplus
                 && cplusplus_is_private_non_static_data_member(
                     declaration,
                     self.source,
@@ -2687,6 +3112,7 @@ impl DeclarationReview<'_> {
             } else {
                 let role = if native_family_declaration_is_constant(
                     declaration,
+                    child,
                     self.source,
                 ) {
                     IdentifierRole::Constant
@@ -2699,18 +3125,96 @@ impl DeclarationReview<'_> {
     }
 }
 
+/// 只用紧邻同作用域的原生数组声明证明范围元素不含 tuple 或 mutable 成员
+fn cplusplus_constant_binding_is_proven(
+    node: Node<'_>,
+    source: &[u8],
+) -> bool {
+    if node.kind() != "for_range_loop"
+        || node.child_by_field_name("initializer").is_some()
+        || node
+            .parent()
+            .is_none_or(|parent| parent.kind() != "compound_statement")
+    {
+        return false;
+    }
+    let Some(right) = node
+        .child_by_field_name("right")
+        .filter(|right| right.kind() == "identifier")
+    else {
+        return false;
+    };
+    let mut preceding = node.prev_named_sibling();
+    while preceding.is_some_and(|node| node.kind() == "comment") {
+        preceding = preceding.and_then(|node| node.prev_named_sibling());
+    }
+    let Some(declaration) =
+        preceding.filter(|node| node.kind() == "declaration")
+    else {
+        return false;
+    };
+    if !declaration.child_by_field_name("type").is_some_and(|kind| {
+        matches!(kind.kind(), "primitive_type" | "sized_type_specifier")
+    }) {
+        return false;
+    }
+    let mut cursor = declaration.walk();
+    declaration
+        .children_by_field_name("declarator", &mut cursor)
+        .any(|declarator| {
+            if find_declarator_identifier(declarator)
+                .and_then(|name| name.utf8_text(source).ok())
+                != right.utf8_text(source).ok()
+            {
+                return false;
+            }
+            let mut current = Some(declarator);
+            let mut count = 0;
+            while let Some(node) = current {
+                match node.kind() {
+                    "array_declarator" => count += 1,
+                    "init_declarator" | "identifier" => {}
+                    _ => return false,
+                }
+                current = node.child_by_field_name("declarator");
+            }
+            count >= 2
+        })
+}
+
 /// 判断原生声明是否直接携带不可变对象说明符
 fn native_family_declaration_is_constant(
     declaration: Node<'_>,
+    declarator: Node<'_>,
     source: &[u8],
 ) -> bool {
-    let mut cursor = declaration.walk();
-    declaration.named_children(&mut cursor).any(|child| {
-        matches!(child.kind(), "type_qualifier" | "storage_class_specifier")
-            && child
-                .utf8_text(source)
-                .is_ok_and(|text| matches!(text, "const" | "constexpr"))
-    })
+    let matches_type_spelling = |node: Node<'_>, spelling| {
+        let mut cursor = node.walk();
+        node.named_children(&mut cursor).any(|child| {
+            matches!(
+                child.kind(),
+                "type_qualifier" | "storage_class_specifier"
+            ) && child.utf8_text(source).ok() == Some(spelling)
+        })
+    };
+    if matches_type_spelling(declaration, "constexpr") {
+        return true;
+    }
+    let mut current = find_declarator_identifier(declarator);
+    while let Some(node) = current {
+        match node.kind() {
+            "pointer_declarator" => {
+                return matches_type_spelling(node, "const");
+            }
+            "reference_declarator" => return false,
+            _ => {}
+        }
+        if node.id() == declarator.id() {
+            break;
+        }
+        current = node.parent();
+    }
+    matches_type_spelling(declaration, "const")
 }
 
 /// 判断 C++ 声明是否为私有非静态数据成员
@@ -2719,7 +3223,7 @@ fn cplusplus_is_private_non_static_data_member(
     source: &[u8],
 ) -> bool {
     if declaration.kind() != "field_declaration"
-        || descendant_of_kind(declaration, "function_declarator").is_some()
+        || native_family_function_declarator(declaration).is_some()
         || descendant_of_kind(declaration, "storage_class_specifier").is_some()
     {
         return false;
@@ -2753,7 +3257,8 @@ fn judge_identifier(
     declaration: &Declaration,
 ) -> Option<RuleOperator> {
     match declaration.owner {
-        IdentifierOwner::LanguageFixed
+        IdentifierOwner::Unresolved
+        | IdentifierOwner::LanguageFixed
         | IdentifierOwner::ProfileFixed
         | IdentifierOwner::Discard => return None,
         IdentifierOwner::AuthorChosen => {}
@@ -3008,23 +3513,57 @@ fn source_admission(
 
 /// 从语法树收集需要文档的声明及其相关事实
 #[allow(clippy::too_many_arguments)]
-fn collect_callables(
+fn observe_callable(
     language: Language,
     node: Node<'_>,
     source: &[u8],
     nested: bool,
     output: &mut Vec<Callable>,
-) {
+) -> bool {
+    if matches!(language, Language::ProceduralSource | Language::Cplusplus)
+        && matches!(node.kind(), "declaration" | "field_declaration")
+    {
+        let mut cursor = node.walk();
+        let mut observed = false;
+        for declarator in
+            node.children_by_field_name("declarator", &mut cursor)
+        {
+            if native_family_function_declarator(declarator).is_some() {
+                observe_callable_declaration(
+                    language,
+                    node,
+                    Some(declarator),
+                    source,
+                    nested,
+                    output,
+                );
+                observed = true;
+            }
+        }
+        if observed {
+            return nested;
+        }
+    }
+    observe_callable_declaration(language, node, None, source, nested, output)
+}
+
+/// 按独立 declarator 收集函数事实并保留共同声明的文档归属
+fn observe_callable_declaration(
+    language: Language,
+    node: Node<'_>,
+    declarator: Option<Node<'_>>,
+    source: &[u8],
+    nested: bool,
+    output: &mut Vec<Callable>,
+) -> bool {
+    let subject = declarator.unwrap_or(node);
     let is_named_callable = match language {
         Language::Python => node.kind() == "function_definition",
         Language::Rust => {
             matches!(node.kind(), "function_item" | "function_signature_item")
         }
         Language::ProceduralSource | Language::Cplusplus => {
-            node.kind() == "function_definition"
-                || (matches!(node.kind(), "declaration" | "field_declaration")
-                    && descendant_of_kind(node, "function_declarator")
-                        .is_some())
+            node.kind() == "function_definition" || declarator.is_some()
         }
     };
     let is_python_class =
@@ -3052,10 +3591,10 @@ fn collect_callables(
         if language == Language::Rust && rust_attribute.is_none() {
             rust_attribute = Some(observe_rust_attribute(node, source));
         }
-        let name = documentation_subject_name(language, node, source);
+        let name = documentation_subject_name(language, subject, source);
         let identity_unresolved = name.is_none();
         let name = name.unwrap_or_else(|| "<unknown>".to_owned());
-        let point = node.start_position();
+        let point = subject.start_position();
         let decorated_visibility = (language == Language::Python
             && is_named_callable)
             .then(|| observe_python_decorated_visibility(node, source, &name))
@@ -3085,12 +3624,12 @@ fn collect_callables(
             rust_attribute.as_ref(),
         );
         let (parameters, parameters_complete) =
-            callable_parameters(language, node, source);
+            callable_parameters(language, subject, source);
         let (
             template_parameters,
             template_parameters_complete,
             requires_template_parameters,
-        ) = cplusplus_template_parameters(language, node, source);
+        ) = cplusplus_template_parameters(language, node, subject, source);
         output.push(Callable {
             language,
             name,
@@ -3103,21 +3642,22 @@ fn collect_callables(
             template_parameters,
             template_parameters_complete,
             requires_template_parameters,
-            return_shape: callable_return_shape(language, node, source),
+            return_shape: if declarator.is_some() {
+                native_family_return_shape(language, node, declarator, source)
+            } else {
+                callable_return_shape(language, node, source)
+            },
             carrier,
             requires_safety: language == Language::Rust
                 && rust_requires_safety(node),
             requires_effect: language == Language::Cplusplus
-                && cplusplus_requires_effect(node, source),
+                && cplusplus_requires_effect(subject, source),
             carrier_unresolved: rust_attribute
                 .as_ref()
                 .is_some_and(|facts| facts.nonliteral_documentation),
         });
     }
-    let mut cursor = node.walk();
-    for child in node.named_children(&mut cursor) {
-        collect_callables(language, child, source, child_nested, output);
-    }
+    child_nested
 }
 
 /// 判断 Rust 非函数声明是否需要文档
@@ -3266,7 +3806,7 @@ fn native_family_documentation_capability_needed(node: Node<'_>) -> bool {
             | "preproc_def"
             | "preproc_function_def"
     ) || (node.kind() == "field_declaration"
-        && descendant_of_kind(node, "function_declarator").is_none())
+        && native_family_function_declarator(node).is_none())
 }
 
 /// 提取文档所属声明的名称
@@ -3300,28 +3840,28 @@ fn callable_parameters(
         Language::Python | Language::Rust => {
             node.child_by_field_name("parameters")
         }
-        Language::ProceduralSource | Language::Cplusplus => node
-            .child_by_field_name("declarator")
-            .and_then(|declarator| {
-                descendant_of_kind(declarator, "parameter_list")
-            })
-            .or_else(|| descendant_of_kind(node, "parameter_list")),
+        Language::ProceduralSource | Language::Cplusplus => {
+            native_family_function_declarator(node)
+                .and_then(|declarator| {
+                    declarator.child_by_field_name("parameters")
+                })
+                .or_else(|| {
+                    node.child_by_field_name("declarator")
+                        .filter(|declarator| {
+                            declarator.kind() == "operator_cast"
+                        })
+                        .and_then(|declarator| {
+                            descendant_of_kind(declarator, "parameter_list")
+                        })
+                })
+        }
     };
     let Some(parameters) = parameters else {
         return (Vec::new(), false);
     };
     let mut names = Vec::new();
-    let complete = match language {
-        Language::Python => {
-            python_parameter_names(parameters, source, &mut names)
-        }
-        Language::Rust => rust_parameter_names(parameters, source, &mut names),
-        Language::ProceduralSource | Language::Cplusplus => {
-            native_family_parameter_names(
-                language, parameters, source, &mut names,
-            )
-        }
-    };
+    let complete =
+        observe_parameter_names(language, parameters, source, &mut names);
     if language == Language::Python
         && let Some(receiver) = python_receiver_spelling(node, source)
         && names.first().is_some_and(|name| name == receiver)
@@ -3339,13 +3879,14 @@ fn callable_parameters(
 fn cplusplus_template_parameters(
     language: Language,
     node: Node<'_>,
+    subject: Node<'_>,
     source: &[u8],
 ) -> (Vec<String>, bool, bool) {
     if language != Language::Cplusplus {
         return (Vec::new(), true, false);
     }
     let has_abbreviated_parameter =
-        cplusplus_has_placeholder_auto_parameter(node);
+        cplusplus_has_placeholder_auto_parameter(subject);
     let Some(template) = cplusplus_template_declaration(node) else {
         return (
             Vec::new(),
@@ -3357,7 +3898,10 @@ fn cplusplus_template_parameters(
         return (Vec::new(), false, true);
     };
     let mut cursor = parameters.walk();
-    let items: Vec<_> = parameters.named_children(&mut cursor).collect();
+    let items: Vec<_> = parameters
+        .named_children(&mut cursor)
+        .filter(|child| child.kind() != "comment")
+        .collect();
     if items.is_empty() {
         return (Vec::new(), false, true);
     }
@@ -3437,74 +3981,54 @@ fn cplusplus_template_parameter_name(parameter: Node<'_>) -> Option<Node<'_>> {
     }
 }
 
-/// 提取可稳定命名的 Python 参数
-fn python_parameter_names(
-    parameters: Node<'_>,
-    source: &[u8],
-    names: &mut Vec<String>,
-) -> bool {
-    let mut complete = true;
-    let mut cursor = parameters.walk();
-    for parameter in parameters.named_children(&mut cursor) {
-        if matches!(
-            parameter.kind(),
-            "keyword_separator" | "positional_separator"
-        ) {
-            continue;
-        }
-        if let Some(identifier) = python_parameter_identifier(parameter)
-            && let Ok(text) = identifier.utf8_text(source)
-        {
-            names.push(text.to_owned());
-        } else {
-            complete = false;
-        }
-    }
-    complete
+/// 统一排除参数表中不产生作者绑定的位置
+fn parameter_is_fixed(parameter: Node<'_>) -> bool {
+    matches!(
+        parameter.kind(),
+        "keyword_separator"
+            | "positional_separator"
+            | "self_parameter"
+            | "attribute_item"
+            | "comment"
+            | "line_comment"
+            | "block_comment"
+    )
 }
 
-/// 提取可稳定命名的 Rust 参数
-fn rust_parameter_names(
-    parameters: Node<'_>,
-    source: &[u8],
-    names: &mut Vec<String>,
-) -> bool {
-    let mut complete = true;
-    let mut cursor = parameters.walk();
-    for parameter in parameters.named_children(&mut cursor) {
-        match parameter.kind() {
-            "self_parameter" | "attribute_item" => {}
-            // variadic_parameter 只有 identifier 模式才暴露稳定名；
-            // 匿名 `...` 保持参数不完整
-            "parameter" | "variadic_parameter" => {
-                let candidate = parameter
-                    .child_by_field_name("pattern")
-                    .filter(|pattern| pattern.kind() == "identifier");
-                if let Some(identifier) = candidate
-                    && let Ok(text) = identifier.utf8_text(source)
-                {
-                    names.push(text.to_owned());
-                } else {
-                    complete = false;
-                }
-            }
-            _ => complete = false,
-        }
+/// 统一提供原生参数的绑定事实，保留 Rust 模式与稳定参数名的区别
+fn parameter_binding(
+    language: Language,
+    parameter: Node<'_>,
+) -> Option<Node<'_>> {
+    match language {
+        Language::Python => python_parameter_identifier(parameter),
+        Language::Rust => parameter.child_by_field_name("pattern"),
+        Language::ProceduralSource | Language::Cplusplus => parameter
+            .child_by_field_name("declarator")
+            .and_then(find_declarator_identifier),
     }
-    complete
 }
 
-/// 提取可稳定命名的 C 家族参数
-fn native_family_parameter_names(
+/// 从同一参数绑定来源派生文档名称与单调的完整性
+fn observe_parameter_names(
     language: Language,
     parameters: Node<'_>,
     source: &[u8],
     names: &mut Vec<String>,
 ) -> bool {
     let mut cursor = parameters.walk();
-    let items: Vec<_> = parameters.named_children(&mut cursor).collect();
+    let items: Vec<_> = parameters
+        .named_children(&mut cursor)
+        .filter(|child| !parameter_is_fixed(*child))
+        .collect();
     if items.is_empty() {
-        return language == Language::Cplusplus;
+        // C 空括号没有原型信息；C++ 空括号以及 Python/Rust 空参数表有
+        // 完整含义，裸变参仍由下方的匿名 token 检查保留缺口
+        let mut cursor = parameters.walk();
+        return language != Language::ProceduralSource
+            && !parameters
+                .children(&mut cursor)
+                .any(|child| child.kind() == "...");
     }
     if items.len() == 1
         && items[0].kind() == "parameter_declaration"
@@ -3525,25 +4049,15 @@ fn native_family_parameter_names(
             .any(|child| child.kind() == "...")
     };
     for parameter in items {
-        match parameter.kind() {
-            // 命名参数与 C++ 命名参数包都暴露 declarator 内稳定名；匿名
-            // 参数或匿名包置为不完整，且完整性单调：后续命名参数不得
-            // 恢复先前的匿名缺口
-            "parameter_declaration"
-            | "optional_parameter_declaration"
-            | "variadic_parameter_declaration" => {
-                let candidate = parameter
-                    .child_by_field_name("declarator")
-                    .and_then(find_declarator_identifier);
-                if let Some(identifier) = candidate
-                    && let Ok(text) = identifier.utf8_text(source)
-                {
-                    names.push(text.to_owned());
-                } else {
-                    complete = false;
-                }
-            }
-            _ => complete = false,
+        if let Some(identifier) = parameter_binding(language, parameter)
+            .filter(|binding| {
+                matches!(binding.kind(), "identifier" | "field_identifier")
+            })
+            && let Ok(text) = identifier.utf8_text(source)
+        {
+            names.push(text.to_owned());
+        } else {
+            complete = false;
         }
     }
     complete
@@ -3572,7 +4086,12 @@ fn callable_return_shape(
         Language::Python => python_return_shape(node, source),
         Language::Rust => rust_return_shape(node, source),
         Language::ProceduralSource | Language::Cplusplus => {
-            native_family_return_shape(language, node, source)
+            native_family_return_shape(
+                language,
+                node,
+                node.child_by_field_name("declarator"),
+                source,
+            )
         }
     }
 }
@@ -3632,12 +4151,14 @@ fn direct_return_shape(
 fn native_family_return_shape(
     language: Language,
     node: Node<'_>,
+    declarator: Option<Node<'_>>,
     source: &[u8],
 ) -> ReturnShape {
-    if native_family_proves_never(language, node, source) {
+    if native_family_proves_never(language, node, declarator, source) {
         return ReturnShape::Never;
     }
-    let function_declarator = descendant_of_kind(node, "function_declarator");
+    let subject = declarator.unwrap_or(node);
+    let function_declarator = native_family_function_declarator(subject);
     if language == Language::Cplusplus
         && let Some(trailing) = function_declarator.and_then(|declarator| {
             direct_child_of_kind(declarator, "trailing_return_type")
@@ -3653,22 +4174,21 @@ fn native_family_return_shape(
         );
     }
     if language == Language::Cplusplus
-        && let Some(target) = descendant_of_kind(node, "operator_cast")
+        && let Some(target) = descendant_of_kind(subject, "operator_cast")
         && let Some(kind) = target.child_by_field_name("type")
     {
         return native_family_type_shape(language, kind, None, source);
     }
     let Some(kind) = node.child_by_field_name("type") else {
         return if language == Language::Cplusplus
-            && cplusplus_constructor_or_destructor(node, source)
+            && cplusplus_constructor_or_destructor(subject, source)
         {
             ReturnShape::NoValue
         } else {
             ReturnShape::Unknown
         };
     };
-    let result_declarator = node.child_by_field_name("declarator");
-    native_family_type_shape(language, kind, result_declarator, source)
+    native_family_type_shape(language, kind, declarator, source)
 }
 
 /// 判断 C/C++ 声明是否直接标明不会返回
@@ -3679,6 +4199,7 @@ fn native_family_return_shape(
 fn native_family_proves_never(
     language: Language,
     node: Node<'_>,
+    declarator: Option<Node<'_>>,
     source: &[u8],
 ) -> bool {
     let law = &profile_law(language.key()).return_surface;
@@ -3706,8 +4227,12 @@ fn native_family_proves_never(
                 return true;
             }
         }
+        surface = if declaration {
+            declarator
+        } else {
+            current.child_by_field_name("declarator")
+        };
         declaration = false;
-        surface = current.child_by_field_name("declarator");
     }
     false
 }

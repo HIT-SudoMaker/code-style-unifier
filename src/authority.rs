@@ -622,11 +622,13 @@ impl AuthorityIndexes {
             .collect();
         let mut quantity_names = BTreeMap::new();
         let mut insert = |spelling: String, disposition| {
-            if quantity_names.insert(spelling, disposition).is_some() {
-                return Err(ReviewRejection::new(
-                    "authority.quantity",
-                    "quantity spelling has multiple decompositions",
-                ));
+            for name in [spelling.to_ascii_uppercase(), spelling] {
+                if quantity_names.insert(name, disposition).is_some() {
+                    return Err(ReviewRejection::new(
+                        "authority.quantity",
+                        "quantity spelling has multiple decompositions",
+                    ));
+                }
             }
             Ok(())
         };
@@ -648,12 +650,17 @@ impl AuthorityIndexes {
                     .allowed
                     .into_iter()
                     .chain(STANDARD_LAW.prefix.forbidden)
-                    .map(str::to_owned),
+                    .flat_map(|marker| {
+                        [marker.to_owned(), marker.to_ascii_uppercase()]
+                    }),
             ),
             suffix_markers: ordered_markers(
-                representation_suffixes
-                    .iter()
-                    .map(|suffix| format!("_{suffix}")),
+                representation_suffixes.iter().flat_map(|suffix| {
+                    [
+                        format!("_{suffix}"),
+                        format!("_{}", suffix.to_ascii_uppercase()),
+                    ]
+                }),
             ),
             quantity_names,
         })
@@ -843,6 +850,9 @@ impl CompiledAuthority {
     }
     /// 返回 Python 顶层模块根所属的项目分类层
     pub(crate) fn python_dependency_tier(&self, key: &str) -> Option<u8> {
+        if key.starts_with('.') {
+            return Some(2);
+        }
         let root = key.split('.').next().unwrap_or(key);
         [
             (&self.facts.dependency.python_standard_library, 0_u8),
@@ -943,7 +953,9 @@ impl CompiledAuthority {
         let (invalid_prefix, base_name) = match match_prefix(name) {
             None => (false, name),
             Some((prefix, remainder))
-                if STANDARD_LAW.prefix.forbidden.contains(&prefix) =>
+                if STANDARD_LAW.prefix.forbidden.iter().any(|forbidden| {
+                    prefix.eq_ignore_ascii_case(forbidden)
+                }) =>
             {
                 (true, remainder)
             }
@@ -1341,7 +1353,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
     profiles: [
         ProfileLaw {
             identity: "python",
-            observation_method: "tree-sitter-python@0.25.0+direct-source-facts-v3",
+            observation_method: "tree-sitter-python@0.25.0+direct-source-facts",
             documentation: DocumentationLaw {
                 carrier: DocumentationCarrierLaw::PythonSuite,
                 summary: SummaryLocation::FirstLine,
@@ -1376,7 +1388,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             },
             dependency: DependencyProfileLaw::Python {
                 scope_revision: 2,
-                order_revision: 2,
+                order_revision: 3,
                 within_tier_blank_lines: 0,
                 cross_tier_blank_lines: 1,
                 scope_blocked: "Python import outside module scope or exact TYPE_CHECKING block needs Authority",
@@ -1388,7 +1400,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
         },
         ProfileLaw {
             identity: "rust",
-            observation_method: "tree-sitter-rust@0.24.2+direct-source-facts-v3",
+            observation_method: "tree-sitter-rust@0.24.2+direct-source-facts",
             documentation: DocumentationLaw {
                 carrier: DocumentationCarrierLaw::RustOuter,
                 summary: SummaryLocation::FirstNonempty,
@@ -1423,7 +1435,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
         },
         ProfileLaw {
             identity: "c",
-            observation_method: "tree-sitter-c@0.24.2+direct-source-facts-v3",
+            observation_method: "tree-sitter-c@0.24.2+direct-source-facts",
             documentation: DocumentationLaw {
                 carrier: DocumentationCarrierLaw::NativeAdjacent,
                 summary: SummaryLocation::FirstNonempty,
@@ -1455,7 +1467,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
         },
         ProfileLaw {
             identity: "cpp",
-            observation_method: "tree-sitter-cpp@8b5b49eb+direct-source-facts-v3",
+            observation_method: "tree-sitter-cpp@8b5b49eb+direct-source-facts",
             documentation: DocumentationLaw {
                 carrier: DocumentationCarrierLaw::NativeAdjacent,
                 summary: SummaryLocation::FirstNonempty,
@@ -1520,7 +1532,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::ReviewRequired,
             message: "candidate symbolic form requires an Authority-backed rename",
             question: Some("该符号对应哪个完整 Canonical Concept？"),
-            semantic_revision: 1,
+            semantic_revision: 4,
             chapter: "Name",
             presentation_contract: "identifier_declaration",
             rank: 5,
@@ -1531,7 +1543,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::HardViolation,
             message: "project declaration uses a language-reserved identifier form",
             question: None,
-            semantic_revision: 1,
+            semantic_revision: 4,
             chapter: "Name",
             presentation_contract: "identifier_declaration",
             rank: 6,
@@ -1542,7 +1554,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::HardViolation,
             message: "identifier does not satisfy its language-local canonical form",
             question: None,
-            semantic_revision: 2,
+            semantic_revision: 5,
             chapter: "Name",
             presentation_contract: "identifier_declaration",
             rank: 7,
@@ -1553,7 +1565,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::HardViolation,
             message: "quantity-bearing value must use its registered representation suffix",
             question: None,
-            semantic_revision: 2,
+            semantic_revision: 5,
             chapter: "Name",
             presentation_contract: "identifier_declaration",
             rank: 8,
@@ -1564,7 +1576,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::ReviewRequired,
             message: "identifier contains a token absent from the compiled vocabulary",
             question: Some("该 token 是否应先加入 Authority 并重新审查？"),
-            semantic_revision: 1,
+            semantic_revision: 4,
             chapter: "Name",
             presentation_contract: "identifier_declaration",
             rank: 9,
@@ -1575,7 +1587,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::HardViolation,
             message: "documentation subject has a missing or forbidden profile carrier",
             question: None,
-            semantic_revision: 1,
+            semantic_revision: 3,
             chapter: "Explain",
             presentation_contract: "callable_documentation",
             rank: 10,
@@ -1586,7 +1598,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::HardViolation,
             message: "documentation carrier must contain a non-empty summary",
             question: None,
-            semantic_revision: 2,
+            semantic_revision: 4,
             chapter: "Explain",
             presentation_contract: "callable_documentation",
             rank: 11,
@@ -1597,7 +1609,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::HardViolation,
             message: "summary and controlled field descriptions must not end in a sentence terminator",
             question: None,
-            semantic_revision: 2,
+            semantic_revision: 4,
             chapter: "Explain",
             presentation_contract: "callable_documentation",
             rank: 12,
@@ -1608,7 +1620,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::HardViolation,
             message: "public callable must provide every structurally required controlled role in profile order",
             question: None,
-            semantic_revision: 3,
+            semantic_revision: 6,
             chapter: "Explain",
             presentation_contract: "callable_documentation",
             rank: 13,
@@ -1619,7 +1631,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::HardViolation,
             message: "unsafe Rust subject must provide a non-empty # Safety section",
             question: None,
-            semantic_revision: 2,
+            semantic_revision: 4,
             chapter: "Explain",
             presentation_contract: "callable_documentation",
             rank: 14,

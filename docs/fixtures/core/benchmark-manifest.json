@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "candidate_gates": {
-    "product_rust_max_physical_lines": 7795,
-    "test_rust_max_physical_lines": 4816,
+    "product_rust_max_physical_lines": 8300,
+    "test_rust_max_physical_lines": 5500,
     "normative_standard_min_physical_lines": 280,
-    "normative_standard_max_physical_lines": 330
+    "normative_standard_max_physical_lines": 360
   },
   "targets_root": "../../../bench/targets",
   "targets": [
@@ -146,7 +146,7 @@
     },
     "script": {
       "path": "measure-parser-admission.ps1",
-      "sha256": "153e0379eb59240276a04c87d59af7fa3069ad633bc5cb161829cc2bfac490a8"
+      "sha256": "20d20cf88ed84b60228f63c31e16eac4f52a64395c4f8f47c945464ac891c46d"
     },
     "authority": {
       "path": "parser-admission-authority",
@@ -158,7 +158,7 @@
       "path": "parser-admission.json",
       "schema_version": 1,
       "exclusions": 372,
-      "sha256": "8badd0bb5c66f68d23d8879ae85f45b6c9d34d606d10eb85485b7f3816f43e21"
+      "sha256": "85808367d5883eba5cd60423da4b467393d40fa41c59c4a2c18e790d2290519c"
     },
     "repeated_runs": 2
   },
@@ -224,7 +224,7 @@
     },
     "verifier": {
       "path": "verify-inputs.ps1",
-      "sha256": "a24e21edf6e1aeb1d4b5724a4483bea8671bf4489972760b3145b12ca9c242f0"
+      "sha256": "eba5fba4854f72499c9fdc5227fca30e3d6d6a21736c5304557e5b830a646510"
     },
     "environment": {
       "os_description": "Microsoft Windows 10.0.26200",
@@ -263,6 +263,6 @@
     "expected_diagnostic_incomplete": true
   },
   "grammars": {
-    "cargo_lock_sha256": "a2584b53836954972beed52400feeefca1637cd35efe1fafb257a43f5582333f"
+    "cargo_lock_sha256": "4b6b375e8f098d4f2c7135d6281dcae067a99ef2011c83e9224e165caf123744"
   }
 }

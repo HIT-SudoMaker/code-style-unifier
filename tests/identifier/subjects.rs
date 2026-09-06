@@ -1,16 +1,18 @@
-use csu::AuthorityDocument;
 use csu::AuthorityInput;
-use csu::DocumentSet;
 use csu::FactFamily;
 use csu::FactFamilyState;
 use csu::FindingGrade;
-use csu::ReviewInput;
 use csu::ReviewTerminal;
-use csu::SourceDocument;
 use csu::WorkspaceReviewer;
 
+#[path = "../review_fixture/mod.rs"]
+mod review_fixture;
+
+use review_fixture::compile_value;
+use review_fixture::review_sources;
+
 const AUTHORITY: &[u8] =
-    include_bytes!("../docs/fixtures/core/authority.json");
+    include_bytes!("../../docs/fixtures/core/authority.json");
 const UNKNOWN_REVIEW: (&str, FindingGrade) =
     ("identifier.unknown_token", FindingGrade::ReviewRequired);
 const HARD_CANONICAL: (&str, FindingGrade) =
@@ -18,18 +20,374 @@ const HARD_CANONICAL: (&str, FindingGrade) =
 const HARD_RESERVED: (&str, FindingGrade) =
     ("identifier.reserved", FindingGrade::HardViolation);
 
+/// 验证范围绑定与普通绑定具有相同的声明和命名义务
+#[test]
+fn native_binding_forms_keep_identifier_subjects() {
+    for (source, count, names) in [
+        (
+            "void calculate_distance() { int distance_m[2]; for (int BadName : distance_m) {} }",
+            3,
+            vec!["BadName"],
+        ),
+        (
+            "void calculate_distance() { int distance_m[2][2]; for (auto &[BadName, OtherName] : distance_m) {} }",
+            4,
+            vec!["BadName", "OtherName"],
+        ),
+        (
+            "void calculate_distance() { int distance_m[2]; auto [BadName, OtherName] = distance_m; }",
+            4,
+            vec!["BadName", "OtherName"],
+        ),
+        (
+            "void calculate_distance() { if (int BadName = 1) {} while (int OtherName = 1) {} }",
+            3,
+            vec!["BadName", "OtherName"],
+        ),
+    ] {
+        let review = review_source("src/range.cpp", source);
+        assert_eq!(identifier_count(&review), count, "{source}");
+        for name in names {
+            assert!(
+                review
+                    .findings()
+                    .iter()
+                    .any(|finding| finding.subject() == name
+                        && finding.rule() == HARD_CANONICAL.0),
+                "{source}"
+            );
+        }
+    }
+}
+
+/// 验证对象角色来自各声明的限定层级而不是共享的类型说明符
+#[test]
+fn native_declarator_type_forms_keep_object_roles() {
+    for path in ["src/objects.c", "src/objects.cpp"] {
+        for source in [
+            "const int *distance_m;",
+            "const int DISTANCE_M = 1, *duration_s = 0;",
+            "int *const DISTANCE_M = 0;",
+            "void (*calculate_distance)(int distance_m);",
+        ] {
+            let review = review_source(path, source);
+            assert!(
+                review.findings().is_empty(),
+                "{path}: {source}: {:#?}",
+                review.findings()
+            );
+        }
+        let review = review_source(path, "int *const distance_m = 0;");
+        assert_single_rule(&review, Some(HARD_CANONICAL));
+    }
+}
+
+/// 验证合法常量形式保持精确量值登记而不制造候选后缀
+#[test]
+fn constant_forms_keep_registered_representation() {
+    for (path, source) in [
+        ("src/quantity.py", "NAME = 1\n"),
+        ("src/quantity.rs", "const NAME: f64 = 1.0;\n"),
+        ("src/quantity.c", "const double NAME = 1.0;\n"),
+        ("src/quantity.cpp", "constexpr double NAME = 1.0;\n"),
+    ] {
+        for (name, expected) in [
+            ("DISTANCE_M", None),
+            (
+                "DISTANCE",
+                Some((
+                    "identifier.representation_suffix",
+                    FindingGrade::HardViolation,
+                )),
+            ),
+            (
+                "DISTANCE_S",
+                Some((
+                    "identifier.representation_suffix",
+                    FindingGrade::HardViolation,
+                )),
+            ),
+            (
+                "Q",
+                Some(("identifier.candidate", FindingGrade::ReviewRequired)),
+            ),
+        ] {
+            let review = review_source(path, &source.replace("NAME", name));
+            assert_eq!(identifier_count(&review), 1);
+            assert_single_rule(&review, expected);
+        }
+    }
+}
+
+/// 验证 Python 原生类型和成员的来源证据沿不同声明形式保持一致
+#[test]
+fn python_native_sources_keep_declaration_roles() {
+    for source in [
+        "from typing import TypeAlias as Declaration\nFieldValue: Declaration = int\n",
+        "from enum import Enum, member\nclass Direction(Enum):\n    @member\n    def LEFT():\n        return 1\n",
+        "from enum import Enum, nonmember\nclass Direction(Enum):\n    left = nonmember(1)\n",
+        "from enum import Enum\nclass Direction(Enum):\n    @staticmethod\n    def lower_name():\n        return 1\n",
+        "from enum import Enum, member as staticmethod\nclass Direction(Enum):\n    @staticmethod\n    def LEFT():\n        return 1\n",
+        "from enum import Enum\nclass Direction(Enum):\n    @classmethod\n    def lower_name(cls):\n        return 1\n",
+        "from enum import Enum, member as classmethod\nclass Direction(Enum):\n    @classmethod\n    def LEFT():\n        return 1\n",
+        "from enum import Enum\nclass Direction(Enum):\n    @property\n    def lower_name(self):\n        return 1\n",
+        "from enum import Enum, member as property\nclass Direction(Enum):\n    @property\n    def LEFT():\n        return 1\n",
+        "from enum import Enum, nonmember\nclass Direction(Enum):\n    @nonmember\n    def lower_name():\n        return 1\n",
+    ] {
+        let review = review_source("src/roles.py", source);
+        assert!(identifier_count(&review) > 0);
+        assert!(
+            !review
+                .findings()
+                .iter()
+                .any(|finding| finding.rule() == HARD_CANONICAL.0),
+            "{source}: {:#?}",
+            review.findings()
+        );
+    }
+    let review = review_source(
+        "src/roles.py",
+        "TypeAlias = int\nFieldValue: TypeAlias = 1\n",
+    );
+    assert!(
+        review
+            .findings()
+            .iter()
+            .any(|finding| finding.subject() == "FieldValue"
+                && finding.rule() == HARD_CANONICAL.0)
+    );
+}
+
+/// 验证 Python 原生声明角色不会退化成普通赋值或接收者
+#[test]
+fn python_native_declaration_roles_keep_canonical_names() {
+    for (source, subject, expected_count) in [
+        (
+            "from builtins import classmethod as method\nclass Distance:\n    @method\n    def value(cls) -> int:\n        return 1\n",
+            "cls",
+            4,
+        ),
+        (
+            "class Distance:\n    @property\n    def value(self) -> int:\n        \"\"\"\n        读取数值\n\n        Args:\n            无\n        Returns:\n            int: 输出值\n        Raises:\n            无\n        \"\"\"\n        return 1\n    @value.setter\n    def value(self, distance_m: int) -> None:\n        \"\"\"\n        读取数值\n\n        Args:\n            distance_m: 输入距离\n        Returns:\n            无\n        Raises:\n            无\n        \"\"\"\n        pass\n    @value.deleter\n    def value(self) -> None:\n        \"\"\"\n        读取数值\n\n        Args:\n            无\n        Returns:\n            无\n        Raises:\n            无\n        \"\"\"\n        pass\n",
+            "self",
+            8,
+        ),
+        (
+            "class Distance:\n    @transform\n    def value(self) -> int:\n        \"\"\"\n        读取数值\n\n        Args:\n            无\n        Returns:\n            int: 输出值\n        Raises:\n            无\n        \"\"\"\n        return 1\n",
+            "self",
+            3,
+        ),
+        (
+            "from enum import Enum\nclass Direction(Enum):\n    LEFT = 1\n",
+            "LEFT",
+            2,
+        ),
+        (
+            "from typing import TypeVar\n_FieldValue = TypeVar(\"_FieldValue\")\n",
+            "_FieldValue",
+            1,
+        ),
+        (
+            "class Medium:\n    def __init_subclass__(cls) -> None:\n        pass\n",
+            "cls",
+            3,
+        ),
+        (
+            "import ctypes\nclass MemoryStatus(ctypes.Structure):\n    _fields_ = []\n",
+            "_fields_",
+            2,
+        ),
+        (
+            "from enum import IntFlag as Options\nclass Direction(Options):\n    LEFT = 1\n",
+            "LEFT",
+            3,
+        ),
+        (
+            "import enum as choices\nclass Direction(choices.StrEnum):\n    LEFT = 'left'\n",
+            "LEFT",
+            3,
+        ),
+        (
+            "from typing import TypeVar as Parameter\n_FieldValue = Parameter(\"_FieldValue\")\n",
+            "_FieldValue",
+            2,
+        ),
+        (
+            "import typing as types\n_FieldValue = types.TypeVar(\"_FieldValue\")\n",
+            "_FieldValue",
+            2,
+        ),
+        (
+            "from ctypes import Union as Storage\nclass MemoryStatus(Storage):\n    _fields_ = []\n",
+            "_fields_",
+            3,
+        ),
+        (
+            "class Medium:\n    def __init_subclass__(\n        # 子类接收者\n        cls,\n    ) -> None:\n        pass\n",
+            "cls",
+            3,
+        ),
+        (
+            "class Medium:\n    def __class_getitem__(cls, index):\n        pass\n",
+            "cls",
+            4,
+        ),
+    ] {
+        let review = review_source("src/native_roles.py", source);
+        assert_eq!(identifier_count(&review), expected_count, "{source}");
+        if source.contains("Args:") {
+            assert!(
+                !review.findings().iter().any(|finding| finding.rule()
+                    == "documentation.public_contract"),
+                "{source}: {:#?}",
+                review.findings()
+            );
+        }
+        assert!(
+            !review.findings().iter().any(|finding| {
+                finding.subject() == subject
+                    && (finding.grade() == FindingGrade::HardViolation
+                        || matches!(subject, "self" | "cls"))
+            }),
+            "{subject}: {:#?}",
+            review.findings()
+        );
+    }
+    let review = review_source(
+        "src/native_roles.py",
+        "from enum import Enum\nclass Direction(Enum):\n    Q = 1\n",
+    );
+    assert_eq!(identifier_count(&review), 2);
+    assert_eq!(candidate_subjects(&review), ["Q"]);
+}
+
+/// 验证原生角色识别不会豁免普通绑定、同名对象或不合规形式
+#[test]
+fn python_native_roles_require_direct_import_and_binding_evidence() {
+    for (source, subject) in [
+        (
+            "from builtins import staticmethod as method\nclass Distance:\n    @method\n    def value(cls) -> int:\n        return 1\n",
+            "cls",
+        ),
+        ("class Direction:\n    LEFT = 1\n", "LEFT"),
+        (
+            "class Enum:\n    pass\nclass Direction(Enum):\n    LEFT = 1\n",
+            "LEFT",
+        ),
+        (
+            "from enum import Enum\nEnum = object\nclass Direction(Enum):\n    LEFT = 1\n",
+            "LEFT",
+        ),
+        (
+            "from enum import Enum\nif active:\n    Enum = object\nclass Direction(Enum):\n    LEFT = 1\n",
+            "LEFT",
+        ),
+        (
+            "from enum import Enum\nif active:\n    Enum = object\n    class Direction(Enum):\n        LEFT = 1\n",
+            "LEFT",
+        ),
+        (
+            "from another import Enum\nclass Direction(Enum):\n    LEFT = 1\n",
+            "LEFT",
+        ),
+        (
+            "from enum import Enum\nclass Direction(Enum):\n    left = 1\n",
+            "left",
+        ),
+        (
+            "from typing import TypeVar\nTypeVar = object\n_FieldValue = TypeVar(\"_FieldValue\")\n",
+            "_FieldValue",
+        ),
+        (
+            "from typing import TypeVar\nfield_value = TypeVar(\"field_value\")\n",
+            "field_value",
+        ),
+        ("class MemoryStatus:\n    _fields_ = []\n", "_fields_"),
+        (
+            "import ctypes\nctypes = other\nclass MemoryStatus(ctypes.Structure):\n    _fields_ = []\n",
+            "_fields_",
+        ),
+        (
+            "import ctypes\nctypes.Structure = other\nclass MemoryStatus(ctypes.Structure):\n    _fields_ = []\n",
+            "_fields_",
+        ),
+        (
+            "import ctypes\nctypes . Structure = other\nclass MemoryStatus(ctypes.Structure):\n    _fields_ = []\n",
+            "_fields_",
+        ),
+        ("def __init_subclass__(cls) -> None:\n    pass\n", "cls"),
+        (
+            "class Medium:\n    @staticmethod\n    def __init_subclass__(cls) -> None:\n        pass\n",
+            "cls",
+        ),
+    ] {
+        let review = review_source("src/native_roles.py", source);
+        assert!(identifier_count(&review) > 0);
+        assert!(
+            review.findings().iter().any(|finding| {
+                finding.subject() == subject
+                    && finding.rule()
+                        == if subject == "cls" {
+                            "identifier.unknown_token"
+                        } else {
+                            "identifier.canonical_form"
+                        }
+            }),
+            "{source}: {:#?}",
+            review.findings()
+        );
+    }
+}
+
+/// 验证枚举动态成员归属不被猜成普通变量或已通过的常量
+#[test]
+fn python_unresolved_variant_declarations_keep_identifier_coverage_incomplete()
+{
+    for source in [
+        "from enum import Enum\nclass Direction(Enum):\n    left = descriptor()\n",
+        "from enum import Enum\nclass Direction(Enum):\n    _ignore_ = names\n    LEFT = 1\n",
+        "from enum import Enum\nfrom typing import TypeVar\nclass Direction(Enum):\n    FieldValue = TypeVar('FieldValue')\n",
+        "from enum import Enum, member\nclass Direction(Enum):\n    @transform\n    @member\n    def LEFT():\n        return 1\n    RIGHT = 2\n",
+        "from enum import Enum, member\nclass Direction(Enum):\n    _ignore_ = names\n    @member\n    def LEFT():\n        return 1\n",
+        "from enum import Enum, member\nDECORATOR = member\nclass Direction(Enum):\n    @DECORATOR\n    def lower_name(cls):\n        return 1\n",
+        "from enum import Enum, member\nclass Direction(Enum):\n    DECORATOR = member\n    @DECORATOR\n    def lower_name(cls):\n        return 1\n",
+        "from enum import Enum\nfrom other import DECORATOR\nclass Direction(Enum):\n    @DECORATOR\n    def lower_name(cls):\n        return 1\n",
+        "from enum import Enum, member\nif active:\n    DECORATOR = member\nclass Direction(Enum):\n    @DECORATOR\n    def lower_name(cls):\n        return 1\n",
+        "from enum import Enum, member\nclass Direction(Enum):\n    if active:\n        DECORATOR = member\n    @DECORATOR\n    def lower_name(cls):\n        return 1\n",
+        "from other import *\nfrom enum import Enum\nclass Direction(Enum):\n    @DECORATOR\n    def lower_name(cls):\n        return 1\n",
+        "from enum import Enum\nclass Direction(Enum):\n    @unknown\n    def lower_name(cls):\n        return 1\n",
+    ].into_iter().flat_map(|source| {
+        ["staticmethod", "classmethod", "property"].map(|name| source.replace("DECORATOR", name))
+    }) {
+        let review = review_source("src/native_roles.py", &source);
+        assert!(
+            review.coverage().files()[0].families().iter().any(
+                |(family, state)| {
+                    *family == FactFamily::Identifier
+                        && matches!(state, FactFamilyState::Blocked(_))
+                }
+            ),
+            "{source}"
+        );
+        if source.contains("(cls)") {
+            assert!(review.findings().iter().any(|finding| finding.subject() == "cls"), "{source}");
+        }
+        assert!(
+            !review
+                .findings()
+                .iter()
+                .any(|finding| finding.rule() == "identifier.canonical_form" && finding.subject() != "cls")
+        );
+    }
+}
+
 /// 审查单份内存源码并返回封存终态
 fn review_source<'source>(
     path: &'source str,
     source: &'source str,
 ) -> csu::SealedReview {
-    let authority = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: AUTHORITY,
-    }];
-    let reviewer =
-        WorkspaceReviewer::compile(AuthorityInput::Documents(&authority))
-            .expect("frozen Authority must compile");
+    let reviewer = compile_value(&serde_json::from_slice(AUTHORITY).unwrap())
+        .expect("frozen Authority must compile");
     reviewed_source(&reviewer, path, source)
 }
 
@@ -39,15 +397,8 @@ fn reviewed_source(
     path: &str,
     source: &str,
 ) -> csu::SealedReview {
-    let documents = [SourceDocument {
-        relative_path: path,
-        bytes: source.as_bytes(),
-    }];
     let ReviewTerminal::Sealed(review) =
-        reviewer.review(ReviewInput::Documents(DocumentSet {
-            revision: "identifier-subjects",
-            documents: &documents,
-        }))
+        review_sources(reviewer, "identifier-subjects", &[(path, source)])
     else {
         panic!("valid direct source must seal");
     };
@@ -310,14 +661,8 @@ fn review_source_with(
             .unwrap()
             .push(serde_json::json!(token));
     }
-    let bytes = serde_json::to_vec(&authority).unwrap();
-    let reviewer = WorkspaceReviewer::compile(AuthorityInput::Documents(&[
-        AuthorityDocument {
-            relative_path: "authority.json",
-            bytes: &bytes,
-        },
-    ]))
-    .expect("extended Authority must compile");
+    let reviewer =
+        compile_value(&authority).expect("extended Authority must compile");
     reviewed_source(&reviewer, path, source)
 }
 
@@ -393,7 +738,7 @@ fn alias_declarations_cover_four_language_forms() {
     let cases = [
         (
             "src/alias.py",
-            "type Vector = list[float]\nDistance: TypeAlias = dict\n",
+            "from typing import TypeAlias\ntype Vector = list[float]\nDistance: TypeAlias = dict\n",
         ),
         ("src/alias.rs", "type DistanceVector = Vec<f64>;\n"),
         ("src/alias.c", "typedef int distance_vector_t;\n"),
@@ -557,14 +902,7 @@ fn external_owner_spellings_exempt_only_through_typed_rows() {
         {"profile": "rust", "role": "function", "owner": "fmt::Display", "spelling": "BadName"},
         {"profile": "rust", "role": "function", "owner": "fmt::Display", "spelling": "r#type"},
     ]);
-    let bytes = serde_json::to_vec(&authority).unwrap();
-    let with_rows = WorkspaceReviewer::compile(AuthorityInput::Documents(&[
-        AuthorityDocument {
-            relative_path: "authority.json",
-            bytes: &bytes,
-        },
-    ]))
-    .unwrap();
+    let with_rows = compile_value(&authority).unwrap();
     let exempt =
         reviewed_source(&with_rows, "src/external_owner.rs", trait_source);
     assert_single_rule(&exempt, None);

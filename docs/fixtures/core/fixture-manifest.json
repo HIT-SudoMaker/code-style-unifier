@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "semantic_authority_digest": "592555e997f95328f53d6bf22dcf712e75967e8691113ff112094ee91e8faf45",
+  "semantic_authority_digest": "57f0142097ba1805e423db8169b9270916d737a29eaf2eba11d28d21b2b440a8",
   "authority": {
     "path": "authority.json",
     "sha256": "52f7e9112667ae977ad1ef56e7777994edf3b05cd9b5d3314d8b9dc7884607c8"
@@ -71,16 +71,16 @@
       ],
       "parse_anchors": {
         "python": {
-          "reason": "observation method tree-sitter-python@0.25.0+direct-source-facts-v3 rejected source at 1:1: pinned grammar reported an ERROR node"
+          "reason": "observation method tree-sitter-python@0.25.0+direct-source-facts rejected source at 1:1: pinned grammar reported an ERROR node"
         },
         "rust": {
-          "reason": "observation method tree-sitter-rust@0.24.2+direct-source-facts-v3 rejected source at 5:2: pinned grammar reported an ERROR node"
+          "reason": "observation method tree-sitter-rust@0.24.2+direct-source-facts rejected source at 5:2: pinned grammar reported an ERROR node"
         },
         "c": {
-          "reason": "observation method tree-sitter-c@0.24.2+direct-source-facts-v3 rejected source at 6:22: pinned grammar reported a MISSING node"
+          "reason": "observation method tree-sitter-c@0.24.2+direct-source-facts rejected source at 6:22: pinned grammar reported a MISSING node"
         },
         "cpp": {
-          "reason": "observation method tree-sitter-cpp@8b5b49eb+direct-source-facts-v3 rejected source at 6:22: pinned grammar reported a MISSING node"
+          "reason": "observation method tree-sitter-cpp@8b5b49eb+direct-source-facts rejected source at 6:22: pinned grammar reported a MISSING node"
         }
       }
     }

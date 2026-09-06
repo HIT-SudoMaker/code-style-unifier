@@ -1,6 +1,6 @@
 [package]
 name = "code-style-unifier"
-version = "3.0.0"
+version = "3.0.1"
 edition = "2024"
 license = "MIT"
 description = "High-performance semantic code style unification across Python, Rust, C, and C++ for next-generation scientific software engineering"
@@ -33,3 +33,39 @@ tempfile = "3.23.0"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+[[test]]
+name = "terminal_contract"
+path = "tests/review/terminal_contract.rs"
+
+[[test]]
+name = "fixture_contract"
+path = "tests/review/fixture_contract.rs"
+
+[[test]]
+name = "projection_cli"
+path = "tests/review/projection_cli.rs"
+
+[[test]]
+name = "identifier_subjects"
+path = "tests/identifier/subjects.rs"
+
+[[test]]
+name = "identifier_forms"
+path = "tests/identifier/forms.rs"
+
+[[test]]
+name = "public_review"
+path = "tests/documentation/public_contract.rs"
+
+[[test]]
+name = "documentation_regressions"
+path = "tests/documentation/layout.rs"
+
+[[test]]
+name = "cpp_documentation_roles"
+path = "tests/documentation/native_roles.rs"
+
+[[test]]
+name = "return_shape_contract"
+path = "tests/documentation/return_shape.rs"

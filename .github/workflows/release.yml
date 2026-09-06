@@ -78,7 +78,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path (Join-Path $stage "bin"), (Join-Path $stage "docs"), (Join-Path $stage ".agents/skills"), (Join-Path $stage ".claude/skills") | Out-Null
           Copy-Item "target/release/$binaryName" (Join-Path $stage "bin/$binaryName")
           Copy-Item README.md, LICENSE -Destination $stage
-          Copy-Item docs/coding_standards.md, docs/design.md -Destination (Join-Path $stage "docs")
+          Copy-Item docs/*.md -Destination (Join-Path $stage "docs")
           Copy-Item .agents/skills/csu-review (Join-Path $stage ".agents/skills") -Recurse
           Copy-Item .claude/skills/csu-review (Join-Path $stage ".claude/skills") -Recurse
           if ($targetName.StartsWith("windows-")) {

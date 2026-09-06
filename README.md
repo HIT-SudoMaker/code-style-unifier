@@ -1,77 +1,79 @@
 # CSU
 
-**Review source contracts. Return evidence you can inspect.**
+**Name scientific intent. Verify source contracts.**
 
-High-performance semantic code style unification across Python, Rust, C, and
-C++ for next-generation scientific software engineering.
+Semantic source review for next-generation scientific software engineering.
 
-CSU is a read-only source reviewer written in Rust. It checks a captured source
-scope against shared coding standards, uses project-owned facts where source
-alone is insufficient, and returns a deterministic result. It does not execute
-the target program or change its files.
+CSU pairs a native Rust reviewer with an agent skill for Python, Rust, C and C++.
+The reviewer checks naming, documentation and dependency contracts against fixed
+rules. The skill records the run, interprets located evidence and guides authorized
+follow-up with the project owner.
+
+The CLI returns a terminal result. The skill preserves each run under the target
+project's `.csu/runs/`. Target source remains `READ_ONLY` during review.
 
 ## Why CSU exists
 
-Consistent formatting does not guarantee consistent meaning. A short identifier
-can hide an unresolved concept, a unit suffix can disagree with the project's
-declared convention, and an ordinary comment can leave a public function without
-a documentation contract.
+Scientific code needs names and interfaces that expose its intent. A short symbol
+can hide an unresolved concept, a suffix can lose a declared representation, and a
+public function can leave callers without a usable contract. Formatting alone does
+not settle these questions.
 
-CSU makes these source obligations inspectable:
+CSU makes those source obligations explicit:
 
-- naming follows language-native forms, explicit concepts and declared suffixes;
-- public interfaces carry documentation contracts; internal methods stay concise;
-- documentation fields align, and ordinary comments do not replace native docs;
-- trailing comments and direct dependencies follow defined, language-aware rules;
-- missing project facts remain visible instead of becoming a silent pass.
+- names follow native declaration roles and project-recognized concepts;
+- quantity names carry their registered representation suffixes;
+- public interfaces document their parameters, returns and failures;
+- comments and dependencies follow bounded, language-aware rules;
+- unresolved facts remain questions or incomplete checks in the result.
 
-The four languages share rule intent, not identical syntax. The
-[Coding Standards](docs/coding_standards.md) own the precise requirements.
+The [coding standard](docs/coding_standards.md) defines the precise requirements.
 
 ## The CLI and the skill
 
-| Entry | Use it for | Produces | Target code during review |
+| Entry | Responsibility | Output | Target source |
 |---|---|---|---|
-| `csu review` | Source review with explicit scope and Authority | Human or JSON output on stdout | `READ_ONLY` |
-| [csu-review](.agents/skills/csu-review/SKILL.md) | Agent-guided review and result interpretation | Captured evidence and a bounded next action | `READ_ONLY` |
+| `csu review` | Apply fixed rules to a captured source scope | Text or JSON on stdout | `READ_ONLY` |
+| [`$csu-review`](.agents/skills/csu-review/SKILL.md) | Capture a run and interpret its evidence | Original result, provenance and next action | `READ_ONLY` |
 
-The CLI owns source judgments. The skill owns invocation, evidence handling and
-interpretation; it does not add rules. A review request authorizes neither source
-repair nor Authority edits.
+```text
+project facts + source -> CLI review -> captured evidence -> owner decision
+                          judgment       interpretation      follow-up
+```
 
-## Works alongside design and review
+The reviewer owns source judgments; the skill owns invocation and evidence handling.
+A review can finish with findings. Repair and fact registration then follow their
+own [authorized workflow](.agents/skills/csu-review/references/remediation.md).
 
-Different layers answer different questions:
+## Works with software and scientific review
 
-| Layer | Owns |
+Scientific software needs several kinds of review, each with a distinct question:
+
+| Layer | Question it owns |
 |---|---|
-| Design and code review | Software architecture and fidelity to the requested change |
-| CSU | Observable source-standard conformance within its declared rule boundary |
-| Scientific review | Scientific meaning, methods, claims and their supporting evidence |
+| Codebase design | Does the software expose useful interfaces and localize change? |
+| Code review | Does the change follow its standards and requested specification? |
+| Scientific review | Do scientific design and implementation connect claims to adequate evidence? |
+| CSU | Do observed source declarations satisfy their coding contracts? |
 
-Located evidence can inform another review; a pass in one layer cannot compensate
-for missing evidence in another. No companion skill is required to run CSU.
+Use each result for the question its layer owns. A registered `distance_m` spelling
+establishes a naming convention; the quantity's physical interpretation and the
+method's validity need their own evidence. Located facts can inform another review,
+while acceptance decisions remain separate.
 
 ## Installation
 
-### Native CLI
+### Native reviewer
 
-Choose a native archive and `checksums.txt` from
+Download your platform's archive and `checksums.txt` from
 [GitHub Releases](https://github.com/HIT-SudoMaker/code-style-unifier/releases).
-Verify the archive and add its `bin` directory to PATH.
-
-The release workflow targets Windows x86-64, Linux x86-64 and ARM64, and macOS
-Intel and Apple Silicon. Use the documentation shipped with your chosen version.
-
-To build from a source checkout with Rust:
+Verify the archive, extract it and add `bin` to PATH. To build from a source checkout:
 
 ```bash
-git clone https://github.com/HIT-SudoMaker/code-style-unifier.git
-cd code-style-unifier
 cargo install --path . --locked
 ```
 
-### Agent skill
+### Project skill
 
 Run this inside the project that should use CSU:
 
@@ -79,117 +81,75 @@ Run this inside the project that should use CSU:
 npx skills@latest add HIT-SudoMaker/code-style-unifier --skill csu-review --agent codex --agent claude-code --yes
 ```
 
-Add `--global` for a user-wide installation. Prefer one installation scope to avoid
-duplicate entries. The [skills installer](https://github.com/vercel-labs/skills)
-installs the skill package, not the CSU executable.
+For a user-wide installation, add `--global`. Choose one installation scope to avoid
+duplicate host entries. The installer supplies the skill; install the native reviewer
+separately.
 
 ## Use
 
-Provide the target project's typed facts in `.csu/authority/authority.json`,
-following the [Authority contract](docs/coding_standards.md#11-规则依据).
-Pass the containing directory and the source scope to CSU:
+Prepare the project's Authority and select its source scope:
 
 ```bash
 csu review --authority .csu/authority --workspace src --format human
 ```
 
-Use `--format json` for automation. The CLI writes its result to stdout and
-creates no report files; projection errors may appear on stderr.
-
-For an agent-guided review, invoke `$csu-review` in Codex or `/csu-review` in
-Claude Code, followed by the same request:
+Use `--format json` for automation. For an agent-guided run:
 
 ```text
-Review src with the Authority at .csu/authority. Keep source code unchanged.
+$csu-review Review src using .csu/authority. Keep target source read-only.
 ```
 
-You can also supply an existing result for interpretation without a new scan.
-Missing inputs or execution capability produce a setup blocker, not an invented
-source verdict. CSU's self-review Authority belongs to CSU, not to other projects.
+In Claude Code, invoke `/csu-review`. A complete Authority example and scope-path
+explanation are in the [usage guide](docs/usage.md). Existing results can also be
+interpreted without rescanning their source.
 
 ## The CSU model
 
-One lifecycle connects the three sources of authority:
+| Concept | Role |
+|---|---|
+| Standard Law | Fixes rules, grades, language requirements and completion conditions |
+| Source Facts | Describe captured bytes, declarations and direct structural relationships |
+| Project Facts | Supply typed, owner-confirmed knowledge within fixed effect limits |
+| Coverage | Records what completed and what lacks the facts needed for judgment |
+| Seal | Identifies the source scope and semantic evidence of a completed review run |
 
-1. **Standard Law** fixes rules, grades and language contracts in the binary.
-2. **Project Facts** supply admitted, narrowly scoped knowledge from Authority.
-3. **Source Facts** come from captured bytes, physical-line observation and native
-   syntax structure.
-
-Physical and structural observations share the captured source. There is no
-persistent scan cache, target execution or second scan for another output format.
-The result records what was checked, what was found and what could not be judged.
-
-Authority registers facts, not exceptions. An exact vocabulary entry can close an
-unknown-token question; it cannot exempt a Candidate spelling or an independently
-proved hard violation. Facts cannot disable rule families, lower grades or invent
-a custom dependency order. CSU constrains their effects; the Owner remains
-responsible for the truth of business facts that source cannot establish.
+Project facts can answer an unknown-token question or declare a public callable.
+They cannot lower a grade, disable a rule or erase an independently proved violation.
+The [design](docs/design.md) explains these choices; the
+[technical reference](docs/technical.md) connects them to the implementation.
 
 ## Evidence before confidence
 
-| Exit | Meaning |
+| Exit | Result |
 |---:|---|
-| 0 | `Sealed + Complete + Clean` |
-| 1 | `Sealed + Complete + Findings` |
-| 2 | `Incomplete`, `Rejected`, `Failed`, or projection failure; inspect the result |
+| 0 | Sealed, complete and clean |
+| 1 | Sealed and complete, with hard violations or owner questions |
+| 2 | Incomplete, rejected, failed, or unable to output the result |
 
-Only a complete sealed review with zero Hard Violation, zero Review Required and
-zero Blocked families is Clean. Zero Findings alone is insufficient. A Seal binds
-the review's semantic identity; it is not a certificate of scientific correctness.
-
-The skill saves each new review under the **target project's** root:
-
-```text
-.csu/runs/<UTC-run-id>/
-├── CSU-REVIEW.json
-├── RUN.txt
-├── CSU-STDERR.txt
-└── CSU-STDOUT.txt
-```
-
-`CSU-REVIEW.json` preserves the valid terminal; `RUN.txt` records the executable,
-inputs and exit code. Nonempty stderr is saved separately. Invalid, unsupported
-or incomplete output goes to `CSU-STDOUT.txt` instead of being reconstructed as a
-valid terminal. Existing runs are preserved; these files are evidence, not a cache.
+A clean result requires zero hard violations, zero owner questions and zero blocked
+families. Zero findings alone is insufficient. Incomplete coverage preserves the
+findings already proved and explains which judgments remain unavailable.
 
 ## Trust and limits
 
-- Treat an official release's executable, standards, skills and other shipped
-  files as one unchanged deployment. Replace the release as a whole when upgrading;
-  project adaptation belongs in separate typed Authority, not edited product files.
-  Authorized source repairs and new evidence under the target project's `.csu/runs/`
-  remain separate. This deployment convention does not change the license or add
-  runtime tamper protection; archive checksums do not lock extracted files.
-- CSU does not import, execute, compile or link target code. Invalid UTF-8 or
-  syntax yields parseability evidence and blocks dependent structural judgments.
-- Rules cover direct source, not expanded macros, preprocessing, alias resolution,
-  dependency build graphs or the quality of scientific prose.
-- Comments stay brief and local: one point per line, with essential constraints
-  beside the code. Product capabilities belong here; extended technical reasoning
-  belongs in design documents. These author requirements need human or agent review.
-- Formatters, compilers, tests, code review and scientific validation remain
-  complementary. Clean means conformance within the declared review boundary.
-- Repair and registration require their own workflow. Replacing a docstring with
-  a comment or changing Authority to hide a defect does not count as a repair.
+- Review reads source without importing, executing, compiling or changing it.
+- The rule boundary covers direct syntax; macro expansion, build graphs and dynamic
+  alias resolution require capabilities CSU does not provide.
+- Project owners remain responsible for business facts that source cannot establish.
+- A Seal does not establish runtime behavior, scientific validity or prose quality.
+- Official builds, project facts and repair records have separate identities; the
+  [usage guide](docs/usage.md) explains deployment and evidence handling.
 
 ## Compatibility
 
-Authority input and JSON review output have independent schema-4 contracts;
-schema 3 is rejected rather than silently reinterpreted.
-
-The shared skill package is maintained under `.agents/skills/csu-review` and
-mirrored byte for byte under `.claude/skills/csu-review`. Only
-`agents/openai.yaml` is platform-specific UI metadata. Shared instructions do not
-depend on a particular shell, tool name, subagent or companion skill.
-
-Package checks enforce shared-file equality. Agent interpretation still depends
-on the host, model, permissions and available evidence; compatibility does not
-promise identical behavior across all configurations.
+Python, Rust, C and C++ share rule intent while retaining native declaration and
+documentation forms. The shared skill supports Codex and Claude Code; host, model
+and permissions can affect interpretation. Use the documents shipped with the chosen
+CSU version. Input and output contracts are specified in the technical reference.
 
 ## Development
 
-Run the local Rust checks before proposing a change:
+From the source checkout:
 
 ```bash
 cargo fmt --all -- --check
@@ -197,23 +157,16 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
 ```
 
-The tests include CSU reviewing its own product and test source, plus skill-package
-consistency. Frozen-corpus, candidate identity and performance verification are
-separate gates described in the [fixture guide](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/README.md);
-a green unit suite alone does not establish release readiness.
+The suite includes CSU reviewing its own product and test source. Candidate identity,
+frozen-corpus measurement and release checks are separate gates in the
+[verification guide](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/README.md).
 
-## Documentation and contributions
+## Contributing
 
-Start with the [Coding Standards](docs/coding_standards.md), then the
-[Design](docs/design.md). These are the two core documents: source requirements
-and architectural reasoning. The [skill](.agents/skills/csu-review/SKILL.md) owns
-agent workflows; the [fixture guide](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/README.md) in the source
-repository owns verification procedures and receipt interpretation.
-
-For a reproducible [issue](https://github.com/HIT-SudoMaker/code-style-unifier/issues),
-include the CSU version, language, minimal source, relevant Authority facts and
-observed result. Redact private material before sharing. Change rule meaning in
-the standards first, then align implementation, tests and documentation.
+Use [GitHub Issues](https://github.com/HIT-SudoMaker/code-style-unifier/issues) for
+reproducible failures. Include the version, language, minimal source, relevant facts
+and observed result. Change rule meaning in the standard first, then align behavior
+and evidence. The [documentation index](docs/README.md) identifies each document's role.
 
 ## License
 

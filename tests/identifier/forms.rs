@@ -1,26 +1,66 @@
-use csu::AuthorityDocument;
-use csu::AuthorityInput;
 use csu::FindingGrade;
 use csu::ReviewTerminal;
-use csu::WorkspaceReviewer;
 use std::collections::BTreeSet;
 
+#[path = "../review_fixture/mod.rs"]
 mod review_fixture;
 
+use review_fixture::compile_value;
 use review_fixture::review_sources;
 
 const AUTHORITY: &[u8] =
-    include_bytes!("../docs/fixtures/core/authority.json");
+    include_bytes!("../../docs/fixtures/core/authority.json");
+
+/// 验证数组范围结构化绑定保留按值常量与引用角色
+#[test]
+fn cpp_constant_binding_roles() {
+    for (binding, names, count) in [
+        ("const auto", "DISTANCE_M, DURATION_S", 0),
+        ("const auto", "distance_m, duration_s", 2),
+        ("auto", "distance_m, duration_s", 0),
+        ("auto", "DISTANCE_M, DURATION_S", 2),
+        ("const auto&", "distance_m, duration_s", 0),
+        ("auto&", "distance_m, duration_s", 0),
+        ("const auto&&", "distance_m, duration_s", 0),
+    ] {
+        let source = format!(
+            "static void calculate_distance() {{ int distance_m[2][2] = {{{{1, 2}}, {{3, 4}}}}; for ({binding} [{names}] : distance_m) {{}} }}"
+        );
+        let reviewed = review(&[("src/forms.cpp", &source)]);
+        assert_eq!(reviewed.findings().iter().filter(|finding| finding.rule() == "identifier.canonical_form").count(), count, "{source}: {:#?}", reviewed.findings());
+        assert_eq!(reviewed.completion(), csu::Completion::Complete);
+    }
+    for source in [
+        "static void calculate_distance() { int distance_m[2][2]; { for (const auto [DISTANCE_M, DURATION_S] : distance_m) {} } }",
+        "static void calculate_distance() { int distance_m[2][2]; { Velocity distance_m; for (const auto [DISTANCE_M, DURATION_S] : distance_m) {} } }",
+        "static void calculate_distance() { int distance_m[2][2]; for (Velocity distance_m; const auto [DISTANCE_M, DURATION_S] : distance_m) {} }",
+        "struct Velocity { mutable int distance_m; int duration_s; }; static void calculate_distance() { Velocity distance_m[2]; for (const auto [DISTANCE_M, DURATION_S] : distance_m) {} }",
+        "static void calculate_distance() { std::tuple<int&, int> distance_m[2]; for (const auto [DISTANCE_M, DURATION_S] : distance_m) {} }",
+    ] {
+        let reviewed = review(&[("src/forms.cpp", source)]);
+        assert!(
+            reviewed.coverage().files()[0]
+                .families()
+                .iter()
+                .any(|(family, state)| *family == csu::FactFamily::Identifier
+                    && matches!(state, csu::FactFamilyState::Blocked(_))),
+            "{source}: {reviewed:#?}"
+        );
+        assert!(
+            !reviewed.findings().iter().any(|finding| matches!(
+                finding.rule(),
+                "identifier.canonical_form" | "source.parseability"
+            )),
+            "{source}: {:#?}",
+            reviewed.findings()
+        );
+    }
+}
 
 /// 审查内存源码并返回封存终态
 fn review(sources: &[(&str, &str)]) -> csu::SealedReview {
-    let authority = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: AUTHORITY,
-    }];
-    let reviewer =
-        WorkspaceReviewer::compile(AuthorityInput::Documents(&authority))
-            .expect("frozen Authority must compile");
+    let reviewer = compile_value(&serde_json::from_slice(AUTHORITY).unwrap())
+        .expect("frozen Authority must compile");
     let ReviewTerminal::Sealed(review) =
         review_sources(&reviewer, "identifier-forms", sources)
     else {
@@ -36,7 +76,7 @@ fn four_language_role_forms_accept_the_frozen_baseline() {
         (
             "src/forms.py",
             concat!(
-                "VELOCITY = 1\nclass Velocity:\n",
+                "VELOCITY_M_PER_S = 1\nclass Velocity:\n",
                 "    def calculate_velocity(self, distance_m):\n",
                 "        return distance_m\n"
             ),
@@ -45,7 +85,7 @@ fn four_language_role_forms_accept_the_frozen_baseline() {
             "src/forms.rs",
             concat!(
                 "struct Velocity { distance_m: f64 }\n",
-                "const VELOCITY: f64 = 1.0;\n",
+                "const VELOCITY_M_PER_S: f64 = 1.0;\n",
                 "enum Distance { Velocity }\n",
                 "fn calculate_velocity(distance_m: f64) -> f64 ",
                 "{ distance_m }\n"
@@ -54,21 +94,21 @@ fn four_language_role_forms_accept_the_frozen_baseline() {
         (
             "src/forms.c",
             concat!(
-                "#define VELOCITY 1\n",
-                "const double VELOCITY = 1.0;\n",
+                "#define VELOCITY_M_PER_S 1\n",
+                "const double VELOCITY_M_PER_S = 1.0;\n",
                 "typedef struct distance { double distance_m; } velocity_t;\n",
-                "enum distance { VELOCITY };\n",
+                "enum distance { VELOCITY_M_PER_S };\n",
                 "double calculate_velocity(double distance_m);\n"
             ),
         ),
         (
             "src/forms.cpp",
             concat!(
-                "#define VELOCITY 1\n",
-                "constexpr double VELOCITY = 1.0;\n",
+                "#define VELOCITY_M_PER_S 1\n",
+                "constexpr double VELOCITY_M_PER_S = 1.0;\n",
                 "class Velocity { public: double distance_m; ",
                 "private: double velocity_m_per_s_; };\n",
-                "enum Distance { VELOCITY };\n",
+                "enum Distance { VELOCITY_M_PER_S };\n",
                 "double calculate_velocity(double distance_m);\n"
             ),
         ),
@@ -188,12 +228,7 @@ fn reviewer_with_vocabulary(extra: &[&str]) -> csu::WorkspaceReviewer {
             .unwrap()
             .push(serde_json::json!(token));
     }
-    let bytes = serde_json::to_vec(&authority).unwrap();
-    let documents = [AuthorityDocument {
-        relative_path: "authority.json",
-        bytes: &bytes,
-    }];
-    WorkspaceReviewer::compile(AuthorityInput::Documents(&documents)).unwrap()
+    compile_value(&authority).unwrap()
 }
 
 /// 验证源码词元与注册输入使用相同的小写处理
@@ -379,7 +414,7 @@ fn quantity_name_dispositions_close_per_declared_concepts() {
     let mut isolated = authority.clone();
     isolated["token_vocabulary"] = serde_json::json!(["delivery"]);
     isolated["quantity_concepts"] = serde_json::json!({"phase": ["mystery"]});
-    let isolated = reviewer_from_value(&isolated);
+    let isolated = compile_value(&isolated).unwrap();
     for (path, syntax) in QUANTITY_PROFILES {
         for (spelling, expected) in [
             ("phase", Some(HARD_SUFFIX)),
@@ -408,7 +443,7 @@ fn quantity_name_dispositions_close_per_declared_concepts() {
     }
     authority["quantity_concepts"]["phase_offset"] =
         serde_json::json!(["rad"]);
-    let compound = reviewer_from_value(&authority);
+    let compound = compile_value(&authority).unwrap();
     for (path, syntax) in QUANTITY_PROFILES {
         for (spelling, expected) in [
             ("phase_offset", Some(HARD_SUFFIX)),
@@ -423,10 +458,10 @@ fn quantity_name_dispositions_close_per_declared_concepts() {
         }
     }
     let mut alias = authority;
-    let not_allowed = reviewer_from_value(&alias);
+    let not_allowed = compile_value(&alias).unwrap();
     alias["quantity_concepts"]["phase"] =
         serde_json::json!(["rad", "deg", "radians"]);
-    let allowed = reviewer_from_value(&alias);
+    let allowed = compile_value(&alias).unwrap();
     for (path, syntax) in QUANTITY_PROFILES {
         assert_identifier_outcome(
             &not_allowed,
@@ -441,18 +476,4 @@ fn quantity_name_dispositions_close_per_declared_concepts() {
             None,
         );
     }
-}
-
-/// 根据 JSON 值创建审查器
-fn reviewer_from_value(
-    authority: &serde_json::Value,
-) -> csu::WorkspaceReviewer {
-    let bytes = serde_json::to_vec(authority).unwrap();
-    WorkspaceReviewer::compile(AuthorityInput::Documents(&[
-        AuthorityDocument {
-            relative_path: "authority.json",
-            bytes: &bytes,
-        },
-    ]))
-    .unwrap()
 }

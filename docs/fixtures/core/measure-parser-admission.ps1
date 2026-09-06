@@ -643,10 +643,10 @@ $receipt = [pscustomobject][ordered]@{
         targets = @($targetReceipts)
         grammars = [pscustomobject][ordered]@{
             cargo_lock_sha256 = $frozenCargoLock.sha256
-            python = "tree-sitter-python@0.25.0+direct-source-facts-v3"
-            rust = "tree-sitter-rust@0.24.2+direct-source-facts-v3"
-            c = "tree-sitter-c@0.24.2+direct-source-facts-v3"
-            cpp = "tree-sitter-cpp@8b5b49eb+direct-source-facts-v3"
+            python = "tree-sitter-python@0.25.0+direct-source-facts"
+            rust = "tree-sitter-rust@0.24.2+direct-source-facts"
+            c = "tree-sitter-c@0.24.2+direct-source-facts"
+            cpp = "tree-sitter-cpp@8b5b49eb+direct-source-facts"
         }
         executable_sha256 = $frozenExecutable.sha256
         authority_sha256 = $frozenAuthority.sha256

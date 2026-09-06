@@ -10,11 +10,14 @@ use csu::SealedReview;
 use csu::SourceDocument;
 use csu::WorkspaceReviewer;
 
+#[path = "../review_fixture/mod.rs"]
 mod review_fixture;
 
+use review_fixture::compile_value;
 use review_fixture::review_sources;
 
-const AUTHORITY: &str = include_str!("../docs/fixtures/core/authority.json");
+const AUTHORITY: &str =
+    include_str!("../../docs/fixtures/core/authority.json");
 const VALID_PYTHON: &str = concat!(
     "def _calculate_velocity(distance_m: float, ",
     r#"duration_s: float) -> float:
@@ -29,19 +32,6 @@ const VALID_PYTHON: &str = concat!(
 fn reviewer() -> WorkspaceReviewer {
     compile_value(&serde_json::from_str(AUTHORITY).unwrap())
         .expect("frozen Project Authority must compile")
-}
-
-/// 编译指定 JSON 值
-fn compile_value(
-    authority: &serde_json::Value,
-) -> Result<WorkspaceReviewer, csu::ReviewRejection> {
-    let bytes = serde_json::to_vec(authority).unwrap();
-    WorkspaceReviewer::compile(AuthorityInput::Documents(&[
-        AuthorityDocument {
-            relative_path: "authority.json",
-            bytes: &bytes,
-        },
-    ]))
 }
 
 /// 断言原始 Authority 输入在访问源码前被拒绝
@@ -132,13 +122,14 @@ fn rule_catalog_finding_and_semantic_identity() {
         "ordinary comments must not share a physical line with code"
     );
     assert_eq!(finding.question(), None);
-    let fixture = include_str!("../docs/fixtures/core/fixture-manifest.json");
+    let fixture =
+        include_str!("../../docs/fixtures/core/fixture-manifest.json");
     let manifest: serde_json::Value = serde_json::from_str(fixture).unwrap();
     let expected = manifest["semantic_authority_digest"].as_str().unwrap();
     assert_eq!(authority_digest(&review), expected);
     assert_eq!(
         review.seal(),
-        "1a1f9b91e0a672198a97bc7f9a2b80ef245381f337fee4f003f57bd7a1bc59ad"
+        "30f9b2db5947391ecbf3a36b1c4f18c829bd29c031e3004878b2a14f8163ff2f"
     );
 
     let canonical: serde_json::Value =
@@ -208,7 +199,7 @@ fn coverage_closes_all_owned_families_without_mask() {
                 bytes: b"# \xce\xb1\r\n    \xc3\xa9\xff",
             }],
         })));
-    let expected = "observation method tree-sitter-python@0.25.0+direct-source-facts-v3 rejected source at 2:7: source is not valid UTF-8";
+    let expected = "observation method tree-sitter-python@0.25.0+direct-source-facts rejected source at 2:7: source is not valid UTF-8";
     let blocked = FactFamilyState::Blocked(expected.to_owned());
 
     assert_eq!(review.completion(), csu::Completion::Incomplete);
@@ -238,13 +229,13 @@ fn review_identity_is_canonical() {
             "clean",
             "src/velocity.py",
             "def _calculate_velocity():\n    \"\"\"\n    计算平均速度\n    \"\"\"\n    return 1\n".as_bytes(),
-            "f7cf255153f561a3522da6804825949a25afafc8c6da39eb36010aa5f2298256",
-            "92d931b0397b490dd162c731a9189dca307abc62e15400774161185db1b297f1",
+            "b14c98120109a3ed13e23662c9c6c0d16458b16ccb250722575c42c9be7c24d2",
+            "110ff37b1fcbf686a920b0ad95feecaae3b9039d6868b18d0fa98634e3a9bf5f",
         ),
-        ("findings", "src/value.py", b"Q = 1\n", "04b3106d02de61ccdd7ba0778c1e9a3c7939b08f54e5acacc9def0f01573d9bd", "26c29d14c5324fcf01943fe62fe39cb566446f532e3dff30b42b43d2c8997703"),
-        ("source-rejected", "src/value.py", b"\xff", "54b934be912cecdcb9339412074be7af4a1830f4a0e1c357734656c9eb1f1201", "1015ef6ed11dd99ef4baba04e27f1229198f4bb5b16b4a27df97b4c6a4f36fb2"),
-        ("documentation-blocked", "src/unowned.c", "/**\n * 计算平均速度\n */\ndouble calculate_velocity(void);\n".as_bytes(), "de125e4e34a7bc5e601d7f3c1ea7a657353eae4c819a43ebbb2b44398650b0fc", "51284c30f00839daab75a77872e60b5b8cf5965a80ce32a0db051debab3aa7b2"),
-        ("dependency-blocked", "src/dependency.py", b"import os\n", "e76b7754a992e5f3ea64215a1e1a1705a28873136eba1932306c6f1f94658996", "3b43f48187bfafceab4f392d43f1057dcb4d1a34c5ef6000d8b1400cc5037585"),
+        ("findings", "src/value.py", b"Q = 1\n", "1ab2ac2115f5fe166bdbfd39027bf15f76ad8803f17397474a7703d7cda45d63", "cdd880e5131bf5006361cba815d063a10442f8cd391749955f72aff17c68d3d3"),
+        ("source-rejected", "src/value.py", b"\xff", "95b3c6afbc6d9279071c7f93cac727ef06263f5623ffb527af963b146edd21d6", "d3abe3bc23bb4a62a80023b79955ae252e371652f3e4c1c3b1c786b177351189"),
+        ("documentation-blocked", "src/unowned.c", "/**\n * 计算平均速度\n */\ndouble calculate_velocity(void);\n".as_bytes(), "115b184ddfec54cba447279649f0248422a2c034d9551e18b7564a63803ac0cb", "46753babfd8015c63a79b6dfb53509a9aa56af042758ac0ce2ca63ed7dcae977"),
+        ("dependency-blocked", "src/dependency.py", b"import os\n", "ee573cfd1d7d84eff55008f961d27e7160982a281d562cd463d34b133bab930d", "5e3e5ab6a828556d1237dc9c545f00f71313eb246a27bc8cbf2e4e82988a82ad"),
     ];
     for (identity, path, bytes, canonical, seal) in cases {
         let documents = [SourceDocument {
@@ -267,7 +258,7 @@ fn review_identity_is_canonical() {
 /// 验证四语言允许的行末指令及相近的非法写法
 #[test]
 fn profile_directives_and_trailing_comments_are_exact() {
-    for row in include_str!("fixtures/trailing-comments.tsv").lines() {
+    for row in include_str!("../fixtures/trailing-comments.tsv").lines() {
         let mut fields = row.splitn(3, '\t');
         let path = fields.next().unwrap();
         let expected = fields.next().unwrap().parse::<usize>().unwrap();
@@ -337,7 +328,7 @@ fn project_registry_changes_new_authority_identity() {
 /// 验证六类项目事实在访问源码前检查格式、位置和重复项
 #[test]
 fn authority_rows_are_closed_before_source_access() {
-    let rows = include_str!("fixtures/authority-rejections.jsonl")
+    let rows = include_str!("../fixtures/authority-rejections.jsonl")
         .lines()
         .collect::<Vec<_>>();
     assert_raw_authority_rejected(&rows);
