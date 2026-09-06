@@ -368,16 +368,28 @@ fn workspace_source_identity_is_unique() {
             Disposition::Rejected
         );
     };
+    let assert_source_rejected =
+        |result: std::io::Result<()>, path: &std::path::Path| {
+            match result {
+                Ok(()) => assert_workspace_rejected(path),
+                Err(error) => {
+                    // macOS 文件系统可在创建样例时直接拒绝非法字节
+                    assert!(cfg!(target_os = "macos"), "{error}");
+                    assert_eq!(error.raw_os_error(), Some(92), "{error}");
+                }
+            }
+        };
     let invalid = tempfile::tempdir().unwrap();
     let name = std::ffi::OsString::from_vec(b"value\xff.py".to_vec());
-    std::fs::write(invalid.path().join(name), VALID_PYTHON).unwrap();
-    assert_workspace_rejected(invalid.path());
+    assert_source_rejected(
+        std::fs::write(invalid.path().join(name), VALID_PYTHON),
+        invalid.path(),
+    );
     let root = tempfile::tempdir().unwrap();
     let root = root
         .path()
         .join(std::ffi::OsString::from_vec(b"root\xff".to_vec()));
-    std::fs::create_dir(&root).unwrap();
-    assert_workspace_rejected(&root);
+    assert_source_rejected(std::fs::create_dir(&root), &root);
 
     let collision = tempfile::tempdir().unwrap();
     std::fs::create_dir(collision.path().join("src")).unwrap();
