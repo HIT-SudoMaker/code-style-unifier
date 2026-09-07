@@ -311,7 +311,7 @@ pub(crate) enum DependencyProfileLaw {
         scope_revision: u16,
         order_revision: u16,
         within_group_blank_lines: usize,
-        nested_use_blocked: &'static str,
+        unknown_use_blocked: &'static str,
     },
     Procedural {
         unavailable_blocked: &'static str,
@@ -1426,9 +1426,9 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             },
             dependency: DependencyProfileLaw::Rust {
                 scope_revision: 1,
-                order_revision: 2,
+                order_revision: 3,
                 within_group_blank_lines: 0,
-                nested_use_blocked: "Rust nested use-list ordering needs a frozen comparator capability",
+                unknown_use_blocked: "Rust use-tree contains unsupported direct syntax",
             },
             directive_carriers: &[],
             directives: &[],

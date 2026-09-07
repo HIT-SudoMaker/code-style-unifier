@@ -140,6 +140,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 每个声明使用这些已建索引，不重新排序标记。完整词元大小写规则由规范定义，接纳与观察共用 `lowercase_token`。
 改变索引表示不应改变语义摘要；改变判断含义则应更新对应规则身份及公共入口证据。
 
+Rust 依赖观察将直接 `use` 语法转换为拥有路径段、互斥尾部（绑定/通配/列表）和位置的内部树，
+不把源码原文当作列表排序键。递归比较器同时用于每层列表及连续声明组，排序违规定位到后项；
+未知节点带声明位置使 DependencyDeclaration 受阻，已知部分的独立问题仍保留。
+Rust `DependencyProfileLaw.order_revision` 为 3；Python 多模块导入与 C/C++ 缺失依赖事实的完成条件保持各自合同。
+
 每文件固定有 Capture、PhysicalLines、Structure、Identifier、Documentation、DependencyDeclaration 六类记录。
 每类只取 `Complete(数量)` 或 `Blocked(原因)`；`Complete(0)` 表示已确认没有对象。
 `FamilyClosure` 构造完整类别记录，避免另一套“需要/已执行”标记与结果发生漂移。

@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "semantic_authority_digest": "57f0142097ba1805e423db8169b9270916d737a29eaf2eba11d28d21b2b440a8",
+  "semantic_authority_digest": "0b8680d0b6e2f50a5c6e8991b26a1cbf3e996b4727cd43f6e8d1ab2b532ceed9",
   "authority": {
     "path": "authority.json",
     "sha256": "52f7e9112667ae977ad1ef56e7777994edf3b05cd9b5d3314d8b9dc7884607c8"

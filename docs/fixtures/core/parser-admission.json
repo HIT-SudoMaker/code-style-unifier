@@ -103,13 +103,13 @@
       }
     ],
     "grammars": {
-      "cargo_lock_sha256": "4b6b375e8f098d4f2c7135d6281dcae067a99ef2011c83e9224e165caf123744",
+      "cargo_lock_sha256": "80e5090933ce1014df41aae2ad7e53999fe8536cc48eb188f8714a8eef9277ba",
       "python": "tree-sitter-python@0.25.0+direct-source-facts",
       "rust": "tree-sitter-rust@0.24.2+direct-source-facts",
       "c": "tree-sitter-c@0.24.2+direct-source-facts",
       "cpp": "tree-sitter-cpp@8b5b49eb+direct-source-facts"
     },
-    "executable_sha256": "59b0f357af103eec3f0e707a985090f6423028c945df98809a365ed9d2a633fb",
+    "executable_sha256": "829b31b3df33476982678bd6cc60e44d29bf27e6207ff0b93d6818beaafc2ecc",
     "authority_sha256": "b7be6331cefaf06e9638fcb6df580ec9feab0e3768df53f093a1556255c53a5c",
     "authority_schema_version": 4,
     "ambiguous_header_facts": 315,
@@ -3519,13 +3519,13 @@
   "repeated_runs": [
     {
       "exit_code": 2,
-      "projection_sha256": "f37cb4d2975cc8983e2fec8af6fbd2c83ca87663d22c4597ef764602ca298f5f",
+      "projection_sha256": "0fbcd770f9cdfc9b871fc971e91b0f647460a45f8d9de1242b76f3ff16aa2623",
       "inventory_sha256": "a58948c7318923ccf9ef99237cf20f1f3e750d8a43a8a374d565bc9011de4d48",
       "counts_sha256": "27389c17ed52c79c45f3a0f5a69cfc63afd5771b349816d49bcf66a0f04ad581"
     },
     {
       "exit_code": 2,
-      "projection_sha256": "f37cb4d2975cc8983e2fec8af6fbd2c83ca87663d22c4597ef764602ca298f5f",
+      "projection_sha256": "0fbcd770f9cdfc9b871fc971e91b0f647460a45f8d9de1242b76f3ff16aa2623",
       "inventory_sha256": "a58948c7318923ccf9ef99237cf20f1f3e750d8a43a8a374d565bc9011de4d48",
       "counts_sha256": "27389c17ed52c79c45f3a0f5a69cfc63afd5771b349816d49bcf66a0f04ad581"
     }

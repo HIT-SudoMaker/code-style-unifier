@@ -1,14 +1,9 @@
-use csu::AuthorityDocument;
-use csu::AuthorityInput;
-use csu::Disposition;
-use csu::FindingGrade;
-use csu::ReviewTerminal;
-use csu::WorkspaceReviewer;
+use csu::{AuthorityDocument, AuthorityInput};
+use csu::{Disposition, FindingGrade, ReviewTerminal, WorkspaceReviewer};
 
 mod review_fixture;
 
-use review_fixture::compile_value;
-use review_fixture::review_sources;
+use review_fixture::{compile_value, review_sources};
 
 /// 验证相对导入保留项目依赖分类和排序检查
 #[test]
@@ -81,6 +76,19 @@ fn review(revision: &str, sources: &[(&str, &str)]) -> ReviewTerminal {
     review_sources(&reviewer(true), revision, sources)
 }
 
+/// 读取文件的依赖完成记录，缺少记录立即失败
+fn dependency_state(
+    families: &[(csu::FactFamily, csu::FactFamilyState)],
+) -> &csu::FactFamilyState {
+    families
+        .iter()
+        .find_map(|(family, state)| {
+            (*family == csu::FactFamily::DependencyDeclaration)
+                .then_some(state)
+        })
+        .expect("dependency coverage must exist")
+}
+
 /// 验证依赖排序和通配符按各语言规则检查
 #[test]
 fn dependency_order_and_wildcard_are_profile_local() {
@@ -134,35 +142,84 @@ fn dependency_order_and_wildcard_are_profile_local() {
             .iter()
             .find(|file| file.path() == path)
             .unwrap();
-        assert!(file.families().iter().any(|(family, state)| {
-            *family == csu::FactFamily::DependencyDeclaration
-                && matches!(state, csu::FactFamilyState::Blocked(_))
-        }));
+        assert!(matches!(
+            dependency_state(file.families()),
+            csu::FactFamilyState::Blocked(_)
+        ));
     }
 }
 
-/// 验证无法完整识别的 Python 和 Rust 导入不能判为干净
+/// 验证 Rust 导入树按结构递归检查且保持声明计数
 #[test]
-fn complex_python_and_rust_imports_cannot_pass_as_clean() {
-    let terminal = review(
-        "python-multi-module-imports",
-        &[
-            ("src/third_party_first.py", "import numpy, os\n"),
-            ("src/standard_library_first.py", "import os, numpy\n"),
-            ("src/nested.rs", "use crate::{alpha, beta};\n"),
-        ],
-    );
-
-    assert_eq!(terminal.disposition(), Disposition::Incomplete);
-    let ReviewTerminal::Sealed(review) = terminal else {
-        panic!("multi-module imports must have sealed blocking evidence");
+fn rust_use_trees_have_recursive_order_and_complete_coverage() {
+    let cases: Vec<(String, usize, u32)> =
+        serde_json::from_str(include_str!("fixtures/rust-use-trees.json"))
+            .expect("Rust import cases must be valid JSON");
+    for (source, order_findings, declarations) in cases {
+        let ReviewTerminal::Sealed(result) =
+            review("rust-use-tree", &[("src/imports.rs", &source)])
+        else {
+            panic!("Rust use-tree review must seal: {source}");
+        };
+        assert_eq!(
+            dependency_state(result.coverage().files()[0].families()),
+            &csu::FactFamilyState::Complete(declarations),
+            "{source}"
+        );
+        let count = result
+            .findings()
+            .iter()
+            .filter(|finding| finding.rule() == "dependency.order")
+            .count();
+        assert_eq!(count, order_findings, "{source}");
+    }
+    let source = "use crate::{\n    beta,\n    /* explanation */ alpha,\n};\n";
+    let ReviewTerminal::Sealed(result) =
+        review("rust-use-layout", &[("src/imports.rs", source)])
+    else {
+        panic!("Rust use-tree layout must seal");
     };
-    assert!(review.coverage().files().iter().all(|file| {
-        file.families().iter().any(|(family, state)| {
-            *family == csu::FactFamily::DependencyDeclaration
-                && matches!(state, csu::FactFamilyState::Blocked(_))
-        })
-    }));
+    let findings: Vec<_> = result
+        .findings()
+        .iter()
+        .filter(|finding| finding.rule() == "dependency.order")
+        .collect();
+    assert_eq!(findings.len(), 1);
+    assert_eq!((findings[0].line(), findings[0].column()), (3, 23));
+}
+
+/// 验证 Rust 通配违规独立于重排开关且未知树仍受阻
+#[test]
+fn rust_use_tree_unknown_and_wildcard_remain_visible() {
+    for reorder_safe in [false, true] {
+        let ReviewTerminal::Sealed(result) = review_sources(
+            &reviewer(reorder_safe),
+            "rust-use-limit",
+            &[
+                ("src/wildcard.rs", "use crate::{beta, alpha, *};\n"),
+                ("src/unknown.rs", "use $unknown; use a::{z,b};\n"),
+            ],
+        ) else {
+            panic!("Rust use limits must seal");
+        };
+        let count = |rule| {
+            result
+                .findings()
+                .iter()
+                .filter(|finding| finding.rule() == rule)
+                .count()
+        };
+        assert_eq!(count("dependency.wildcard"), 1);
+        assert_eq!(count("dependency.order"), 2 * usize::from(reorder_safe));
+        for file in result.coverage().files() {
+            let state = dependency_state(file.families());
+            assert!(if file.path() == "src/unknown.rs" {
+                matches!(state, csu::FactFamilyState::Blocked(_))
+            } else {
+                *state == csu::FactFamilyState::Complete(1)
+            });
+        }
+    }
 }
 
 /// 验证 C++ 模块导入必须先于普通顶层声明
@@ -203,12 +260,10 @@ fn cpp_module_import_must_precede_ordinary_top_level_declarations() {
             "src/private.cpp"
         ]
     );
-    assert!(review.coverage().files().iter().all(|file| {
-        file.families().iter().any(|(family, state)| {
-            *family == csu::FactFamily::DependencyDeclaration
-                && matches!(state, csu::FactFamilyState::Blocked(_))
-        })
-    }));
+    assert!(review.coverage().files().iter().all(|file| matches!(
+        dependency_state(file.families()),
+        csu::FactFamilyState::Blocked(_)
+    )));
 }
 
 /// 验证 Python 仅检查模块级和精确类型检查块中的依赖
@@ -225,17 +280,22 @@ fn python_dependency_scope_is_module_level_or_exact_type_checking() {
         ("src/other.py", "if OTHER_GUARD:\n    import os\n", true),
         ("src/local.py", "def _local():\n    import os\n", true),
         ("src/unknown.py", "import unclassified_package\n", true),
+        ("src/multi.py", "import numpy, os\n", true),
+        ("src/multi_reverse.py", "import os, numpy\n", true),
+        (
+            "src/nested_guard.py",
+            "if TYPE_CHECKING:\n    if TYPE_CHECKING:\n        import os\n",
+            true,
+        ),
     ] {
         let ReviewTerminal::Sealed(review) =
             review("python-dependency-scope", &[(path, source)])
         else {
             panic!("dependency scope review must seal");
         };
-        let observed = review.coverage().files()[0].families().iter().any(
-            |(family, state)| {
-                *family == csu::FactFamily::DependencyDeclaration
-                    && matches!(state, csu::FactFamilyState::Blocked(_))
-            },
+        let observed = matches!(
+            dependency_state(review.coverage().files()[0].families()),
+            csu::FactFamilyState::Blocked(_)
         );
         assert_eq!(observed, blocked, "{path}");
     }

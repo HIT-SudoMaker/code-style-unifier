@@ -158,7 +158,7 @@
       "path": "parser-admission.json",
       "schema_version": 1,
       "exclusions": 372,
-      "sha256": "85808367d5883eba5cd60423da4b467393d40fa41c59c4a2c18e790d2290519c"
+      "sha256": "a40070a1e63a0c9369a31e2520f9ac851a38770112bdf0224132a96750bf58be"
     },
     "repeated_runs": 2
   },
@@ -224,7 +224,7 @@
     },
     "verifier": {
       "path": "verify-inputs.ps1",
-      "sha256": "eba5fba4854f72499c9fdc5227fca30e3d6d6a21736c5304557e5b830a646510"
+      "sha256": "5b3daf34e844083c45620ed896c8f52f8671dacc3511aec440ef95e061f67c73"
     },
     "environment": {
       "os_description": "Microsoft Windows 10.0.26200",
@@ -263,6 +263,6 @@
     "expected_diagnostic_incomplete": true
   },
   "grammars": {
-    "cargo_lock_sha256": "4b6b375e8f098d4f2c7135d6281dcae067a99ef2011c83e9224e165caf123744"
+    "cargo_lock_sha256": "80e5090933ce1014df41aae2ad7e53999fe8536cc48eb188f8714a8eef9277ba"
   }
 }

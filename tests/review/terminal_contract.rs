@@ -129,7 +129,7 @@ fn rule_catalog_finding_and_semantic_identity() {
     assert_eq!(authority_digest(&review), expected);
     assert_eq!(
         review.seal(),
-        "30f9b2db5947391ecbf3a36b1c4f18c829bd29c031e3004878b2a14f8163ff2f"
+        "21330a962a0f75ab6def401fd9120eb01b2ae1fcf9e1e4b96a9ba285ebd3b12a"
     );
 
     let canonical: serde_json::Value =
@@ -229,13 +229,13 @@ fn review_identity_is_canonical() {
             "clean",
             "src/velocity.py",
             "def _calculate_velocity():\n    \"\"\"\n    计算平均速度\n    \"\"\"\n    return 1\n".as_bytes(),
-            "b14c98120109a3ed13e23662c9c6c0d16458b16ccb250722575c42c9be7c24d2",
-            "110ff37b1fcbf686a920b0ad95feecaae3b9039d6868b18d0fa98634e3a9bf5f",
+            "d142bcd11e98d220cf87d261b57e07c4e0808441b57563dfb2a33e9cb32391f1",
+            "b7ddcb5bd7121c82a8bda0df2652281f1c35500a26dbd531f600006d724c4cf2",
         ),
-        ("findings", "src/value.py", b"Q = 1\n", "1ab2ac2115f5fe166bdbfd39027bf15f76ad8803f17397474a7703d7cda45d63", "cdd880e5131bf5006361cba815d063a10442f8cd391749955f72aff17c68d3d3"),
-        ("source-rejected", "src/value.py", b"\xff", "95b3c6afbc6d9279071c7f93cac727ef06263f5623ffb527af963b146edd21d6", "d3abe3bc23bb4a62a80023b79955ae252e371652f3e4c1c3b1c786b177351189"),
-        ("documentation-blocked", "src/unowned.c", "/**\n * 计算平均速度\n */\ndouble calculate_velocity(void);\n".as_bytes(), "115b184ddfec54cba447279649f0248422a2c034d9551e18b7564a63803ac0cb", "46753babfd8015c63a79b6dfb53509a9aa56af042758ac0ce2ca63ed7dcae977"),
-        ("dependency-blocked", "src/dependency.py", b"import os\n", "ee573cfd1d7d84eff55008f961d27e7160982a281d562cd463d34b133bab930d", "5e3e5ab6a828556d1237dc9c545f00f71313eb246a27bc8cbf2e4e82988a82ad"),
+        ("findings", "src/value.py", b"Q = 1\n", "8631ffe9e704f5566a1ffcb87cd67f50c5aa32f393eb26da2d79528ba191597a", "e373b4d2f94bd58b9ba8ecc17ae3c51276b3182702f7f79feb214734178396e9"),
+        ("source-rejected", "src/value.py", b"\xff", "b36611c1bda380114549689b3680b75c1afd9bbb9d84d5f7d696849ba5535ac2", "e191ea67a7632fc31eee94e8be8a11775d9ce5da4ed7b71ec5fba26aaeaff294"),
+        ("documentation-blocked", "src/unowned.c", "/**\n * 计算平均速度\n */\ndouble calculate_velocity(void);\n".as_bytes(), "2fe4d9858840320403cab68753eeacf5f46df5a846995f2cbb9aeaf11f5adcb3", "ea3f8952a06518c445138402ddf158d2b452fc03d5d7e9bfcfc56a5d080b3cc1"),
+        ("dependency-blocked", "src/dependency.py", b"import os\n", "2dbba2ee769cdd8914b474c187f3bfd076c3c2ae3e0ad0e6d4811ebac8e540a6", "7db4bd26a41c50b238023b2f6e43aeb34e63265819207ecb246dd251976874c2"),
     ];
     for (identity, path, bytes, canonical, seal) in cases {
         let documents = [SourceDocument {

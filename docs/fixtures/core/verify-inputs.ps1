@@ -892,8 +892,8 @@ $package = @($packageMetadata.packages | Where-Object {
         $_.name -ceq "code-style-unifier"
     })
 if ($LASTEXITCODE -ne 0 -or $package.Count -ne 1 -or
-    [string]$package[0].version -cne "3.0.1") {
-    throw "Package metadata and lockfile must identify version 3.0.1"
+    [string]$package[0].version -cne "3.0.2") {
+    throw "Package metadata and lockfile must identify version 3.0.2"
 }
 $releaseWorkflowPath = Join-Path $repositoryRoot ".github/workflows/release.yml"
 $releaseWorkflowText = [IO.File]::ReadAllText($releaseWorkflowPath)

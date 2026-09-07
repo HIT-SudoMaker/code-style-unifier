@@ -34,6 +34,9 @@ cargo test --locked --test documentation_regressions python_property_accessors
 [review_fixture](review_fixture/mod.rs) 统一装配 Authority JSON 与内存源码输入；具体 Authority、变异和断言留在所属测试。
 单个规则的短样例就近内联；[fixtures](fixtures/) 保存表驱动回归数据，不承载产品逻辑。
 
+[Rust 导入树样例](fixtures/rust-use-trees.json) 每行记录源码、排序问题数和声明数；
+依赖测试通过公共入口检查嵌套、别名、路径、数字平局和排版变体，另保留未知结构、通配及精确位置断言。
+
 [四语言冻结样例](../docs/fixtures/core/README.md) 位于开发资料目录，包含故意违规或损坏的源码，用于证明工具能正确检出问题。
 它们不进入安装包，也不混入 `tests` 的 Rust 源码自检范围。源文件字节和精确预期由样例 manifest 绑定。
 [声明覆盖清单](../docs/fixtures/core/declaration-coverage.md) 连接语言结构与具体测试，并保留专项证据缺口。
