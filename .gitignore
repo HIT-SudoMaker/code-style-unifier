@@ -1,0 +1,15 @@
+# Build and generated review output
+/target/
+/dist/
+/.csu/runs/
+/docs/fixtures/core/self_check.json
+
+# Agent process state
+/.superpowers/
+/.spec-workflow/
+
+# Root process output
+/*.output
+
+# Operating-system metadata
+.DS_Store

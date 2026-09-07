@@ -1,0 +1,2805 @@
+{
+  "schema_version": 5,
+  "recorded_at_utc": "2026-09-07T11:25:11.0607723+00:00",
+  "executable_sha256": "d8ccaa93e1a02b756e48cdb6db4e4cf05160448095a9dfac5699057aff74521c",
+  "cargo_lock_sha256": "c870cc2e1f44d972ded9a6d3deb5197df227b2a678a66149b670550c53871bc3",
+  "runner_identity": "win11-26200-ryzen9-9900x-96g-nvme-rust-1.96.0",
+  "runner_script_sha256": "569c8f8dc8599327fd5749cbbd7766a139b9b28c98aa6ce8d66bc566125e786c",
+  "verifier_script_sha256": "dc7f94c1011461659c6e20a6f608ba97e16a0db9460c4fb14950b731c057627d",
+  "runner_environment": {
+    "os_description": "Microsoft Windows 10.0.26200",
+    "os_architecture": "X64",
+    "cpu_name": "AMD Ryzen 9 9900X 12-Core Processor",
+    "physical_cores": 12,
+    "logical_processors": 24,
+    "installed_memory_bytes": 103079215104,
+    "storage_model": "SOLIDIGM SSDPFKKW020X7",
+    "storage_bus": "NVMe",
+    "storage_filesystem": "NTFS",
+    "observed_tools": {
+      "rustc_verbose": "rustc 1.96.0 (ac68faa20 2026-05-25)\nbinary: rustc\ncommit-hash: ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96\ncommit-date: 2026-05-25\nhost: x86_64-pc-windows-msvc\nrelease: 1.96.0\nLLVM version: 22.1.2",
+      "cargo": "cargo 1.96.0 (30a34c682 2026-05-25)",
+      "rustfmt": "rustfmt 1.9.0-stable (ac68faa20c 2026-05-25)",
+      "clippy_driver": "clippy 0.1.96 (ac68faa20c 2026-05-25)",
+      "powershell": "PowerShell Core 7.6.5",
+      "git": "git version 2.51.2.windows.1"
+    },
+    "active_power_plan_guid": "381b4222-f694-41f0-9685-ff5bb260df2e"
+  },
+  "authority_sha256": "78ad91b75394ef27d626c2fda1f0377b7244350a72bb6840ccba6d32340d1425",
+  "workspace": "E:\\Year2026_Project_CSU\\code\\target\\reviews\\deep-20260907-163000\\corpus",
+  "corpus_files": 617,
+  "corpus_physical_lines": 200000.0,
+  "corpus_digest": "fdcfa14e65efc32bc25587efe9ee6a6aa5453ba2e3eeb8b4a2b4ead5f8441703",
+  "inventory_sha256": "b4d11370ba223527523a1bff366164f23562377940c9c5dd6007a65ffe1afe54",
+  "benchmark_manifest_sha256": "a854d92742f72627abdad8a9bc8a0d1c11bee522c855cf446afa5bdbce81af68",
+  "measured_candidate_sha256": "e3bf8f6bd4bdc214da6cf8bb392aa5cd1eff3412b307bbf2a8ec9a4871deb2c2",
+  "premeasurement_full_patch_sha256": "7d42c6b75a24ac95fa90a29102bd0952519f4d87dfcdaf13bee367c13c4fe3a3",
+  "runs": 30,
+  "warmup_runs": 1,
+  "peak_working_set_method": "win32_process_memory_counters_lifetime_peak_bytes",
+  "p95_method": "nearest_rank_ceiling_0.95_times_n",
+  "p95_elapsed_ms": 1425.0912,
+  "p95_optimization_target_met": true,
+  "maximum_peak_working_set_bytes": 82567168.0,
+  "deterministic_projection": true,
+  "diagnostic_incomplete": true,
+  "projection_digests": [
+    "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2"
+  ],
+  "semantic_summary_digests": [
+    "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+  ],
+  "review_summary": {
+    "terminal": "sealed",
+    "disposition": "incomplete",
+    "completion": "incomplete",
+    "scope_kind": "workspace",
+    "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+    "finding_summary": {
+      "total": 63012,
+      "hard_violation": 17992,
+      "review_required": 45020
+    },
+    "finding_rule_summary": [
+      {
+        "grade": "hard_violation",
+        "rule": "dependency.wildcard",
+        "count": 65
+      },
+      {
+        "grade": "hard_violation",
+        "rule": "documentation.carrier",
+        "count": 11095
+      },
+      {
+        "grade": "hard_violation",
+        "rule": "documentation.public_contract",
+        "count": 979
+      },
+      {
+        "grade": "hard_violation",
+        "rule": "documentation.summary",
+        "count": 1436
+      },
+      {
+        "grade": "hard_violation",
+        "rule": "identifier.canonical_form",
+        "count": 3096
+      },
+      {
+        "grade": "hard_violation",
+        "rule": "identifier.reserved",
+        "count": 29
+      },
+      {
+        "grade": "hard_violation",
+        "rule": "source.trailing_comment",
+        "count": 1292
+      },
+      {
+        "grade": "review_required",
+        "rule": "identifier.candidate",
+        "count": 5037
+      },
+      {
+        "grade": "review_required",
+        "rule": "identifier.unknown_token",
+        "count": 39983
+      }
+    ],
+    "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+    "blocked_families": 759,
+    "blocked_family_summary": [
+      {
+        "family": "dependency_declaration",
+        "count": 459
+      },
+      {
+        "family": "documentation",
+        "count": 300
+      }
+    ],
+    "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+    "admitted_files": 617,
+    "metrics": {
+      "files_read": 617,
+      "byte_sweeps": 617,
+      "structural_parses": 617
+    },
+    "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+  },
+  "measurements": [
+    {
+      "run": 1,
+      "elapsed_ms": 1341.6313,
+      "peak_working_set_bytes": 82563072,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 2,
+      "elapsed_ms": 1365.234,
+      "peak_working_set_bytes": 82522112,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 3,
+      "elapsed_ms": 1359.5105,
+      "peak_working_set_bytes": 82489344,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 4,
+      "elapsed_ms": 1341.5851,
+      "peak_working_set_bytes": 82464768,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 5,
+      "elapsed_ms": 1381.9161,
+      "peak_working_set_bytes": 82530304,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 6,
+      "elapsed_ms": 1342.7039,
+      "peak_working_set_bytes": 82554880,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 7,
+      "elapsed_ms": 1394.5651,
+      "peak_working_set_bytes": 82481152,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 8,
+      "elapsed_ms": 1503.216,
+      "peak_working_set_bytes": 82542592,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 9,
+      "elapsed_ms": 1355.1209,
+      "peak_working_set_bytes": 82460672,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 10,
+      "elapsed_ms": 1346.3111,
+      "peak_working_set_bytes": 82485248,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 11,
+      "elapsed_ms": 1383.3602,
+      "peak_working_set_bytes": 82530304,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 12,
+      "elapsed_ms": 1354.2046,
+      "peak_working_set_bytes": 82538496,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 13,
+      "elapsed_ms": 1369.518,
+      "peak_working_set_bytes": 82554880,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 14,
+      "elapsed_ms": 1350.5593,
+      "peak_working_set_bytes": 82481152,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 15,
+      "elapsed_ms": 1350.6193,
+      "peak_working_set_bytes": 82546688,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 16,
+      "elapsed_ms": 1341.004,
+      "peak_working_set_bytes": 82518016,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 17,
+      "elapsed_ms": 1355.118,
+      "peak_working_set_bytes": 82518016,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 18,
+      "elapsed_ms": 1416.1871,
+      "peak_working_set_bytes": 82563072,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 19,
+      "elapsed_ms": 1415.3504,
+      "peak_working_set_bytes": 82522112,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 20,
+      "elapsed_ms": 1365.1117,
+      "peak_working_set_bytes": 82509824,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 21,
+      "elapsed_ms": 1356.1009,
+      "peak_working_set_bytes": 82509824,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 22,
+      "elapsed_ms": 1350.6614,
+      "peak_working_set_bytes": 82534400,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 23,
+      "elapsed_ms": 1349.7579,
+      "peak_working_set_bytes": 82546688,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 24,
+      "elapsed_ms": 1372.0271,
+      "peak_working_set_bytes": 82505728,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 25,
+      "elapsed_ms": 1347.8116,
+      "peak_working_set_bytes": 82472960,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 26,
+      "elapsed_ms": 1397.1208,
+      "peak_working_set_bytes": 82567168,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 27,
+      "elapsed_ms": 1385.7507,
+      "peak_working_set_bytes": 82472960,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 28,
+      "elapsed_ms": 1391.5894,
+      "peak_working_set_bytes": 82505728,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 29,
+      "elapsed_ms": 1388.8997,
+      "peak_working_set_bytes": 82530304,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    },
+    {
+      "run": 30,
+      "elapsed_ms": 1425.0912,
+      "peak_working_set_bytes": 82505728,
+      "exit_code": 2,
+      "stdout_bytes": 23779750,
+      "stdout_sha256": "f3264f267b5585ce1dd2c818ffdeda4744e7a5f98172559b876d3fa22b78c1d2",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "review_summary": {
+        "terminal": "sealed",
+        "disposition": "incomplete",
+        "completion": "incomplete",
+        "scope_kind": "workspace",
+        "seal": "8c64b3aa97d416a10182ea0f9d67f3e8e2daf1f6197367d9acc20fd3b050d34e",
+        "finding_summary": {
+          "total": 63012,
+          "hard_violation": 17992,
+          "review_required": 45020
+        },
+        "finding_rule_summary": [
+          {
+            "grade": "hard_violation",
+            "rule": "dependency.wildcard",
+            "count": 65
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.carrier",
+            "count": 11095
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.public_contract",
+            "count": 979
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "documentation.summary",
+            "count": 1436
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.canonical_form",
+            "count": 3096
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "identifier.reserved",
+            "count": 29
+          },
+          {
+            "grade": "hard_violation",
+            "rule": "source.trailing_comment",
+            "count": 1292
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.candidate",
+            "count": 5037
+          },
+          {
+            "grade": "review_required",
+            "rule": "identifier.unknown_token",
+            "count": 39983
+          }
+        ],
+        "findings_sha256": "e67728e1778e7b7ab7889e56e2f19574794beae7a53d04d6511185a4cc2ad6f5",
+        "blocked_families": 759,
+        "blocked_family_summary": [
+          {
+            "family": "dependency_declaration",
+            "count": 459
+          },
+          {
+            "family": "documentation",
+            "count": 300
+          }
+        ],
+        "blocked_family_details_sha256": "a276e9268ce7cb2a5f125a4ea9e42782bd8bebdd56d1161008a69f6c1a20dbc5",
+        "admitted_files": 617,
+        "metrics": {
+          "files_read": 617,
+          "byte_sweeps": 617,
+          "structural_parses": 617
+        },
+        "semantic_summary_sha256": "219cfb1c9c4a26e9c3e2b0d9ac04ab01ff52fe9d56974a786c8e9ad2930082ae"
+      }
+    }
+  ],
+  "status": "verified_measurement_unpublished"
+}

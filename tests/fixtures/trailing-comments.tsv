@@ -1,0 +1,39 @@
+pragma.py	0	distance_m = 1  # pragma: no cover\n
+format.py	0	distance_m = 1  # fmt: skip\n
+type.py	0	distance_m = 1  # type: ignore\n
+type-code.py	0	d=1  # type: ignore[arg-type]\n
+pyright.py	0	distance_m = 1  # pyright: ignore\n
+pyright-code.py	0	d=1  # pyright: ignore[report_error.1]\n
+noqa.py	0	distance_m = 1  # noqa\n
+noqa-code.py	0	distance_m = 1  # noqa: F401, E501\n
+iwyu.c	0	double distance_m = 1; // IWYU pragma: keep\n
+nolint.c	0	double distance_m = 1; /* NOLINT */\n
+iwyu.cpp	0	int d=1; /* IWYU pragma: keep */\n
+nolint.cpp	0	int d=1; // NOLINT(readability_magic-number.1)\n
+empty-type.py	1	distance_m = 1  # type: ignore[]\n
+empty-pyright.py	1	d=1  # pyright: ignore[]\n
+empty-noqa.py	1	distance_m = 1  # noqa:\n
+empty-nolint.c	1	double distance_m = 1; // NOLINT()\n
+broken-type.py	1	d=1  # type: ignore[F401)\n
+broken-nolint.cpp	1	int d=1; // NOLINT(F401]\n
+bad-code.py	1	distance_m = 1  # noqa: F401!\n
+empty-code.c	1	int d=1; // NOLINT(F401,,E501)\n
+unicode-code.py	1	distance_m = 1  # noqa: λ\n
+near.py	1	distance_m = 1  # no qa\n
+near.cpp	1	double distance_m = 1; // NOLIN\n
+prose.py	1	distance_m = 1  # noqa: F401 because\n
+prose.c	1	int d=1; // NOLINT(rule) because\n
+wrong.py	1	distance_m = 1  # NOLINT\n
+wrong.c	1	double distance_m = 1; // noqa\n
+wrong.cpp	1	double distance_m = 1; // type: ignore\n
+rust-nolint.rs	1	const D:i32=1; // NOLINT\n
+rust-noqa.rs	1	const D:i32=1; // noqa: F401\n
+ordinary.py	1	distance_m = 1  # explanation\n
+ordinary.rs	1	const D:i32=1; // explanation\n
+ordinary.c	1	/* leading */ int e=1;\n
+ordinary.cpp	1	int f=1; /* NOLINT */ int g=1;\n
+standalone.py	0	# standalone\n
+literal.py	0	distance_m = '# literal'\n
+chain.rs	0	/* first */ /* second */\n
+literal.c	0	const char *s="//";\n
+chain.cpp	0	/* first */ /* second */\n

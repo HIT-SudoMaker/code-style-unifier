@@ -1,0 +1,132 @@
+[
+  [
+    "use serde_json::{json, Value};\n",
+    1,
+    1
+  ],
+  [
+    "use serde_json::{Value, json};\n",
+    0,
+    1
+  ],
+  [
+    "use crate::{alpha, beta};\n",
+    0,
+    1
+  ],
+  [
+    "use crate :: { /* first */ alpha ,\n beta, };\n",
+    0,
+    1
+  ],
+  [
+    "use crate::{alpha /* :: { */ , beta};\n",
+    0,
+    1
+  ],
+  [
+    "use crate::{beta, alpha};\n",
+    1,
+    1
+  ],
+  [
+    "use crate::{self, super, alpha2, alpha10};\n",
+    0,
+    1
+  ],
+  [
+    "use crate::{alpha10, alpha2};\n",
+    1,
+    1
+  ],
+  [
+    "use crate::{alpha1, alpha01};\n",
+    1,
+    1
+  ],
+  [
+    "use crate::{alpha::{second, first}, beta};\n",
+    1,
+    1
+  ],
+  [
+    "use crate::{alpha, beta::{first, second}};\n",
+    0,
+    1
+  ],
+  [
+    "use crate::{alpha::{first}, alpha::second};\n",
+    1,
+    1
+  ],
+  [
+    "use crate::{alpha::second, alpha::{first}};\n",
+    0,
+    1
+  ],
+  [
+    "use crate::{alpha as Zeta, beta as Alpha};\n",
+    0,
+    1
+  ],
+  [
+    "use crate::{alpha as Zeta, alpha as Beta};\n",
+    1,
+    1
+  ],
+  [
+    "use crate::{alpha as _, beta};\n",
+    0,
+    1
+  ],
+  [
+    "use crate::{r#alpha, beta};\n",
+    0,
+    1
+  ],
+  [
+    "use ::alpha::{first, second};\n",
+    0,
+    1
+  ],
+  [
+    "use {crate::alpha, external::beta};\n",
+    0,
+    1
+  ],
+  [
+    "use crate::{};\nuse crate::{alpha};\n",
+    0,
+    2
+  ],
+  [
+    "use crate::{alpha};\nuse crate::{beta};\n",
+    0,
+    2
+  ],
+  [
+    "use crate::{beta};\nuse crate::{alpha};\n",
+    1,
+    2
+  ],
+  [
+    "use crate::{alpha};\nuse external::beta;\n",
+    0,
+    2
+  ],
+  [
+    "use external::{beta};\nuse crate::alpha;\n",
+    1,
+    2
+  ],
+  [
+    "use crate::{beta};\nmod inner { use crate::{alpha}; }\n",
+    0,
+    2
+  ],
+  [
+    "#[cfg(first)] use crate::{beta};\n#[cfg(second)] use crate::{alpha};\n",
+    0,
+    2
+  ]
+]

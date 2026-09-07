@@ -1,0 +1,52 @@
+{
+  "schema_version": 4,
+  "public_callables": {
+    "documents/missing_field/c/calculate_velocity.h": ["calculate_velocity"],
+    "documents/missing_field/cpp/calculate_velocity.hpp": [
+      "calculate_velocity"
+    ],
+    "documents/ordinary_comment/c/calculate_velocity.h": ["calculate_velocity"],
+    "documents/ordinary_comment/cpp/calculate_velocity.hpp": [
+      "calculate_velocity"
+    ],
+    "documents/short_symbol/c/calculate_velocity.h": ["calculate_velocity"],
+    "documents/short_symbol/cpp/calculate_velocity.hpp": ["calculate_velocity"],
+    "documents/syntax_damaged/c/calculate_velocity.h": ["calculate_velocity"],
+    "documents/syntax_damaged/cpp/calculate_velocity.hpp": [
+      "calculate_velocity"
+    ],
+    "documents/valid/c/calculate_velocity.h": ["calculate_velocity"],
+    "documents/valid/cpp/calculate_velocity.hpp": ["calculate_velocity"]
+  },
+  "token_vocabulary": ["calculate", "distance", "duration", "velocity"],
+  "quantity_concepts": {
+    "duration": ["s", "ms", "us"],
+    "time_interval": ["s", "ms", "us"],
+    "timestamp": ["s", "ms", "us"],
+    "distance": ["m", "mm", "um"],
+    "length": ["m", "mm", "um"],
+    "width": ["m", "mm", "um"],
+    "height": ["m", "mm", "um"],
+    "temperature": ["k"],
+    "pressure": ["pa"],
+    "voltage": ["v"],
+    "electric_current": ["a"],
+    "frequency": ["hz"],
+    "power": ["w"],
+    "energy": ["j"],
+    "velocity": ["m_per_s"],
+    "acceleration": ["m_per_s2"],
+    "electric_field": ["v_per_m"],
+    "phase": ["rad", "deg"],
+    "efficiency": ["ratio", "percent"]
+  },
+  "header_languages": {
+    "documents/missing_field/c/calculate_velocity.h": "c",
+    "documents/ordinary_comment/c/calculate_velocity.h": "c",
+    "documents/short_symbol/c/calculate_velocity.h": "c",
+    "documents/syntax_damaged/c/calculate_velocity.h": "c",
+    "documents/valid/c/calculate_velocity.h": "c"
+  },
+  "external_fixed_identifiers": [],
+  "dependency_authority": null
+}

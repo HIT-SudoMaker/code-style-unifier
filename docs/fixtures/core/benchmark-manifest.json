@@ -1,0 +1,268 @@
+{
+  "schema_version": 1,
+  "candidate_gates": {
+    "product_rust_max_physical_lines": 9000,
+    "test_rust_max_physical_lines": 7000,
+    "normative_standard_min_physical_lines": 280,
+    "normative_standard_max_physical_lines": 400
+  },
+  "targets_root": "../../../bench/targets",
+  "targets": [
+    {
+      "directory": "chromatixnext-5b3411fc",
+      "revision": "5b3411fc9b710a5a79620eea0d3ce1ef0d11eb28",
+      "source_ref": "scientific-foundation-final-seal",
+      "extensions": {
+        ".py": "python"
+      },
+      "accepted_files": 294,
+      "physical_lines": 124358,
+      "bytes": 4295089,
+      "digest": "7d78669d159083446443e1fe382995926d23b87a7c8b1fe1211cfa5544ec0e5e"
+    },
+    {
+      "directory": "metacraft-f51be8ad",
+      "revision": "f51be8ad4db700b6af0274bf82ca6fd463ad7e90",
+      "source_ref": "experiment/continuous-achromatic-native-test",
+      "extensions": {
+        ".py": "python",
+        ".rs": "rust"
+      },
+      "accepted_files": 282,
+      "physical_lines": 129314,
+      "bytes": 4277977,
+      "digest": "17694677982fba7614926543980908f4e70055d2dfaab17bd4f7d25da92dca2f"
+    },
+    {
+      "directory": "onns-0245bd34",
+      "revision": "0245bd346fb1451ddaa91348ec99f44a1d96a91e",
+      "source_ref": "experiment/restoration-sonnet-architecture",
+      "extensions": {
+        ".py": "python"
+      },
+      "accepted_files": 345,
+      "physical_lines": 67937,
+      "bytes": 2250390,
+      "digest": "439c0fd8db0000d50cda729b0a8624455780c36f15417ed388a41b994a3020cc"
+    },
+    {
+      "directory": "ripgrep-3fce3b5b",
+      "revision": "3fce3b5bb0236da2df6d99672afb8a719642eca7",
+      "source_ref": "ripgrep",
+      "extensions": {
+        ".rs": "rust"
+      },
+      "accepted_files": 110,
+      "physical_lines": 56386,
+      "bytes": 1958490,
+      "digest": "83fda3d84ec9a91932df426f0a5adfc0923e54e98864923986ec72b76bbfbeff"
+    },
+    {
+      "directory": "serde-a874a1b1",
+      "revision": "a874a1b1bb1cc16cf5ee3b1b7b527af5705742bb",
+      "source_ref": "serde",
+      "extensions": {
+        ".rs": "rust"
+      },
+      "accepted_files": 208,
+      "physical_lines": 42623,
+      "bytes": 1288843,
+      "digest": "a1ac8b18d5ebb661ef642b9c872befbd04774989e903397600da3cbbc942aeb3"
+    },
+    {
+      "directory": "zlib-e3dc0a85",
+      "revision": "e3dc0a85b7032e98380dec011bc8f2c2ee0d8fca",
+      "source_ref": "zlib",
+      "extensions": {
+        ".c": "c",
+        ".h": "c"
+      },
+      "accepted_files": 74,
+      "physical_lines": 42062,
+      "bytes": 1822258,
+      "digest": "12b69a0e606fbd1c762ec35ccc901bf00124ffa22e2047985e3d8db8a4bf4481"
+    },
+    {
+      "directory": "curl-72dfda5f",
+      "revision": "72dfda5f5ac3825fc26b82fa404225f3e7a0fc31",
+      "source_ref": "curl",
+      "extensions": {
+        ".c": "c",
+        ".h": "c"
+      },
+      "accepted_files": 1016,
+      "physical_lines": 291770,
+      "bytes": 9435945,
+      "digest": "a410e1aa1a6d6971d095c3eb8cdccc020fb34e86b8031333c3bf0517b5f76dc0"
+    },
+    {
+      "directory": "fmt-e27cc20b",
+      "revision": "e27cc20bd93a4e280fb9268d41cd131069a9c73f",
+      "source_ref": "fmt",
+      "extensions": {
+        ".cc": "cpp",
+        ".cpp": "cpp",
+        ".h": "cpp"
+      },
+      "accepted_files": 73,
+      "physical_lines": 69492,
+      "bytes": 2606275,
+      "digest": "546df5fe76c90d0e2a5509309dbba18ad43db78df38f9904020643b678b5f97b"
+    }
+  ],
+  "available_scale": {
+    "accepted_files": 2402,
+    "physical_lines": 823942,
+    "bytes": 27935267,
+    "languages": {
+      "python": {
+        "files": 910,
+        "physical_lines": 316856,
+        "bytes": 10656769
+      },
+      "rust": {
+        "files": 329,
+        "physical_lines": 103762,
+        "bytes": 3414020
+      },
+      "c": {
+        "files": 1090,
+        "physical_lines": 333832,
+        "bytes": 11258203
+      },
+      "cpp": {
+        "files": 73,
+        "physical_lines": 69492,
+        "bytes": 2606275
+      }
+    }
+  },
+  "parser_admission": {
+    "algorithm_revision": "single-capture-standard-law-extensions-and-exact-header-facts-v3",
+    "candidates": {
+      "files": 2467,
+      "physical_lines": 846337,
+      "bytes": 28930034
+    },
+    "script": {
+      "path": "measure-parser-admission.ps1",
+      "sha256": "fc146afb9aa47b63737c55856fdd387aaf6ef000856f2b4c9390df5eb2f81dd9"
+    },
+    "authority": {
+      "path": "parser-admission-authority",
+      "schema_version": 4,
+      "header_facts": 315,
+      "sha256": "b7be6331cefaf06e9638fcb6df580ec9feab0e3768df53f093a1556255c53a5c"
+    },
+    "receipt": {
+      "path": "parser-admission.json",
+      "schema_version": 1,
+      "exclusions": 372,
+      "sha256": "0ce91f50503ae8a59881d747054783f0433205a0fbe31447f8abe21cee455cfa"
+    },
+    "repeated_runs": 2
+  },
+  "corpus_200k": {
+    "language_quotas": {
+      "c": 50000,
+      "cpp": 2831,
+      "python": 73584,
+      "rust": 73585
+    },
+    "physical_lines": 200000,
+    "files": 617,
+    "bytes": 6742933,
+    "digest": "fdcfa14e65efc32bc25587efe9ee6a6aa5453ba2e3eeb8b4a2b4ead5f8441703",
+    "authority": {
+      "path": "performance-authority",
+      "sha256": "78ad91b75394ef27d626c2fda1f0377b7244350a72bb6840ccba6d32340d1425"
+    },
+    "parseability_exclusions": {
+      "path": "parseability-exclusions.json",
+      "schema_version": 1,
+      "entries": 371,
+      "sha256": "c248e353213ae4f18f1e6420ce10c047813c23150c07c9f6e301228f09c57750"
+    },
+    "inventory": {
+      "schema_version": 1,
+      "entries": 617,
+      "bytes": 49431,
+      "sha256": "b4d11370ba223527523a1bff366164f23562377940c9c5dd6007a65ffe1afe54"
+    },
+    "languages": {
+      "c": {
+        "files": 282,
+        "physical_lines": 50000,
+        "bytes": 1598822,
+        "digest": "eeb07d81d63428c4ab9e6eb8f02a9599e9f104240ce95782483dd74932ab311f"
+      },
+      "cpp": {
+        "files": 34,
+        "physical_lines": 2831,
+        "bytes": 83170,
+        "digest": "4d46765548228929efce3f50cf6df5faf7743d1ae26d524034d5e30c6204a158"
+      },
+      "python": {
+        "files": 180,
+        "physical_lines": 73584,
+        "bytes": 2535739,
+        "digest": "0350e40af097fa6c039947f12140c9475827b404b66dd804aca7ed11cd8f2c78"
+      },
+      "rust": {
+        "files": 121,
+        "physical_lines": 73585,
+        "bytes": 2525202,
+        "digest": "e7500e4f3cea4f432d125513f6ae26fe184999260ae0ee878ad1c955c68b30fa"
+      }
+    }
+  },
+  "runner": {
+    "identity": "win11-26200-ryzen9-9900x-96g-nvme-rust-1.96.0",
+    "script": {
+      "path": "measure-release.ps1",
+      "sha256": "569c8f8dc8599327fd5749cbbd7766a139b9b28c98aa6ce8d66bc566125e786c"
+    },
+    "verifier": {
+      "path": "verify-inputs.ps1",
+      "sha256": "dc7f94c1011461659c6e20a6f608ba97e16a0db9460c4fb14950b731c057627d"
+    },
+    "environment": {
+      "os_description": "Microsoft Windows 10.0.26200",
+      "os_architecture": "X64",
+      "cpu_name": "AMD Ryzen 9 9900X 12-Core Processor",
+      "physical_cores": 12,
+      "logical_processors": 24,
+      "installed_memory_bytes": 103079215104,
+      "storage_model": "SOLIDIGM SSDPFKKW020X7",
+      "storage_bus": "NVMe",
+      "storage_filesystem": "NTFS",
+      "observed_tools": {
+        "rustc_verbose": "rustc 1.96.0 (ac68faa20 2026-05-25)\nbinary: rustc\ncommit-hash: ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96\ncommit-date: 2026-05-25\nhost: x86_64-pc-windows-msvc\nrelease: 1.96.0\nLLVM version: 22.1.2",
+        "cargo": "cargo 1.96.0 (30a34c682 2026-05-25)",
+        "rustfmt": "rustfmt 1.9.0-stable (ac68faa20c 2026-05-25)",
+        "clippy_driver": "clippy 0.1.96 (ac68faa20c 2026-05-25)",
+        "powershell": "PowerShell Core 7.6.5",
+        "git": "git version 2.51.2.windows.1"
+      },
+      "active_power_plan_guid": "381b4222-f694-41f0-9685-ff5bb260df2e"
+    },
+    "fresh_process_runs": 30,
+    "warmup_runs_not_measured": 1
+  },
+  "release_evidence": {
+    "path": "release_runs.json",
+    "schema_version": 5,
+    "absolute_p95_budget_ms": 10000,
+    "expected_status": "verified_measurement_unpublished",
+    "expected_exit_code": 2,
+    "expected_terminal": "sealed",
+    "expected_disposition": "incomplete",
+    "expected_completion": "incomplete",
+    "maximum_peak_working_set_bytes": 134217728,
+    "p95_optimization_target_ms": 2500,
+    "expected_diagnostic_incomplete": true
+  },
+  "grammars": {
+    "cargo_lock_sha256": "c870cc2e1f44d972ded9a6d3deb5197df227b2a678a66149b670550c53871bc3"
+  }
+}

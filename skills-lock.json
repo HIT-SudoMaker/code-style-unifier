@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "csu-review": {
+      "source": ".",
+      "sourceType": "local",
+      "computedHash": "f894dfb00b9f2d50151c1809c93213b5f09c3572832f20236a5b69ae1ad2525d"
+    }
+  }
+}
