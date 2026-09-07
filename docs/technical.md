@@ -1,40 +1,23 @@
 # CSU 技术参考
 
-本文描述当前实现的输入、事实流、结果及身份协议，供库调用者和维护者定位行为。
-规则含义见[编码规范](coding_standards.md)，架构取舍见[设计原理](design.md)，CLI 操作见[使用说明](usage.md)。
-
-## 实现位置
-
-以下路径相对源码仓库根目录；公开 Rust 文档可在 checkout 中用 `cargo doc --no-deps` 生成。
-
-| 文件 | 主要职责 |
-|---|---|
-| `src/lib.rs` | 公开输入、审查器、终态和投影接口 |
-| `src/authority.rs` | 固定规则、Authority 接纳、事实索引和联合语义摘要 |
-| `src/review.rs` | 范围接纳、源码捕获、语言观察、规则判断及封存 |
-| `src/model.rs` | 范围、问题、六类完成记录、终态及规范序列化 |
-| `src/projection.rs` | 已确定终态的文本与 JSON 展示 |
-| `src/main.rs` | CLI 参数、输出和退出码 |
-
-`review.rs` 依次组织入口与输入生命周期、结构观察、声明与文档事实、依赖事实、完成判断与规则、最终封存。
-语言辅助随其事实归属排列，共同分组与证据构造集中维护。
+本文说明当前实现的输入、观察、结果和身份合同。规则见[编码规范](coding_standards.md)，
+CLI 操作见[使用说明](usage.md)，架构取舍见[设计原理](design.md)。
 
 ## 输入合同
 
 ### Rust 入口
 
-`WorkspaceReviewer::compile(AuthorityInput)` 返回已编译审查器或 `ReviewRejection`。
-`review(ReviewInput)` 返回 `ReviewTerminal`；解析器、语法节点和内部索引不通过公共接口暴露。
+`WorkspaceReviewer::compile(AuthorityInput)` 接纳并编译 Authority，失败时返回 `ReviewRejection`。
+已编译审查器的 `review(ReviewInput)` 返回 `ReviewTerminal`；调用者无需管理解析器或语法节点。
 
-| 输入 | 形状与条件 |
+| 输入 | 接纳条件 |
 |---|---|
 | `AuthorityInput::Directory` | 从指定目录读取 `authority.json` |
-| `AuthorityInput::Documents` | 内存集合必须恰好含一份相对路径为 `authority.json` 的文档 |
-| `ReviewInput::Workspace` | 枚举指定根目录中的普通文件，按固定扩展名和路径事实接纳源码 |
-| `ReviewInput::Documents` | `DocumentSet` 提供非空 revision 及相对路径/字节集合；每份文档都必须属于受管语言 |
+| `AuthorityInput::Documents` | 恰好一份文档，相对路径为 `authority.json` |
+| `ReviewInput::Workspace` | 枚举根目录下的普通文件，接纳受管语言源码 |
+| `ReviewInput::Documents` | `DocumentSet` 提供非空 revision 和相对路径/字节集合；每份文档都必须属于受管语言 |
 
-工作区中的非受管文件跳过；显式内存集合中的非受管文档则拒绝，避免调用者误以为提交的文档已被检查。
-CLI 只提供工作区入口，没有内存集合的 `--revision` 参数。
+工作区中的非受管文件跳过，显式内存集合中的非受管文档拒绝。CLI 只提供工作区入口。
 
 ```rust
 use csu::{AuthorityInput, ReviewInput, WorkspaceReviewer};
@@ -52,8 +35,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Authority 数据
 
-顶层 `schema_version` 必须为 4；其余六个字段缺省为空集合或 `null`。
-使用示例在[使用说明](usage.md#完成第一次审查)，每类事实允许影响什么由[编码规范 §1.1](coding_standards.md#11-规则依据)统一规定。
+顶层 `schema_version` 必须为 4。其余字段缺省为空集合或 `null`；事实的允许影响范围由
+[编码规范 §1.1](coding_standards.md#11-规则依据)规定。
 
 | 字段 | JSON 形状 |
 |---|---|
@@ -61,24 +44,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 | `token_vocabulary` | 词元字符串数组 |
 | `quantity_concepts` | 概念名 → 表示后缀字符串数组 |
 | `header_languages` | 相对 `.h` 路径 → `"c"` 或 `"cpp"` |
-| `external_fixed_identifiers` | `{profile, role, owner, spelling}` 记录数组；当前只接纳 `rust` / `function` |
+| `external_fixed_identifiers` | `{profile, role, owner, spelling}` 数组；当前只接纳 `rust` / `function` |
 | `dependency_authority` | `null` 或依赖事实对象 |
 
-依赖对象接纳 `python_standard_library`、`python_third_party`、`python_project_roots` 三个名称数组，以及
-`python_reorder_safe`、`rust_reorder_safe` 两个布尔值；缺省分别为空数组和 `false`。
-排序布尔值仅启用原始连续分组内、证据充分的相邻比较；Python 扩展到各静态语句块，仍不改变加载位置。
-它没有 C/C++ 构建目标、预处理或模块解析字段，不能据此完成相应的未知依赖事实。
-Python 每个多模块语句保留逐模块位置及分类，完成数量仍按声明计；多个缺口以确定顺序汇入已有 `Blocked(String)`，
-文件/类别计数与 schema 4 保持不变。Rust 未知树逐项列出位置，C/C++ 能力限制列出原生声明位置，
-均保持一个文件/类别受阻项。缺口数量不能替代受阻文件/类别数量。
+依赖对象含三个 Python 根名数组：`python_standard_library`、`python_third_party`、`python_project_roots`，
+缺省为空；`python_reorder_safe`、`rust_reorder_safe` 缺省为 `false`。
+根名须为原生标识符，三个分类不能重叠。字段不提供 C/C++ 目标或预处理解析能力。
+配置和受阻处理示例见[依赖审查说明](usage.md#审查依赖声明)。
 
-顶层与记录拒绝未知字段。原始映射重复键、路径规范化碰撞、重叠依赖分类、无效量值登记和不支持的外部身份在读取源码前拒绝。
-`AuthorityBundle` 一次反序列化并完整解构，编译后由 `CompiledAuthority` 统一提供查询。
+未知字段、原始映射重复键、路径规范化碰撞、无效事实登记和不支持的外部身份在读取源码前拒绝。
+格式接纳不证明项目事实真实，内容仍由项目负责人确认。
 
 ### 路径与语言
 
-源码路径统一为 `/` 分隔的相对路径，拒绝绝对路径、平台盘符前缀、空段、`.`、`..` 和规范化后的重名。
-工作区范围身份保留其规范化根路径；内存范围身份保留调用方提供的 revision。
+源码路径规范化为 `/` 分隔的相对路径；拒绝绝对路径、盘符前缀、空段、`.`、`..` 和规范化重名。
+Authority 中的源码路径相对审查范围，而非 Authority 目录。
 
 | 扩展名 | 语言 |
 |---|---|
@@ -86,135 +66,104 @@ Python 每个多模块语句保留逐模块位置及分类，完成数量仍按�
 | `.rs` | Rust |
 | `.c` | C |
 | `.cc`、`.cpp`、`.cxx`、`.hpp`、`.hh`、`.hxx` | C++ |
-| `.h` | 由 `header_languages` 的精确路径登记决定 |
+| `.h` | 由 `header_languages` 的精确路径事实决定 |
 
-接纳由 `source_admission` 与固定语言表统一执行，不根据目录或隐藏清单选择语言或源码。
-工作区遍历不跟随符号链接，仅接纳普通文件；当前没有 `.gitignore` 或构建目录过滤语义，调用者应明确选择范围。
+工作区遍历不跟随符号链接，也不应用 `.gitignore` 或构建目录过滤；调用者须选择合适范围。
 
 ## 捕获与观察
 
-工作区先枚举并接纳路径，再将每个受管文件读取一次。后续哈希、物理行观察和结构解析使用读得的同一份字节。
-这是逐文件捕获，不提供文件系统原子快照；Seal 绑定实际读到的内容。
-内存输入也复制为同一内部文档表示，之后共用审查流程。
+工作区先接纳路径，再逐文件捕获字节；哈希、物理行检查和结构解析共用这份内容。
+这不是文件系统原子快照，Seal 绑定实际捕获的输入。内存文档复制后进入相同处理流程。
 
-当前实现先持有捕获的源码集合，再逐文件处理；内存上界还包括这份集合，不能只按结果记录的大小估算。
-每个文件完成后释放其源码缓冲区；语法树、游标和借用节点留在文件处理周期内。
-无效 UTF-8 不进入解析器，有效输入至多进行一次结构解析。
+当前实现先持有全部捕获内容，再逐文件处理并释放源码缓冲区。语法树留在文件处理周期内；
+内存占用既包括结果，也包括尚未处理的源码。无效 UTF-8 不进入解析器，有效输入至多结构解析一次。
+位置从 1 开始，列号按字节计数。
 
-| 指标 | 计数对象 |
+| 指标 | 计数含义 |
 |---|---|
-| `files_read` | 成功捕获的受管文档 |
+| `files_read` | 成功捕获的受管文档；包括内存输入 |
 | `byte_sweeps` | 物理行观察次数 |
 | `structural_parses` | 结构解析次数 |
 
-指标不包含哈希、UTF-8 校验及已定位文本观察等其他缓冲区访问。
-位置从 1 开始，列号按字节计数；无效 UTF-8 通过有界前缀遍历定位，当前不维护独立行索引。
+这些指标不统计哈希、UTF-8 校验或所有缓冲区访问，不能据此推断总内存读取次数。
 
 ### 语言观察
 
-观察身份由 `ProfileLaw` 维护，锁定的依赖来源见 `Cargo.lock`：
+四种语言使用锁定的 Tree-sitter 语法；版本来源见 `Cargo.lock`，观察协议身份由 `ProfileLaw` 定义。
+`ERROR` 或 `MISSING` 节点形成可解析性问题，依赖完整结构的判断保留受阻状态。
 
-| 语言 | 观察身份 |
-|---|---|
-| Python | `tree-sitter-python@0.25.0+direct-source-facts-v2` |
-| Rust | `tree-sitter-rust@0.24.2+direct-source-facts-v2` |
-| C | `tree-sitter-c@0.24.2+direct-source-facts-v2` |
-| C++ | `tree-sitter-cpp@8b5b49eb+direct-source-facts-v2` |
-
-`ERROR` 或 `MISSING` 节点构成可解析性失败。声明和文档通过 `DeclarationReview` 在同一遍历中观察，参数从共同绑定分类取得名称与完整性，普通注释不占参数位置。
-升级解析器或观察协议时，同步语言身份与行为证据；版本号本身不是作者的命名要求。
-
-| 观察主题 | 当前处理方式 | 定位 |
-|---|---|---|
-| C/C++ 声明列表 | 按名称附近的派生结构区分函数和函数指针对象；逐函数 declarator 读取参数、返回和位置，共用声明载体及公开上下文 | `native_family_function_declarator`、`observe_callable` |
-| C++ const 结构化绑定 | 按对象层级判断 const；按值范围绑定仅用同一 compound 内紧邻此前的基础类型多维数组声明证明常量角色 | `native_family_declaration_is_constant`、`cplusplus_constant_binding_is_proven` |
-| Python 原生库及内建身份 | 沿模块、类体的直接导入和先前绑定查找；赋值别名与函数局部来源不展开 | `python_import_identity` |
-| Python 装饰器与 receiver | 枚举未知装饰器保留成员归属受阻；普通方法的未知装饰器保留实例 receiver 默认；裸内建拼写受遮蔽时不授予该身份 | `python_variant_member_decorator`、`python_receiver_spelling` |
-| Python 属性文档 | 只在直接 getter 及同名访问器关系可证明时共享文档，与枚举成员身份判断分开 | `observe_python_decorated_visibility` |
-| Rust 附属文档 | 按源码顺序组合 rustdoc 和字面量 doc 属性；原生 raw/转义字符串由一个解码位置处理，非字面量仍受阻 | `observe_rust_attribute`、`documentation_carrier` |
-| 原生公开归属 | Rust trait 默认实现保留直接 trait 归属，tuple 位置字段保留文档义务；C/C++ static 只取声明本身 | `observe_documentation_visibility`、`native_family_callable_is_proven_internal` |
-| 返回要求 | 仅用直接声明形成 `NoValue / Never / Value / Unknown`，不返回优先，不追踪别名定义 | `callable_return_shape` |
-
-数组证明还要求范围右侧为直接名称、范围语句无 initializer，数组派生结构中没有指针或其他未知层；允许中间只有注释。
-未证明的 const 按值结构化绑定使 Identifier 受阻，引用绑定保留 Value 角色；不把这些局部证据推广为任意 tuple 或 mutable 成员的语义证明。
-逐类支持、排除、受阻及专项测试缺口见源码仓库的[声明覆盖清单](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/declaration-coverage.md)。
+观察限于源码能够直接证明的声明、文档和依赖关系。可解析不等于完成名称解析、类型推导或构建目标分析。
+例如，Rust 非字面量文档属性可能受阻，Python 来源追踪不展开任意赋值别名，C/C++ 依赖分析缺少目标和预处理能力。
+逐类支持、排除和测试缺口统一见[声明覆盖清单](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/declaration-coverage.md)。
 
 ## 规则查询与完成记录
 
-`StandardLaw` 保存实际执行的固定规则、语言记录和相关算法修订。
-`RuleLaw` 统一提供操作符、标识、等级、说明、负责人问题与 `semantic_revision`；展示章节和顺序在同一记录中维护，但排除在语义序列化之外。
-`project_fact_revision` 标识固定事实校验及影响协议，不是运行开关。
-Python 依赖分类根使用固定原生语法接纳单个完整标识符，支持 Unicode，拒绝关键词、点路径和附加语法。
-Rust 外部归属的生命周期排除跨 edition 共同非法的关键词；没有目标 edition 事实时，不推断其特有关键词限制。
-
-`AuthorityIndexes` 在编译时建立按长度排序的前后缀表，以及精确量值名称和规范大写呈现的索引。
-每个声明使用这些已建索引，不重新排序标记。完整词元大小写规则由规范定义，接纳与观察共用 `lowercase_token`。
-改变索引表示不应改变语义摘要；改变判断含义则应更新对应规则身份及公共入口证据。
-
-Rust 依赖观察将直接 `use` 语法转换为拥有路径段、互斥尾部（绑定/通配/列表）和位置的内部树，
-不把源码原文当作列表排序键。递归比较器同时用于每层列表及连续声明组，排序违规定位到后项；
-未知节点带声明位置使 DependencyDeclaration 受阻，已知部分的独立问题仍保留。
-Rust 排序语义由 `DependencyProfileLaw.order_revision` 标识。列表中的未知子项保留原始槽位，
-不参与跨项比较；同一列表内已知相邻项和独立子列表继续检查，不把部分已知树丢弃为全空。
+`StandardLaw` 保存固定规则，`RuleLaw` 提供规则身份、等级和 `semantic_revision`；
+`project_fact_revision` 标识事实接纳及影响协议。项目输入不能修改规则等级或执行逻辑。
+编译时建立事实索引，审查时复用；仅改变索引表示不应改变语义身份。
 
 每文件固定有 Capture、PhysicalLines、Structure、Identifier、Documentation、DependencyDeclaration 六类记录。
-每类只取 `Complete(数量)` 或 `Blocked(原因)`；`Complete(0)` 表示已确认没有对象。
-`FamilyClosure` 构造完整类别记录，避免另一套“需要/已执行”标记与结果发生漂移。
-记录空间随“文件数 × 六类状态 + 实际问题和受阻原因”增长；这不包含上文所述的源码捕获缓冲区。
+每类为 `Complete(数量)` 或 `Blocked(原因)`；`Complete(0)` 表示已确认没有该类对象。
+受阻数量按文件/类别计，原因中的多个位置不另算多个受阻项。
+
+缺少事实或遇到未知结构时，已独立证明的问题仍保留。例如 Rust `use` 列表保留未知成员的位置，
+继续检查已知相邻成员和独立子列表，不跨越未知成员进行比较。
+结果存储随文件的六类状态、实际问题和受阻原因增长，不是逐语法节点保存完整义务图。
 
 ## 结果与身份
 
 ### 终态与输出
 
-| 公共终态 | 内容 |
+| 公共终态 | 含义 |
 |---|---|
-| `Rejected` | Authority 或请求未被接纳，携带错误代码和说明 |
-| `Failed` | 审查生命周期失败，携带错误代码和说明 |
-| `Sealed` | 已确定范围、问题和覆盖记录，可完整或不完整 |
+| `Rejected` | Authority 或审查请求未被接纳 |
+| `Failed` | 审查生命周期发生执行失败 |
+| `Sealed` | 范围、问题和完成记录已封存；可能完整，也可能不完整 |
 
-`Sealed` 的 disposition 由覆盖与问题共同决定：任一类别受阻为 Incomplete；否则有问题为 Findings，无问题为 Clean。
-问题等级只有 HardViolation、ReviewRequired；受阻是完成状态，不是第三种问题等级。
+`Sealed` 中，任一类别受阻即为 `Incomplete`；全部完成后，有问题为 `Findings`，无问题为 `Clean`。
+问题等级只有 `HardViolation` 和 `ReviewRequired`；受阻是完成状态，不是问题等级。
 
-CLI JSON 顶层包含 `schema_version`、`terminal`、`disposition`，随后按终态携带 `review` 或 `error`。
-`review` 含 scope、completion、finding_summary、findings、blocked_families、blocked_family_details、metrics、presentation 和 seal。
-错误对象含 code 与 message。机器调用应按终态检查对应对象，不把错误对象当作空的审查结果。
+CLI JSON 使用 schema 4，顶层为 `schema_version`、`terminal`、`disposition`，并按终态携带：
 
-`project_human` 与 `project_javascript_object_notation` 只读取既有终态。
-文本展示将动态字段中的换行、终端控制字符和转义符显示为可见转义，避免被审查内容伪造结构行；JSON 和 Seal 保留原始事实。
-`SealedReview::canonical_bytes()` 是另一种规范序列化：它保留完整 coverage、语义 Authority 摘要和源码快照摘要，不能与 CLI 的展示 JSON 混用。
-输出顺序和字段的回归位于 `tests/review/projection_cli.rs`，规范身份回归位于 `tests/review/terminal_contract.rs`。
+- `review`：scope、completion、finding_summary、findings、blocked_families、blocked_family_details、metrics、presentation、seal。
+- `error`：code、message，供 `Rejected` 或 `Failed` 使用。
+
+机器调用须检查终态与对应对象；错误输出不能当作零问题结果。退出码及捕获方法见[读取结果](usage.md#读取结果)。
+文本与 JSON 投影只读取既有终态。文本将动态控制字符显示为可见转义；JSON 与 Seal 保留原始事实。
+
+`SealedReview::canonical_bytes()` 是另一个序列化合同：包含完整 coverage、语义 Authority 摘要和源码快照摘要，
+不能与 CLI 展示 JSON 混用。它也包含 metrics；包含于序列化不代表参与 Seal 计算。
 
 ### 摘要绑定
 
-语义 Authority 摘要序列化实际使用的固定规则和规范化项目事实，字节直接进入 BLAKE3 derive-key。
-序列化布局属于身份协议；Authority 序列化失败返回 `authority.identity`，不回退成另一种摘要。
-集合和映射的输入重排不改变该摘要；新增有效事实或改变规则语义可以改变它。
+语义 Authority 摘要绑定固定规则与规范化项目事实。集合和映射的输入重排不改变摘要；
+新增有效事实或改变规则语义可能改变它。序列化布局属于身份协议，身份生成失败不会回退为替代摘要。
 
-Seal 进一步绑定源码快照、明确范围、类别记录、问题、完整性和审查 schema 版本。
-运行指标随结果记录，但不参与 `compute_seal`；可执行文件身份需结合运行来源记录或发布校验和核对。
-工作区根路径与内存 revision 属于明确范围；其他临时输出路径、时钟及展示布局不进入语义身份。
-旧 Seal 不能说明当前源码，新的展示文件也不能替代原始封存证据。
+Seal 进一步绑定源码快照、范围、类别记录、问题、完整性和审查 schema。
+工作区的规范化根路径、内存输入的 revision 均属于范围，因此相同文件内容不保证不同范围的 Seal 相同。
+时钟、展示布局及运行指标不参与 Seal；二进制身份须另核对运行记录或发布校验和。
+
+Seal 不证明运行时正确性、业务事实真实性或当前文件仍与捕获时一致。
+规则或观察含义改变时，应更新相应身份并补充公共入口行为证据。
+
+## 实现位置
+
+以下路径相对源码仓库根目录；公开 Rust API 文档可用 `cargo doc --no-deps` 生成。
+
+| 文件 | 职责 |
+|---|---|
+| `src/lib.rs` | 公开接口 |
+| `src/authority.rs` | 固定规则、输入接纳、事实索引和语义摘要 |
+| `src/review.rs` | 范围接纳、捕获、语言观察、规则判断及封存 |
+| `src/model.rs` | 结果模型和规范序列化 |
+| `src/projection.rs` | 文本和 JSON 展示 |
+| `src/main.rs` | CLI 参数、输出和退出码 |
 
 ## 验证与兼容性
 
-公共入口测试、测量与候选验收见源码仓库的[靶场与发布验收](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/README.md)。
-性能和规模以绑定候选的 manifest 与收据为准。
+[测试指南](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/tests/README.md)提供行为回归入口；
+[靶场与发布验收](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/README.md)定义冻结语料、测量和候选校验。
+收据只证明其绑定的候选与环境；历史测量不自动适用于后续修改或其他平台。
 
-共享 skill 位于 `.agents/skills/csu-review`，共享文件在 `.claude/skills/csu-review` 中逐字镜像，`agents/openai.yaml` 是平台专用 UI 元数据。
-`tests/self_check.rs` 检查两端共享文件一致性及产品身份；这不承诺不同主机、模型和权限下的 Agent 行为完全相同。
-CLI 二进制与规则负责判断，skill 指令负责调用和解释。
-
-## 参考依据
-
-以下资料解释语言和工具行为；中文摘要、句末标点、对齐、单位后缀及 C/C++ 文档块格式是 CSU 的规则选择。
-
-| 范围 | 原始参考 |
-|---|---|
-| 单位与表示 | [BIPM SI Brochure](https://www.bipm.org/en/publications/si-brochure/)、[NIST SP 811](https://www.nist.gov/pml/special-publication-811) |
-| Python 名称与函数 | [词法](https://docs.python.org/3/reference/lexical_analysis.html#identifiers)、[函数定义](https://docs.python.org/3/reference/compound_stmts.html#function-definitions)、[ast.get_docstring](https://docs.python.org/3/library/ast.html#ast.get_docstring) |
-| Python 风格与依赖 | [PEP 8](https://peps.python.org/pep-0008/)、[PEP 257](https://peps.python.org/pep-0257/)、[import 语句](https://docs.python.org/3/reference/simple_stmts.html#the-import-statement)、[TYPE_CHECKING](https://docs.python.org/3/library/typing.html#typing.TYPE_CHECKING) |
-| Rust 名称与文档 | [标识符](https://doc.rust-lang.org/reference/identifiers.html)、[注释](https://doc.rust-lang.org/reference/comments.html)、[风格指南](https://doc.rust-lang.org/style-guide/)、[API 命名](https://rust-lang.github.io/api-guidelines/naming.html)、[rustdoc](https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html) |
-| Rust 依赖 | [use 声明](https://doc.rust-lang.org/reference/items/use-declarations.html)、[导入风格](https://doc.rust-lang.org/stable/style-guide/items.html#imports-use-statements) |
-| C 与 C++ | [WG14 N3220](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3220.pdf)、[WG21 工作草案](https://eel.is/c++draft/)、[C++ 命名指南](https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#S-naming) |
-| 解析与错误节点 | [Tree-sitter 生命周期](https://tree-sitter.github.io/tree-sitter/using-parsers/2-basic-parsing.html)、[ERROR/MISSING](https://tree-sitter.github.io/tree-sitter/using-parsers/queries/1-syntax.html#the-error-node)、[Rust Parser](https://docs.rs/tree-sitter/0.26.13/tree_sitter/struct.Parser.html)、[Node](https://docs.rs/tree-sitter/0.26.13/tree_sitter/struct.Node.html) |
-| 确定性 | [BTreeMap](https://doc.rust-lang.org/std/collections/struct.BTreeMap.html)、[HashMap](https://doc.rust-lang.org/std/collections/struct.HashMap.html)、[SARIF Appendix F](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html#appendix-F) |
+CLI 与固定规则负责判断，skill 负责调用和解释。两个平台的共享 skill 文件逐字镜像，
+`agents/openai.yaml` 为 Codex 专用元数据；镜像一致不保证不同模型或权限下的 Agent 行为一致。
