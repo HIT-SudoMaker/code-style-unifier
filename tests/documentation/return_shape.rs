@@ -30,7 +30,7 @@ enum Outcome {
 /// 创建支持四语言并可补充公开函数名单的测试审查器
 fn reviewer(extra_public: &[(&str, &[&str])]) -> WorkspaceReviewer {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
-        "../../docs/fixtures/core/authority.json"
+        "../../verification/fixtures/authority.json"
     ))
     .unwrap();
     for (path, names) in extra_public {

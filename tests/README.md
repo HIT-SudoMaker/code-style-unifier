@@ -61,8 +61,8 @@ cargo test --locked --test documentation_regressions carriers::
 [Rust 导入树样例](fixtures/rust-use-trees.json) 每行记录源码、排序问题数和声明数；
 依赖测试通过公共入口检查嵌套、别名、路径、数字平局和排版变体，另保留未知结构、通配及精确位置断言。
 
-[四语言冻结样例](../docs/fixtures/core/README.md) 位于开发资料目录，包含故意违规或损坏的源码，用于证明工具能正确检出问题。
+[四语言冻结样例](../verification/README.md) 位于验证模块，包含故意违规或损坏的源码，用于证明工具能正确检出问题。
 它们不进入安装包，也不混入 `tests` 的 Rust 源码自检范围。源文件字节和精确预期由样例 manifest 绑定。
-[声明覆盖清单](../docs/fixtures/core/declaration-coverage.md) 连接语言结构与具体测试，并保留专项证据缺口。
+[声明覆盖清单](../verification/declaration-coverage.md) 连接语言结构与具体测试，并保留专项证据缺口。
 
-测试通过、源码三零和冻结语料测量分别提供行为、规范和性能证据；完整候选验收按[验收指南](../docs/fixtures/core/README.md#复现与重测)执行。
+测试通过、源码三零和冻结语料测量分别提供行为、规范和性能证据；完整候选验收按[验收指南](../verification/README.md#复现与重测)执行。

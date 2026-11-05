@@ -9,7 +9,7 @@ use review_fixture::compile_value;
 use review_fixture::review_sources;
 
 const AUTHORITY: &[u8] =
-    include_bytes!("../../docs/fixtures/core/authority.json");
+    include_bytes!("../../verification/fixtures/authority.json");
 
 /// 审查内存源码并返回封存终态
 fn review(sources: &[(&str, &str)]) -> csu::SealedReview {

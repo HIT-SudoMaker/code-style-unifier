@@ -12,7 +12,7 @@ use review_fixture::compile_value;
 use review_fixture::review_sources;
 
 const AUTHORITY: &[u8] =
-    include_bytes!("../../docs/fixtures/core/authority.json");
+    include_bytes!("../../verification/fixtures/authority.json");
 const UNKNOWN_REVIEW: (&str, FindingGrade) =
     ("identifier.unknown_token", FindingGrade::ReviewRequired);
 const HARD_CANONICAL: (&str, FindingGrade) =
@@ -647,7 +647,7 @@ fn candidate_registry_matches_frozen_latin_and_greek_forms() {
     assert_eq!(identifier_count(&review), 29);
 }
 
-/// 审查单份内存源码（带词表扩展）并返回封存终态
+/// 使用扩展词表审查单份内存源码并返回封存终态
 fn review_source_with(
     path: &str,
     source: &str,
@@ -954,7 +954,7 @@ fn external_owner_spellings_exempt_only_through_typed_rows() {
 
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let self_reviewer = WorkspaceReviewer::compile(AuthorityInput::Directory(
-        &root.join("docs/authority/csu-self"),
+        &root.join("verification/authorities/self-review"),
     ))
     .expect("CSU self Authority must compile");
     let free_review = reviewed_source(

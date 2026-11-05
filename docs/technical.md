@@ -17,7 +17,7 @@ CLI 操作见[使用说明](usage.md)，架构取舍见[设计原理](design.md)
 | `ReviewInput::Workspace` | 枚举根目录下的普通文件，接纳受管语言源码 |
 | `ReviewInput::Documents` | `DocumentSet` 提供非空 revision 和相对路径/字节集合；每份文档都必须属于受管语言 |
 
-工作区中的非受管文件跳过，显式内存集合中的非受管文档拒绝。CLI 只提供工作区入口。
+工作区中的非受管文件跳过，显式内存集合中的非受管文档拒绝。CLI 只提供工作区入口；源码正文规则不扫描 `docs/` 等目录中的 Markdown。
 
 ```rust
 use csu::{AuthorityInput, ReviewInput, WorkspaceReviewer};
@@ -94,7 +94,14 @@ Authority 中的源码路径相对审查范围，而非 Authority 目录。
 
 观察限于源码能够直接证明的声明、文档和依赖关系。可解析不等于完成名称解析、类型推导或构建目标分析。
 例如，Rust 非字面量文档属性可能受阻，Python 来源追踪不展开任意赋值别名，C/C++ 依赖分析缺少目标和预处理能力。
-逐类支持、排除和测试缺口统一见[声明覆盖清单](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/declaration-coverage.md)。
+逐类支持、排除和测试缺口统一见[声明覆盖清单](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/verification/declaration-coverage.md)。
+
+普通注释和原生文档由语法事实定位，摘要、字段与叙述共用标点检查；普通字符串和 Markdown 文件不参与。
+配对反引号内的代码、围栏代码、Rust 缩进代码和可识别的 Markdown 链接目标不参与检查，链接显示文字仍受检。
+正文中的中文句号及识别为英文句末的句点形成硬违规；URL、路径、版本号和小数中的点号不作为句末标点。
+普通注释使用 `source.comment_punctuation`，原生文档使用 `documentation.punctuation`。
+正文中的中英文圆括号分别形成 `source.comment_parentheses` 或 `documentation.parentheses` 待确认问题。
+负责人判断其技术必要性；确认理由不会消除后续审查中的待确认项。
 
 ## 规则查询与完成记录
 
@@ -162,7 +169,7 @@ Seal 不证明运行时正确性、业务事实真实性或当前文件仍与捕
 ## 验证与兼容性
 
 [测试指南](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/tests/README.md)提供行为回归入口；
-[靶场与发布验收](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/README.md)定义冻结语料、测量和候选校验。
+[验证指南](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/verification/README.md)定义冻结语料、测量和候选校验。
 收据只证明其绑定的候选与环境；历史测量不自动适用于后续修改或其他平台。
 
 CLI 与固定规则负责判断，skill 负责调用和解释。两个平台的共享 skill 文件逐字镜像，

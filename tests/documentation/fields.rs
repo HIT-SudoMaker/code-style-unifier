@@ -33,7 +33,7 @@ const NARRATIVE_PROFILES: [NarrativeProfile; 4] = [
         source: VALID_PYTHON,
         anchor: "    计算平均速度\n\n    Args:\n",
         double_gap: "    计算平均速度\n\n\n    Args:\n",
-        narrative: "    计算平均速度\n\n    本函数按行进距离与持续时间计算平均值。\n    输入不合法时抛出数值错误\n\n    Args:\n",
+        narrative: "    计算平均速度\n\n    本函数按行进距离与持续时间计算平均值\n    输入不合法时抛出数值错误\n\n    Args:\n",
         separated: "    计算平均速度\n\n    本函数",
         missing: "    计算平均速度\n    本函数",
         heading: "    Args:\n",
@@ -47,7 +47,7 @@ const NARRATIVE_PROFILES: [NarrativeProfile; 4] = [
         source: VALID_RUST,
         anchor: "/// 计算平均速度\n///\n/// # Arguments\n",
         double_gap: "/// 计算平均速度\n///\n///\n/// # Arguments\n",
-        narrative: "/// 计算平均速度\n///\n/// 本函数按行进距离与持续时间计算平均值。\n/// 输入不合法时返回错误\n///\n/// # Arguments\n",
+        narrative: "/// 计算平均速度\n///\n/// 本函数按行进距离与持续时间计算平均值\n/// 输入不合法时返回错误\n///\n/// # Arguments\n",
         separated: "/// 计算平均速度\n///\n/// 本函数",
         missing: "/// 计算平均速度\n/// 本函数",
         heading: "/// # Arguments\n",
@@ -61,7 +61,7 @@ const NARRATIVE_PROFILES: [NarrativeProfile; 4] = [
         source: VALID_PROCEDURAL,
         anchor: " * 计算平均速度\n *\n * 参数：\n",
         double_gap: " * 计算平均速度\n *\n *\n * 参数：\n",
-        narrative: " * 计算平均速度\n *\n * 本函数按行进距离与持续时间计算平均值。\n * 输入不合法时返回错误\n *\n * 参数：\n",
+        narrative: " * 计算平均速度\n *\n * 本函数按行进距离与持续时间计算平均值\n * 输入不合法时返回错误\n *\n * 参数：\n",
         separated: " * 计算平均速度\n *\n * 本函数",
         missing: " * 计算平均速度\n * 本函数",
         heading: " * 参数：\n",
@@ -75,7 +75,7 @@ const NARRATIVE_PROFILES: [NarrativeProfile; 4] = [
         source: VALID_CPP,
         anchor: " * 计算平均速度\n *\n * 参数：\n",
         double_gap: " * 计算平均速度\n *\n *\n * 参数：\n",
-        narrative: " * 计算平均速度\n *\n * 本函数按行进距离与持续时间计算平均值。\n * 输入不合法时返回错误\n *\n * 参数：\n",
+        narrative: " * 计算平均速度\n *\n * 本函数按行进距离与持续时间计算平均值\n * 输入不合法时返回错误\n *\n * 参数：\n",
         separated: " * 计算平均速度\n *\n * 本函数",
         missing: " * 计算平均速度\n * 本函数",
         heading: " * 参数：\n",
@@ -432,23 +432,113 @@ fn public_and_internal_method_tiers_close_per_profile() {
     }
 }
 
-/// 验证各语言只在规定的文档位置检查句号
+/// 验证四语言文档在摘要、字段和正文中报告句号，同时保留技术拼写中的点号
 #[test]
 fn sentence_punctuation_is_owned_per_profile() {
     for profile in &NARRATIVE_PROFILES {
         let path = profile.path;
-        let base = narrative_source(profile).replacen(
-            profile.clean_entry,
-            profile.punctuated_entry,
+        let base = narrative_source(profile);
+        for (anchor, value) in [
+            (profile.clean_entry, profile.punctuated_entry),
+            ("计算平均速度", "计算平均速度。"),
+            ("计算平均值", "计算平均值。继续计算"),
+            ("计算平均值", "计算平均值."),
+            ("计算平均速度", "Calculate velocity."),
+        ] {
+            let source = base.replacen(anchor, value, 1);
+            let sealed = review(
+                "punctuation",
+                &[(path, &source)],
+                &["calculate_velocity"],
+            );
+            assert!(
+                sealed.findings().iter().any(|finding| finding.rule()
+                    == "documentation.punctuation"
+                    && finding.grade() == FindingGrade::HardViolation),
+                "{path}: {value}"
+            );
+        }
+        let source = base.replace("计算平均值", "计算平均值 https://example.org/path v1.2 src/main.rs 1.25 `value.` `calculate()` `（B,C,H,W）` [接口](https://example.org/path(foo))");
+        assert_complete_clean(
+            &review(
+                "technical-dots",
+                &[(path, &source)],
+                &["calculate_velocity"],
+            ),
+            path,
+        );
+    }
+}
+
+/// 验证私有文档正文也检查句号
+#[test]
+fn private_documentation_narrative_punctuation_is_enforced() {
+    for narrative in ["计算过程。", "计算过程.", "计算。继续"] {
+        let source = format!(
+            "def _calculate_velocity():\n    \"\"\"\n    计算平均速度\n\n    {narrative}\n    \"\"\"\n    pass\n"
+        );
+        let sealed =
+            review("private-punctuation", &[("src/value.py", &source)], &[]);
+        assert!(
+            has_rule(&sealed, "documentation.punctuation"),
+            "{narrative}"
+        );
+    }
+}
+
+/// 验证公开与私有文档中的裸括号均交由负责人确认
+#[test]
+fn parenthesized_documentation_requires_owner_review() {
+    for narrative in ["计算平均值（B,C,H,W）", "计算平均值 (平均值)"]
+    {
+        let mut sources = Vec::new();
+        for profile in &NARRATIVE_PROFILES {
+            let source =
+                narrative_source(profile).replace("计算平均值", narrative);
+            sources.push((profile.path, source));
+        }
+        sources.push(("src/private.py", format!("def _calculate_velocity():\n    \"\"\"\n    计算平均速度\n\n    {narrative}\n    \"\"\"\n    pass\n")));
+        for (path, source) in sources {
+            let sealed = review(
+                "parenthesized",
+                &[(path, &source)],
+                &["calculate_velocity"],
+            );
+            assert_eq!(sealed.findings().len(), 1, "{path}: {narrative}");
+            let finding = &sealed.findings()[0];
+            assert_eq!(finding.rule(), "documentation.parentheses");
+            assert_eq!(finding.grade(), FindingGrade::ReviewRequired);
+        }
+    }
+}
+
+/// 验证 Rust 代码示例保留句号且不能代替文档合同
+#[test]
+fn rust_documentation_code_preserves_punctuation_and_rejects_contract() {
+    for example in [
+        "/// ```text\n/// # Returns\n/// - 计算结果（示例）。\n/// ```\n",
+        "///     - 计算结果（示例）。\n",
+    ] {
+        let source = VALID_RUST.replacen(
+            "/// # Arguments",
+            &format!("{example}///\n/// # Arguments"),
             1,
         );
-        let sealed = review(
-            "punctuation",
-            &[(path, base.as_str())],
-            &["calculate_velocity"],
+        assert_complete_clean(
+            &review("code-example", &[("src/value.rs", &source)], &[]),
+            example,
         );
-        assert!(has_rule(&sealed, "documentation.punctuation"), "{path}");
     }
+    let source = "/// 计算平均速度\n///\n///     # Arguments\n///     - 无\n///     # Returns\n///     - 无\n///     # Errors\n///     - 无\npub fn calculate_velocity() {}\n";
+    assert!(has_rule(
+        &review("code-contract", &[("src/value.rs", source)], &[]),
+        "documentation.public_contract"
+    ));
+    let source = "///     计算平均速度\nfn calculate_velocity() {}\n";
+    assert!(has_rule(
+        &review("code-summary", &[("src/value.rs", source)], &[]),
+        "documentation.summary"
+    ));
 }
 
 /// 验证从真实项目提取的 Python 样例不能绕过文档检查

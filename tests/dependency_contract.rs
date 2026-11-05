@@ -9,7 +9,7 @@ use review_fixture::{compile_value, review_sources};
 /// 创建测试审查器
 fn reviewer(reorder_safe: bool) -> WorkspaceReviewer {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
-        "../docs/fixtures/core/authority.json"
+        "../verification/fixtures/authority.json"
     ))
     .unwrap();
     authority["dependency_authority"] = serde_json::json!({

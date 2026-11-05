@@ -61,7 +61,7 @@ pub enum Completion {
 pub enum FindingGrade {
     /// 必须修复的规范违反
     HardViolation = 0,
-    /// 需要人工判断的候选问题
+    /// 需要负责人确认的审查问题
     ReviewRequired = 1,
 }
 /// 表示一个绑定到源码声明的审查发现
@@ -111,7 +111,7 @@ impl Finding {
     pub fn path(&self) -> &str {
         &self.path
     }
-    /// 返回问题所在行号，从一开始
+    /// 返回问题所在的一基行号
     ///
     /// # Arguments
     /// - 无
@@ -122,7 +122,7 @@ impl Finding {
     pub fn line(&self) -> usize {
         self.line
     }
-    /// 返回问题所在列号，从一开始
+    /// 返回问题所在的一基列号
     ///
     /// # Arguments
     /// - 无
@@ -155,12 +155,12 @@ impl Finding {
     pub fn observation(&self) -> &str {
         &self.observation
     }
-    /// 返回 Review Required 需要人工回答的问题
+    /// 返回待确认问题
     ///
     /// # Arguments
     /// - 无
     /// # Returns
-    /// - 需要确认的问题；无需确认时返回空值
+    /// - 需要负责人回答的问题；无需确认时返回空值
     /// # Errors
     /// - 无
     pub fn question(&self) -> Option<&str> {
@@ -354,7 +354,7 @@ mod coverage {
         );
     }
 }
-/// 记录一次审查的生命周期工作量
+/// 记录一次审查完成的读取、物理行观察和结构解析次数
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct ReviewMetrics {
     /// 读取的源码文件数量
@@ -458,7 +458,7 @@ impl SealedReview {
     pub fn findings(&self) -> &[Finding] {
         &self.findings
     }
-    /// 返回本次审查的生命周期工作量
+    /// 返回本次审查的工作量指标
     ///
     /// # Arguments
     /// - 无

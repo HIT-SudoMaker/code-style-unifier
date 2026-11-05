@@ -203,6 +203,9 @@ pub(crate) enum RuleOperator {
     DependencyWildcard,
     DependencyModulePlacement,
     DependencyOrder,
+    SourceCommentPunctuation,
+    SourceCommentParenthesized,
+    DocumentationParenthesized,
 }
 impl RuleOperator {
     /// 返回操作符对应的完整规则条目
@@ -316,6 +319,7 @@ pub(crate) struct NarrativeLaw {
     pub(crate) minimum_cjk_run: u8,
     pub(crate) blank_lines_after_summary: usize,
     pub(crate) forbidden_terminators: [char; 2],
+    pub(crate) review_required_characters: [char; 4],
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub(crate) enum DependencyProfileLaw {
@@ -608,7 +612,7 @@ struct StandardLaw {
     narrative: NarrativeLaw,
     directive_codes: DirectiveCodeLaw,
     profiles: [ProfileLaw; 4],
-    rules: [RuleLaw; 15],
+    rules: [RuleLaw; 18],
 }
 /// 标准规则与项目事实的联合语义身份
 #[derive(Serialize)]
@@ -1417,6 +1421,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
         minimum_cjk_run: 2,
         blank_lines_after_summary: 1,
         forbidden_terminators: ['。', '.'],
+        review_required_characters: ['(', ')', '（', '）'],
     },
     directive_codes: DirectiveCodeLaw {
         separator: ',',
@@ -1426,7 +1431,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
     profiles: [
         ProfileLaw {
             identity: "python",
-            observation_method: "tree-sitter-python@0.25.0+direct-source-facts-v2",
+            observation_method: "tree-sitter-python@0.25.0+direct-source-facts-v3",
             documentation: DocumentationLaw {
                 carrier: DocumentationCarrierLaw::PythonSuite,
                 summary: SummaryLocation::FirstLine,
@@ -1472,7 +1477,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
         },
         ProfileLaw {
             identity: "rust",
-            observation_method: "tree-sitter-rust@0.24.2+direct-source-facts-v2",
+            observation_method: "tree-sitter-rust@0.24.2+direct-source-facts-v3",
             documentation: DocumentationLaw {
                 carrier: DocumentationCarrierLaw::RustOuter,
                 summary: SummaryLocation::FirstNonempty,
@@ -1507,7 +1512,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
         },
         ProfileLaw {
             identity: "c",
-            observation_method: "tree-sitter-c@0.24.2+direct-source-facts-v2",
+            observation_method: "tree-sitter-c@0.24.2+direct-source-facts-v3",
             documentation: DocumentationLaw {
                 carrier: DocumentationCarrierLaw::NativeAdjacent,
                 summary: SummaryLocation::FirstNonempty,
@@ -1539,7 +1544,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
         },
         ProfileLaw {
             identity: "cpp",
-            observation_method: "tree-sitter-cpp@8b5b49eb+direct-source-facts-v2",
+            observation_method: "tree-sitter-cpp@8b5b49eb+direct-source-facts-v3",
             documentation: DocumentationLaw {
                 carrier: DocumentationCarrierLaw::NativeAdjacent,
                 summary: SummaryLocation::FirstNonempty,
@@ -1607,7 +1612,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             semantic_revision: 4,
             chapter: "Name",
             presentation_contract: "identifier_declaration",
-            rank: 5,
+            rank: 7,
         },
         RuleLaw {
             operator: RuleOperator::IdentifierReserved,
@@ -1618,7 +1623,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             semantic_revision: 4,
             chapter: "Name",
             presentation_contract: "identifier_declaration",
-            rank: 6,
+            rank: 8,
         },
         RuleLaw {
             operator: RuleOperator::IdentifierCanonicalForm,
@@ -1629,7 +1634,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             semantic_revision: 5,
             chapter: "Name",
             presentation_contract: "identifier_declaration",
-            rank: 7,
+            rank: 9,
         },
         RuleLaw {
             operator: RuleOperator::IdentifierRepresentationSuffix,
@@ -1640,7 +1645,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             semantic_revision: 5,
             chapter: "Name",
             presentation_contract: "identifier_declaration",
-            rank: 8,
+            rank: 10,
         },
         RuleLaw {
             operator: RuleOperator::IdentifierUnknownToken,
@@ -1651,7 +1656,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             semantic_revision: 4,
             chapter: "Name",
             presentation_contract: "identifier_declaration",
-            rank: 9,
+            rank: 11,
         },
         RuleLaw {
             operator: RuleOperator::DocumentationCarrier,
@@ -1662,7 +1667,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             semantic_revision: 3,
             chapter: "Explain",
             presentation_contract: "callable_documentation",
-            rank: 10,
+            rank: 12,
         },
         RuleLaw {
             operator: RuleOperator::DocumentationSummary,
@@ -1670,21 +1675,21 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::HardViolation,
             message: "documentation carrier must contain a non-empty summary",
             question: None,
-            semantic_revision: 4,
+            semantic_revision: 5,
             chapter: "Explain",
             presentation_contract: "callable_documentation",
-            rank: 11,
+            rank: 13,
         },
         RuleLaw {
             operator: RuleOperator::DocumentationTerminator,
             identity: "documentation.punctuation",
             grade: FindingGrade::HardViolation,
-            message: "summary and controlled field descriptions must not end in a sentence terminator",
+            message: "source documentation prose must not contain Chinese full stops or English sentence-ending periods",
             question: None,
-            semantic_revision: 4,
+            semantic_revision: 5,
             chapter: "Explain",
             presentation_contract: "callable_documentation",
-            rank: 12,
+            rank: 14,
         },
         RuleLaw {
             operator: RuleOperator::DocumentationPublicContract,
@@ -1692,10 +1697,10 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::HardViolation,
             message: "callable documentation must satisfy applicable controlled roles in profile order",
             question: None,
-            semantic_revision: 7,
+            semantic_revision: 8,
             chapter: "Explain",
             presentation_contract: "callable_documentation",
-            rank: 13,
+            rank: 15,
         },
         RuleLaw {
             operator: RuleOperator::DocumentationSafety,
@@ -1703,10 +1708,10 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             grade: FindingGrade::HardViolation,
             message: "unsafe Rust subject must provide a non-empty # Safety section",
             question: None,
-            semantic_revision: 5,
+            semantic_revision: 6,
             chapter: "Explain",
             presentation_contract: "callable_documentation",
-            rank: 14,
+            rank: 16,
         },
         RuleLaw {
             operator: RuleOperator::DependencyWildcard,
@@ -1717,7 +1722,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             semantic_revision: 1,
             chapter: "Relate",
             presentation_contract: "dependency_declaration",
-            rank: 2,
+            rank: 4,
         },
         RuleLaw {
             operator: RuleOperator::DependencyModulePlacement,
@@ -1728,7 +1733,7 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             semantic_revision: 1,
             chapter: "Relate",
             presentation_contract: "dependency_declaration",
-            rank: 3,
+            rank: 5,
         },
         RuleLaw {
             operator: RuleOperator::DependencyOrder,
@@ -1739,7 +1744,44 @@ const STANDARD_LAW: StandardLaw = StandardLaw {
             semantic_revision: 1,
             chapter: "Relate",
             presentation_contract: "dependency_declaration",
-            rank: 4,
+            rank: 6,
+        },
+        RuleLaw {
+            operator: RuleOperator::SourceCommentPunctuation,
+            identity: "source.comment_punctuation",
+            grade: FindingGrade::HardViolation,
+            message: "ordinary comment prose must not contain Chinese full stops or English sentence-ending periods",
+            question: None,
+            semantic_revision: 1,
+            chapter: "Structure",
+            presentation_contract: "source_structure",
+            rank: 2,
+        },
+        RuleLaw {
+            operator: RuleOperator::SourceCommentParenthesized,
+            identity: "source.comment_parentheses",
+            grade: FindingGrade::ReviewRequired,
+            message: "普通注释正文中的中英文圆括号需确认技术必要性",
+            question: Some(
+                "这些圆括号是否表达必须保留的形状、公式或其他技术信息？请确认必要性；确认本身不清除待确认问题",
+            ),
+            semantic_revision: 1,
+            chapter: "Structure",
+            presentation_contract: "source_structure",
+            rank: 3,
+        },
+        RuleLaw {
+            operator: RuleOperator::DocumentationParenthesized,
+            identity: "documentation.parentheses",
+            grade: FindingGrade::ReviewRequired,
+            message: "源码文档正文中的中英文圆括号需确认技术必要性",
+            question: Some(
+                "这些圆括号是否表达必须保留的形状、公式或其他技术信息？请确认必要性；确认本身不清除待确认问题",
+            ),
+            semantic_revision: 1,
+            chapter: "Explain",
+            presentation_contract: "callable_documentation",
+            rank: 17,
         },
     ],
 };

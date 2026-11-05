@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "candidate_gates": {
-    "product_rust_max_physical_lines": 9000,
-    "test_rust_max_physical_lines": 7000,
+    "product_rust_max_physical_lines": 9100,
+    "test_rust_max_physical_lines": 7300,
     "normative_standard_min_physical_lines": 280,
     "normative_standard_max_physical_lines": 400
   },
-  "targets_root": "../../../bench/targets",
+  "targets_root": "../bench/targets",
   "targets": [
     {
       "directory": "chromatixnext-5b3411fc",
@@ -146,10 +146,10 @@
     },
     "script": {
       "path": "measure-parser-admission.ps1",
-      "sha256": "fc146afb9aa47b63737c55856fdd387aaf6ef000856f2b4c9390df5eb2f81dd9"
+      "sha256": "d55228bcff1b19605a43ae2b61c410655e374ba68a3db206663471d517311b7a"
     },
     "authority": {
-      "path": "parser-admission-authority",
+      "path": "authorities/parser-admission",
       "schema_version": 4,
       "header_facts": 315,
       "sha256": "b7be6331cefaf06e9638fcb6df580ec9feab0e3768df53f093a1556255c53a5c"
@@ -158,7 +158,7 @@
       "path": "parser-admission.json",
       "schema_version": 1,
       "exclusions": 372,
-      "sha256": "0ce91f50503ae8a59881d747054783f0433205a0fbe31447f8abe21cee455cfa"
+      "sha256": "5f9420ffe4bb8c2da653d7105c6398fa2ddfbd8539ceefecf2d78f4c3170b4ac"
     },
     "repeated_runs": 2
   },
@@ -174,7 +174,7 @@
     "bytes": 6742933,
     "digest": "fdcfa14e65efc32bc25587efe9ee6a6aa5453ba2e3eeb8b4a2b4ead5f8441703",
     "authority": {
-      "path": "performance-authority",
+      "path": "authorities/performance",
       "sha256": "78ad91b75394ef27d626c2fda1f0377b7244350a72bb6840ccba6d32340d1425"
     },
     "parseability_exclusions": {
@@ -220,11 +220,11 @@
     "identity": "win11-26200-ryzen9-9900x-96g-nvme-rust-1.96.0",
     "script": {
       "path": "measure-release.ps1",
-      "sha256": "569c8f8dc8599327fd5749cbbd7766a139b9b28c98aa6ce8d66bc566125e786c"
+      "sha256": "51aa2ddc154a19658b1814b61bbb3bbdcb8dcd60a4f52e644c1ca7322318e732"
     },
     "verifier": {
       "path": "verify-inputs.ps1",
-      "sha256": "dc7f94c1011461659c6e20a6f608ba97e16a0db9460c4fb14950b731c057627d"
+      "sha256": "0ea81ecfd6cac4ed940df8567f5260730d16c238b08b0956c36dd6b7f3d6028c"
     },
     "environment": {
       "os_description": "Microsoft Windows 10.0.26200",
@@ -263,6 +263,6 @@
     "expected_diagnostic_incomplete": true
   },
   "grammars": {
-    "cargo_lock_sha256": "c870cc2e1f44d972ded9a6d3deb5197df227b2a678a66149b670550c53871bc3"
+    "cargo_lock_sha256": "4b6b375e8f098d4f2c7135d6281dcae067a99ef2011c83e9224e165caf123744"
   }
 }

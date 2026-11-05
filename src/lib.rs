@@ -1,46 +1,48 @@
+//! CSU 的 Authority 编译、源码审查与结果投影接口
+
 mod authority;
 mod model;
 mod projection;
 mod review;
-/// 公开 Authority 编译与一次性审查入口
+/// 内存 Authority 文档
 pub use authority::AuthorityDocument;
-/// 公开 Authority 输入来源
+/// Authority 的目录或内存输入
 pub use authority::AuthorityInput;
-/// 公开 Authority 拒绝证据
+/// Authority 或审查请求的拒绝证据
 pub use authority::ReviewRejection;
-/// 公开一次性工作区审查器
+/// 编译 Authority 后执行单次审查
 pub use authority::WorkspaceReviewer;
-/// 公开审查输入、账本和唯一终态模型
+/// 按文件保存六类事实的覆盖账本
 pub use model::CompactCoverage;
-/// 公开审查完成状态
+/// 全部必需事实族是否完成
 pub use model::Completion;
-/// 公开审查处置类别
+/// 审查终态对应的对外处置类别
 pub use model::Disposition;
-/// 公开内存文档集合
+/// 带版本身份的内存源码集合
 pub use model::DocumentSet;
-/// 公开事实族身份
+/// 审查生命周期中的事实类别
 pub use model::FactFamily;
-/// 公开事实族终态
+/// 单个事实类别的完成或受阻状态
 pub use model::FactFamilyState;
-/// 公开源码审查发现
+/// 绑定到源码位置的审查发现
 pub use model::Finding;
-/// 公开审查发现等级
+/// 硬违规或待确认等级
 pub use model::FindingGrade;
-/// 公开审查失败证据
+/// 审查开始后的执行失败证据
 pub use model::ReviewFailure;
-/// 公开源码审查输入
+/// 工作区或内存源码输入
 pub use model::ReviewInput;
-/// 公开生命周期工作量
+/// 读取、物理行观察和结构解析次数
 pub use model::ReviewMetrics;
-/// 公开唯一审查终态
+/// 拒绝、失败或封存结果之一
 pub use model::ReviewTerminal;
-/// 公开已审查范围身份
+/// 封存结果绑定的输入范围
 pub use model::ReviewedScope;
-/// 公开确定性封存结果
+/// 包含覆盖、发现和 Seal 的封存结果
 pub use model::SealedReview;
-/// 公开内存源码文档
+/// 带相对路径的内存源码
 pub use model::SourceDocument;
-/// 公开稳定的机器与人工投影函数
+/// 生成人工可读的终态文本
 pub use projection::project_human;
-/// 公开稳定的 JSON 投影函数
+/// 生成稳定的 JSON 终态投影
 pub use projection::project_javascript_object_notation;

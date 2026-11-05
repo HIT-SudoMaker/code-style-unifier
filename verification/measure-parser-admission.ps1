@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Executable = "target/release/csu.exe",
-    [string]$OutputPath = "docs/fixtures/core/parser-admission.json"
+    [string]$OutputPath = "verification/parser-admission.json"
 )
 
 $ErrorActionPreference = "Stop"
@@ -276,7 +276,7 @@ function Invoke-AdmissionReview {
 }
 
 $fixtureRoot = $PSScriptRoot
-$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $fixtureRoot "../../.."))
+$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $fixtureRoot ".."))
 $manifestPath = Join-Path $fixtureRoot "benchmark-manifest.json"
 $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 |
     ConvertFrom-Json
@@ -286,7 +286,7 @@ if ($manifest.schema_version -ne 1 -or @($manifest.targets).Count -ne 8) {
 $targetsRoot = [IO.Path]::GetFullPath(
     (Join-Path $fixtureRoot $manifest.targets_root)
 )
-$authorityDirectory = Join-Path $fixtureRoot "parser-admission-authority"
+$authorityDirectory = Join-Path $fixtureRoot "authorities/parser-admission"
 $authorityPath = Join-Path $authorityDirectory "authority.json"
 $cargoLockPath = Join-Path $repositoryRoot "Cargo.lock"
 $scriptPath = [IO.Path]::GetFullPath($PSCommandPath)
@@ -643,10 +643,10 @@ $receipt = [pscustomobject][ordered]@{
         targets = @($targetReceipts)
         grammars = [pscustomobject][ordered]@{
             cargo_lock_sha256 = $frozenCargoLock.sha256
-            python = "tree-sitter-python@0.25.0+direct-source-facts-v2"
-            rust = "tree-sitter-rust@0.24.2+direct-source-facts-v2"
-            c = "tree-sitter-c@0.24.2+direct-source-facts-v2"
-            cpp = "tree-sitter-cpp@8b5b49eb+direct-source-facts-v2"
+            python = "tree-sitter-python@0.25.0+direct-source-facts-v3"
+            rust = "tree-sitter-rust@0.24.2+direct-source-facts-v3"
+            c = "tree-sitter-c@0.24.2+direct-source-facts-v3"
+            cpp = "tree-sitter-cpp@8b5b49eb+direct-source-facts-v3"
         }
         executable_sha256 = $frozenExecutable.sha256
         authority_sha256 = $frozenAuthority.sha256

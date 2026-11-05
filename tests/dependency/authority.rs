@@ -10,7 +10,7 @@ use csu::WorkspaceReviewer;
 #[test]
 fn overlapping_dependency_classes_are_rejected_before_review() {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
-        "../../docs/fixtures/core/authority.json"
+        "../../verification/fixtures/authority.json"
     ))
     .unwrap();
     authority["dependency_authority"] = serde_json::json!({

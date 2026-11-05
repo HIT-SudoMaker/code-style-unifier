@@ -15,7 +15,7 @@ use review_fixture::compile_value;
 use review_fixture::review_sources;
 
 const AUTHORITY: &str =
-    include_str!("../../docs/fixtures/core/authority.json");
+    include_str!("../../verification/fixtures/authority.json");
 
 const SOURCE: &str = concat!(
     "def _calculate_velocity(distance_m: float, ",

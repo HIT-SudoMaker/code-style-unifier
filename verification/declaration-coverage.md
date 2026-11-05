@@ -7,15 +7,23 @@
 
 ## 定位方式
 
-实现统一见 [review.rs](../../../src/review.rs) 的 `DeclarationReview::collect_node`、`observe_callable` 和 `parameter_binding`，表内补充具体函数名。
-算法与状态解释见[技术参考](../../technical.md#语言观察)；本页记录覆盖证据，不另行定义规则。
+实现统一见 [review.rs](../src/review.rs) 的 `DeclarationReview::collect_node`、`observe_callable` 和 `parameter_binding`，表内补充具体函数名。
+算法与状态解释见[技术参考](../docs/technical.md#语言观察)；本页记录覆盖证据，不另行定义规则。
 
 | 测试缩写 | 文件 |
 |---|---|
-| I | [identifier_subjects.rs](../../../tests/identifier/subjects.rs) |
-| F | [identifier_forms.rs](../../../tests/identifier/forms.rs) |
-| D | [documentation_regressions](../../../tests/documentation/mod.rs)，按 carriers / subjects / content / fields 分组 |
-| C | [cpp_documentation_roles.rs](../../../tests/documentation/native_roles.rs) |
+| I | [identifier_subjects.rs](../tests/identifier/subjects.rs) |
+| F | [identifier_forms.rs](../tests/identifier/forms.rs) |
+| D | [documentation_regressions](../tests/documentation/mod.rs)，按 carriers / subjects / content / fields 分组 |
+| C | [cpp_documentation_roles.rs](../tests/documentation/native_roles.rs) |
+
+## 源码正文标点
+
+[terminal_contract](../tests/review/terminal_contract.rs) 的 `ordinary_comment_*` 与 `comment_punctuation_ignores_directives_and_string_contents`
+覆盖四语言普通注释的句号、括号等级、技术文本、代码围栏、指令与字符串排除；工作区清单测试另验证 Markdown 不参与审查。
+D 的 `sentence_punctuation_is_owned_per_profile`、`parenthesized_documentation_requires_owner_review` 及私有正文、Rust 代码示例测试覆盖对应文档行为。
+代码区间由共享观察结果提供，摘要、字段、标点和安全标题使用同一份判断；括号的技术必要性不由这些测试推断。
+新增普通注释规则需要显式记录文档归属、共享正文观察，以及四语言正反例与独立位置断言，因此小幅扩大 [benchmark manifest](benchmark-manifest.json) 的产品及测试源码预算。
 
 ## Python
 

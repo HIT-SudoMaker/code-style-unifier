@@ -1,7 +1,7 @@
 # Evidence-based remediation
 
 Read this reference only for a repair or Project Fact registration request.
-The parent SKILL.md owns capture and interpretation; use it for every fresh run.
+The Review contract owns capture and interpretation; use it for every fresh run.
 
 ## Repair source
 

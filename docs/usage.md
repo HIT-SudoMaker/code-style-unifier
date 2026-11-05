@@ -13,10 +13,9 @@ CLI 和 skill 的安装及调用入口见 [README](../README.md#installation)。
 
 ## 首次接入与 Authority 准备
 
-项目 Authority 默认放在 `<项目根目录>/.csu/authority/authority.json`；运行记录放在 `.csu/runs/`。
-每次审查都检查实际文件：没有 `.csu` 表示默认文件不存在，有 `.csu` 也可能已删除 Authority。
-显式指定的 Authority 路径仍优先，不能仅凭默认目录缺失断言所有位置都没有 Authority，也不能据此推断历史上首次运行。
-CLI 仍要求显式传入 `--authority`；默认位置是项目及 skill 的约定，不是新的自动搜索规则。
+项目 Authority 的约定位置是 `<项目根目录>/.csu/authority/authority.json`，CLI 仍须显式传入 `--authority`。
+CSU Review skill 优先使用指定路径，否则检查这个约定位置；目录存在不代表输入文件完整有效。
+直接运行 CLI 不创建记录目录，只有 skill 执行新审查时才会保存运行记录。
 
 选定文件缺失时，CLI 返回带准备指引的 `Rejected`，退出码 2，尚未扫描源码；Agent 则先执行只读项目摸底，
 整理受检范围、语言、入口、依赖声明、已有说明，以及编写 Authority 所需的候选事实、来源和待确认问题。
@@ -75,8 +74,22 @@ CLI 路径相对当前工作目录解释，Authority 内的源码路径相对审
 改变范围后应重新核对这些路径；项目根目录和审查范围可以不同。
 
 Authority 输入使用 schema 4；审查 JSON 也使用 schema 4，两者独立管理。schema 3 输入会被拒绝。
-CSU 的 `docs/authority/csu-self` 只属于 CSU 自身，不是其他项目的默认配置。
+CSU 仓库的 `verification/authorities/self-review` 只用于产品自检，不是其他项目的默认配置。
 输入文件的完整形状及接纳条件见[技术参考：输入合同](technical.md#输入合同)。
+
+## 注释与文档检查
+
+普通注释与原生文档都检查自然语言正文，包括摘要、参数解释和其他说明：
+
+| 内容 | 结果 |
+|---|---|
+| 中文句号或识别为英文句末的句点 | 硬违规 |
+| 正文中的中英文圆括号 | 待确认，由负责人判断技术必要性 |
+| URL、路径、版本号和小数中的点号，以及明确的行内代码、代码块和链接目标 | 作为技术文本保留 |
+
+链接显示文字仍受检；Markdown 文件和普通字符串不属于这项源码正文检查。
+负责人可以保留有技术必要性的括号，但确认理由不会消除后续审查中的待确认项。
+参数名称对应和最短列对齐仍按[文档规则](coding_standards.md#4-文档与返回说明)检查。
 
 ## 审查依赖声明
 
@@ -141,6 +154,16 @@ CLI 只向 stdout 输出结果，不自动创建报告文件；输出错误可�
 未指定 Authority 时，Agent 使用项目默认位置；文件缺失时执行上述准备流程。
 缺少可执行文件、范围或完整输出时，先处理 setup/capture blocker，不生成推测的源码结论。
 
-[CSU Review](../.agents/skills/csu-review/SKILL.md) 负责运行和解释，在目标项目 `.csu/runs/<UTC-run-id>/` 下保留原始结果及 `RUN.txt` 来源记录，保存非空 stderr，保留旧运行。
-文件命名、捕获失败处理和结束条件由该 skill 统一维护。
+[CSU Review](../.agents/skills/csu-review/SKILL.md) 负责调用、捕获和解释结果；文件命名与捕获失败处理由该 skill 统一维护。
 审查保持源码只读；需要修复或登记事实时，按单独授权的[修复指引](../.agents/skills/csu-review/references/remediation.md)继续。
+
+## 运行记录与清理
+
+skill 执行新审查时创建 `.csu/runs/<UTC-run-id>/`，保存原始结果、`RUN.txt` 调用来源和非空 stderr，
+不覆盖已有运行。记录用于核对当时的输入与结论，不参与下一次审查。
+
+结果解释完成后，不再需要的临时运行可以删除；删除记录不会改变原来的审查结论。
+需要长期复查或审计时，应使用项目明确指定的版本库、Issue 或其他记录系统，不由 skill 自行创建旁路归档目录。
+
+清理时只处理选定的运行目录，保留项目的 `.csu/authority` 和源码。运行记录通常被 Git 忽略，
+因此干净的 Git 状态不表示 `.csu/runs/` 已清空；这些记录也不属于 CSU 发布包。

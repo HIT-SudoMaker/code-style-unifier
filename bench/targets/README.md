@@ -3,9 +3,9 @@
 本目录保存真实项目固定版本的源码子集，供 CSU 暴露检出缺口、误报、检查不完整和资源开销。
 它们不是零问题示范工程，也不是完整、可构建的上游项目；无关文档、配置、数据和工具构件已移除。
 
-目录位置、构建语料、测量和验收统一见 [靶场指南](../../docs/fixtures/core/README.md)。
-项目修订、源码扩展名和摘要以 [benchmark-manifest.json](../../docs/fixtures/core/benchmark-manifest.json) 为准；
-解析排除项另见 [parseability-exclusions.json](../../docs/fixtures/core/parseability-exclusions.json)。
+目录位置、构建语料、测量和验收统一见 [验证指南](../../verification/README.md)。
+项目修订、源码扩展名和摘要以 [benchmark-manifest.json](../../verification/benchmark-manifest.json) 为准；
+解析排除项另见 [parseability-exclusions.json](../../verification/parseability-exclusions.json)。
 这些清单限定性能工作负载，不是面向用户项目的规则豁免。
 
 ## 项目用途

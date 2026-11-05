@@ -481,14 +481,14 @@ function Get-CurrentMeasuredCandidate {
     }
     $fullPatchHash = Get-TrackedPatchHash -RepositoryRoot $repositoryRoot `
         -BaseHead $baseHead
-    $functionalExclusions = @("docs/fixtures/core/release_runs.json")
+    $functionalExclusions = @("verification/release_runs.json")
     $functionalPatchHash = Get-TrackedPatchHash `
         -RepositoryRoot $repositoryRoot -BaseHead $baseHead `
         -ExcludedPaths $functionalExclusions
 
     [string[]]$untrackedInputs = @(
         & git -C $repositoryRoot ls-files --others --exclude-standard -- `
-            src tests docs .agents/skills/csu-review .claude/skills/csu-review
+            src tests docs verification .agents/skills/csu-review .claude/skills/csu-review
     )
     if ($LASTEXITCODE -ne 0) {
         throw "Cannot enumerate intended untracked candidate inputs"
@@ -508,41 +508,13 @@ function Get-CurrentMeasuredCandidate {
     $maintenanceRecords = Get-UntrackedFileRecords `
         -RepositoryRoot $repositoryRoot -Paths $untrackedMaintenance
 
-    $planningRoot = ".scratch"
-    $planningEntries = @(
-        Get-ChildItem -LiteralPath (Join-Path $repositoryRoot $planningRoot) `
-            -Recurse -Force
-    )
-    if (@($planningEntries | Where-Object {
-                $_.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint)
-            }).Count -ne 0) {
-        throw "Retained local planning material must not traverse a reparse point"
-    }
-    [string[]]$planningPaths = @(
-        $planningEntries | Where-Object { -not $_.PSIsContainer } |
-            ForEach-Object {
-                [IO.Path]::GetRelativePath(
-                    $repositoryRoot, $_.FullName
-                ).Replace("\", "/")
-            }
-    )
-    if (@($planningPaths | Where-Object {
-                [IO.Path]::GetExtension($_) -notin @(".md", ".json")
-            }).Count -ne 0) {
-        throw "Retained measurement planning contains an unsupported file"
-    }
-    [Array]::Sort($planningPaths, [StringComparer]::Ordinal)
-    $planningRecords = Get-UntrackedFileRecords `
-        -RepositoryRoot $repositoryRoot -Paths $planningPaths
-
     [string[]]$allUntracked = @(
         & git -C $repositoryRoot ls-files --others --exclude-standard
     )
     if ($LASTEXITCODE -ne 0) {
         throw "Cannot enumerate the measurement candidate"
     }
-    $ownedUntracked = @($untrackedInputs) + @($untrackedMaintenance) +
-        @($planningPaths)
+    $ownedUntracked = @($untrackedInputs) + @($untrackedMaintenance)
     $unexpectedUntracked = @($allUntracked | Where-Object {
             $_ -notin $ownedUntracked
         })
@@ -560,12 +532,6 @@ function Get-CurrentMeasuredCandidate {
         functional_patch_exclusions = $functionalExclusions
         untracked_inputs = $untrackedInputRecords
         untracked_maintenance = $maintenanceRecords
-        retained_local_planning_material = [pscustomobject][ordered]@{
-            path = $planningRoot
-            classification = "immutable_requirement_snapshot"
-            files = $planningRecords.Count
-            sha256 = Get-JsonSha256 -Value $planningRecords
-        }
         cargo_lock_sha256 = $cargoLockHash
         executable = [pscustomobject][ordered]@{
             path = "target/release/csu.exe"
@@ -781,9 +747,10 @@ function Select-ExactLanguageCorpus {
 
 $fixtureRoot = $PSScriptRoot
 $repositoryRoot = [IO.Path]::GetFullPath(
-    (Join-Path $fixtureRoot "../../..")
+    (Join-Path $fixtureRoot "..")
 )
-$fixtureManifestPath = Join-Path $fixtureRoot "fixture-manifest.json"
+$fixtureDataRoot = Join-Path $fixtureRoot "fixtures"
+$fixtureManifestPath = Join-Path $fixtureDataRoot "manifest.json"
 $fixtureManifest = Get-Content -LiteralPath $fixtureManifestPath `
     -Raw -Encoding UTF8 |
     ConvertFrom-Json
@@ -793,7 +760,7 @@ $fixtureManifestHash = (
 if ($fixtureManifest.schema_version -ne 2) {
     throw "Frozen fixture manifest must use executable-oracle schema 2"
 }
-$authorityPath = Join-Path $fixtureRoot $fixtureManifest.authority.path
+$authorityPath = Join-Path $fixtureDataRoot $fixtureManifest.authority.path
 $authorityHash = (Get-FileHash -LiteralPath $authorityPath `
     -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($authorityHash -ne $fixtureManifest.authority.sha256) {
@@ -850,7 +817,7 @@ foreach ($scenario in $scenarioNames) {
     }
 }
 foreach ($document in $fixtureManifest.documents) {
-    $documentPath = Join-Path $fixtureRoot $document.path
+    $documentPath = Join-Path $fixtureDataRoot $document.path
     $documentHash = (Get-FileHash -LiteralPath $documentPath `
         -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($documentHash -ne $document.sha256) {
@@ -909,8 +876,8 @@ $package = @($packageMetadata.packages | Where-Object {
         $_.name -ceq "code-style-unifier"
     })
 if ($LASTEXITCODE -ne 0 -or $package.Count -ne 1 -or
-    [string]$package[0].version -cne "3.0.0") {
-    throw "Package metadata and lockfile must identify version 3.0.0"
+    [string]$package[0].version -cne "3.0.1") {
+    throw "Package metadata and lockfile must identify version 3.0.1"
 }
 $releaseWorkflowPath = Join-Path $repositoryRoot ".github/workflows/release.yml"
 $releaseWorkflowText = [IO.File]::ReadAllText($releaseWorkflowPath)
@@ -1070,13 +1037,13 @@ if ($parserAdmissionReceipt.schema_version -ne 1 -or
     $parserAdmissionReceipt.inputs.grammars.cargo_lock_sha256 -cne
         $cargoLockHash -or
     $parserAdmissionReceipt.inputs.grammars.python -cne
-        "tree-sitter-python@0.25.0+direct-source-facts-v2" -or
+        "tree-sitter-python@0.25.0+direct-source-facts-v3" -or
     $parserAdmissionReceipt.inputs.grammars.rust -cne
-        "tree-sitter-rust@0.24.2+direct-source-facts-v2" -or
+        "tree-sitter-rust@0.24.2+direct-source-facts-v3" -or
     $parserAdmissionReceipt.inputs.grammars.c -cne
-        "tree-sitter-c@0.24.2+direct-source-facts-v2" -or
+        "tree-sitter-c@0.24.2+direct-source-facts-v3" -or
     $parserAdmissionReceipt.inputs.grammars.cpp -cne
-        "tree-sitter-cpp@8b5b49eb+direct-source-facts-v2" -or
+        "tree-sitter-cpp@8b5b49eb+direct-source-facts-v3" -or
     $parserAdmissionReceipt.inputs.executable_sha256 -notmatch
         "^[0-9a-f]{64}$" -or
     $parserAdmissionReceipt.inputs.authority_sha256 -cne
@@ -1314,10 +1281,14 @@ foreach ($entry in $newExclusions) {
         throw "Unknown or duplicate parser-admission exclusion: $path"
     }
     $record = $parserRecordsByPath[$path]
+    $method = $parserAdmissionReceipt.inputs.grammars.($record.Language)
     if ($entry.profile -cne $record.Language -or
         $entry.physical_lines -ne $record.PhysicalLines -or
         $entry.sha256 -cne $record.Sha256 -or
-        [string]::IsNullOrWhiteSpace([string]$entry.reason) -or
+        -not ([string]$entry.reason).StartsWith(
+            "observation method $method rejected source at ",
+            [StringComparison]::Ordinal
+        ) -or
         $entry.reason_sha256 -cne (Get-Sha256Text -Text $entry.reason) -or
         $entry.classification -cne
             "excluded_not_reviewed_not_complete_not_clean") {
@@ -1888,7 +1859,7 @@ if ($selfCheckMode -and
 }
 $strictUtf8 = [Text.UTF8Encoding]::new($false, $true)
 $selfCheck = $strictUtf8.GetString($selfCheckBytes) | ConvertFrom-Json
-if ($selfCheck.schema_version -ne 3 -or
+if ($selfCheck.schema_version -ne 4 -or
     $selfCheck.source_candidate.state -ne
         "wip_unpublished" -or
     $selfCheck.source_candidate.semantic_authority_digest -ne
@@ -1905,12 +1876,12 @@ if ($null -eq $measuredCandidate -or
 $currentHead = (& git -C $repositoryRoot rev-parse HEAD).Trim()
 $patchHash = Get-TrackedPatchHash -RepositoryRoot $repositoryRoot `
     -BaseHead $currentHead
-$functionalExclusions = @("docs/fixtures/core/release_runs.json")
+$functionalExclusions = @("verification/release_runs.json")
 $functionalPatchHash = Get-TrackedPatchHash -RepositoryRoot $repositoryRoot `
     -BaseHead $currentHead -ExcludedPaths $functionalExclusions
 [string[]]$untrackedInputs = @(
     & git -C $repositoryRoot ls-files --others --exclude-standard -- `
-        src tests docs .agents/skills/csu-review .claude/skills/csu-review
+        src tests docs verification .agents/skills/csu-review .claude/skills/csu-review
 )
 [Array]::Sort($untrackedInputs, [StringComparer]::Ordinal)
 [object[]]$untrackedInputRecords = Get-UntrackedFileRecords `
@@ -1944,55 +1915,6 @@ if ((Get-JsonSha256 -Value $expectedMaintenance) -ne
     (Get-JsonSha256 -Value @($measuredCandidate.untracked_maintenance))) {
     throw "Measured and final maintenance identities differ"
 }
-$planning = $selfCheck.source_candidate.retained_local_planning_material
-$planningPath = Join-Path $repositoryRoot $planning.path
-if ($planning.classification -ne "immutable_requirement_snapshot" -or
-    -not (Test-Path -LiteralPath $planningPath -PathType Container) -or
-    $measuredCandidate.retained_local_planning_material.path -ne $planning.path -or
-    $measuredCandidate.retained_local_planning_material.classification -ne
-        $planning.classification) {
-    throw "Retained requirement snapshot is not the frozen immutable tree"
-}
-$planningEntries = @(Get-ChildItem -LiteralPath $planningPath -Recurse -Force)
-if (@($planningEntries | Where-Object {
-            $_.Attributes.HasFlag([IO.FileAttributes]::ReparsePoint)
-        }).Count -ne 0) {
-    throw "Retained local planning material must not traverse a reparse point"
-}
-[object[]]$planningFiles = @(
-    $planningEntries | Where-Object { -not $_.PSIsContainer } |
-        ForEach-Object {
-            $relative = [IO.Path]::GetRelativePath(
-                $repositoryRoot,
-                $_.FullName
-            ).Replace("\", "/")
-            [pscustomobject][ordered]@{
-                path = $relative
-                sha256 = (
-                    Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256
-                ).Hash.ToLowerInvariant()
-            }
-        }
-)
-if (@($planningFiles | Where-Object {
-            [IO.Path]::GetExtension($_.path) -notin @(".md", ".json")
-        }).Count -ne 0) {
-    throw "Retained local planning material contains an unsupported file"
-}
-$planningComparison = [Collections.Generic.Comparer[object]]::Create({
-    param($left, $right)
-    return [StringComparer]::Ordinal.Compare($left.path, $right.path)
-})
-[Array]::Sort($planningFiles, $planningComparison)
-$planningDigest = Get-JsonSha256 -Value $planningFiles
-if ($planningFiles.Count -ne $planning.files -or
-    $planningDigest -ne $planning.sha256 -or
-    $planningFiles.Count -ne
-        $measuredCandidate.retained_local_planning_material.files -or
-    $planningDigest -ne
-        $measuredCandidate.retained_local_planning_material.sha256) {
-    throw "Retained local planning identity drift"
-}
 [string[]]$allUntracked = @(
     & git -C $repositoryRoot ls-files --others --exclude-standard
 )
@@ -2003,9 +1925,8 @@ $classifiedPaths = @($untrackedInputs) + @(
     $expectedMaintenance | ForEach-Object { $_.path }
 )
 $unexpectedUntracked = @($allUntracked | Where-Object {
-    $_ -ne "docs/fixtures/core/self_check.json" -and
-    $_ -notin $classifiedPaths -and
-    -not $_.StartsWith("$($planning.path)/")
+    $_ -ne "verification/self_check.json" -and
+    $_ -notin $classifiedPaths
 })
 if ($unexpectedUntracked.Count -ne 0) {
     throw "Unclassified untracked candidate material: $unexpectedUntracked"
@@ -2039,20 +1960,20 @@ if ($selfAuthorityHash -ne $selfCheck.self_review.authority.sha256) {
 
 $candidateInputs = $selfCheck.candidate_inputs
 if ($candidateInputs.fixture_manifest.path -ne
-        "docs/fixtures/core/fixture-manifest.json" -or
+        "verification/fixtures/manifest.json" -or
     $candidateInputs.fixture_manifest.sha256 -ne $fixtureManifestHash -or
     $candidateInputs.benchmark_manifest.path -ne
-        "docs/fixtures/core/benchmark-manifest.json" -or
+        "verification/benchmark-manifest.json" -or
     $candidateInputs.benchmark_manifest.sha256 -ne $benchmarkManifestHash -or
     $candidateInputs.parser_admission.path -ne
-        "docs/fixtures/core/parser-admission.json" -or
+        "verification/parser-admission.json" -or
     $candidateInputs.parser_admission.sha256 -ne
         $parserAdmissionManifest.receipt.sha256 -or
     $candidateInputs.release_workflow.path -ne
         ".github/workflows/release.yml" -or
     $candidateInputs.release_workflow.sha256 -ne $releaseWorkflowHash -or
     $candidateInputs.release_evidence.path -ne
-        "docs/fixtures/core/release_runs.json" -or
+        "verification/release_runs.json" -or
     $candidateInputs.release_evidence.sha256 -ne $releaseEvidenceHash -or
     $candidateInputs.standards.path -ne "docs/coding_standards.md" -or
     $candidateInputs.standards.sha256 -ne $standardsHash -or
@@ -2236,15 +2157,6 @@ foreach ($entry in @($expectedUntracked) + @($expectedMaintenance)) {
         throw "Untracked candidate content changed during self-check"
     }
 }
-$postPlanningFiles = Get-UntrackedFileRecords `
-    -RepositoryRoot $repositoryRoot -Paths @(
-        $planningFiles | ForEach-Object { $_.path }
-    )
-if ($postPlanningFiles.Count -ne $planningFiles.Count -or
-    (Get-JsonSha256 -Value $postPlanningFiles) -ne $planningDigest) {
-    throw "Retained local planning identity changed during self-check"
-}
-
 $tracks = $selfCheck.evidence_tracks
 if ($tracks.semantic -ne "verified" -or
     $tracks.self_review -ne "verified" -or

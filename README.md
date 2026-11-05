@@ -1,14 +1,10 @@
 # CSU
 
-Name scientific intent. Verify source contracts.
+Declare source contracts. Audit captured source.
 
-CSU provides semantic source review for next-generation scientific software
-engineering. A native Rust reviewer checks naming, documentation and dependency
-contracts in Python, Rust, C and C++. An agent skill captures the evidence,
-interprets the result and guides authorized follow-up with the project owner.
-
-The CLI returns a terminal result. The skill preserves each run under the target
-project's `.csu/runs/`. Target source remains `READ_ONLY` during review.
+CSU is a native reviewer and optional agent skill for Python, Rust, C and C++ source.
+The reviewer turns one captured scope into a sealed CSU Terminal; the skill preserves
+and interprets that result. Target source remains `READ_ONLY` during review.
 
 ## Why CSU exists
 
@@ -22,42 +18,42 @@ CSU makes those source obligations explicit:
 - names follow native declaration roles and project-recognized concepts;
 - quantity names carry their registered representation suffixes;
 - public interfaces document their parameters, returns and failures;
-- comments and dependencies follow bounded, language-aware rules;
+- ordinary comments follow fixed placement and prose rules;
+- dependency declarations follow language-specific rules when their facts are available;
 - unresolved facts remain questions or incomplete checks in the result.
 
 The [coding standard](docs/coding_standards.md) defines the precise requirements.
 
-## The CLI and the skill
+## The reviewer and the skill
 
 | Entry | Responsibility | Output | Target source |
 |---|---|---|---|
-| `csu review` | Apply fixed rules to a captured source scope | Text or JSON on stdout | `READ_ONLY` |
+| `csu review` | Apply fixed rules to one captured source scope | Human or JSON projection of the CSU Terminal | `READ_ONLY` |
 | [`$csu-review`](.agents/skills/csu-review/SKILL.md) | Capture a run and interpret its evidence | Original result, provenance and next action | `READ_ONLY` |
 
 ```text
-project facts + source -> CLI review -> captured evidence -> owner decision
-                          judgment       interpretation      follow-up
+Authority + source -> native review -> CSU Terminal -> skill interpretation -> owner action
+                      source judgment                  evidence handling
 ```
 
-The reviewer owns source judgments; the skill owns invocation and evidence handling.
-A review can finish with findings. Repair and fact registration then follow their
-own [authorized workflow](.agents/skills/csu-review/references/remediation.md).
+The reviewer owns source judgment; the skill owns invocation provenance, evidence
+preservation and interpretation. Repair and Project Fact registration use the
+[authorized workflow](.agents/skills/csu-review/references/remediation.md).
 
-## Works with design and review
+## Federates with design and review
 
-Scientific software needs several kinds of review, each with a distinct question:
+CSU is a sibling lane, not a replacement workflow.
 
-| Layer | Question it owns |
+| Lane | Owns |
 |---|---|
-| Codebase design | Does the software expose useful interfaces and localize change? |
-| Code review | Does the change follow its standards and requested specification? |
-| Scientific review | Do scientific design and implementation connect claims to adequate evidence? |
-| CSU | Do observed source declarations satisfy their coding contracts? |
+| Codebase design | Module depth, Interfaces, Seams, Leverage and Locality |
+| Code review | Standards and Spec fidelity |
+| [SSRE2](https://github.com/HIT-SudoMaker/ssre2-skills) | Scientific meaning, supported regimes, correspondence and challenging evidence |
+| CSU | Fixed source-contract judgments over directly observed declarations |
 
-Use each result for the question its layer owns. A registered `distance_m` spelling
-establishes a naming convention; the quantity's physical interpretation and the
-method's validity need their own evidence. Located facts can inform another review,
-while acceptance decisions remain separate.
+After source identity and inspection coverage align, a Sibling Reference may carry
+located facts across the federated seam. Judgments remain with their owner: CSU Clean
+supplies no scientific proof, and an SSRE2 verdict supplies no CSU compliance result.
 
 ## Installation
 
@@ -110,23 +106,22 @@ interpreted without rescanning their source.
 | Project Facts | Supply typed, owner-confirmed knowledge within fixed effect limits |
 | Coverage | Records what completed and what lacks the facts needed for judgment |
 | Seal | Identifies the source scope and semantic evidence of a completed review run |
+| CSU Terminal | Owns the sealed result, disposition, findings, blocked families and presentation |
 
-Project facts can answer an unknown-token question or declare a public callable.
-They cannot lower a grade, disable a rule or erase an independently proved violation.
-The [design](docs/design.md) explains these choices; the
-[technical reference](docs/technical.md) connects them to the implementation.
+The [design](docs/design.md) explains these boundaries; the
+[technical reference](docs/technical.md) connects the model to the implementation.
 
 ## Evidence before confidence
 
 | Exit | Result |
 |---:|---|
-| 0 | Sealed, complete and clean |
-| 1 | Sealed and complete, with hard violations or owner questions |
-| 2 | Incomplete, rejected, failed, or unable to output the result |
+| 0 | Sealed + Complete + Clean |
+| 1 | Sealed + Complete + Findings |
+| 2 | Incomplete, Rejected, Failed or projection failure |
 
-A clean result requires zero hard violations, zero owner questions and zero blocked
-families. Zero findings alone is insufficient. Incomplete coverage preserves the
-findings already proved and explains which judgments remain unavailable.
+Completion records judgment coverage; Disposition records the outcome. Clean requires
+complete coverage, zero Findings and zero Blocked families. Incomplete coverage
+preserves proved Findings and names the unavailable judgments.
 
 ## Trust and limits
 
@@ -155,9 +150,10 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
 ```
 
-The suite includes CSU reviewing its own product and test source. Candidate identity,
-frozen-corpus measurement and release checks are separate gates in the
-[verification guide](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/README.md).
+Formatting, lint, tests, CSU self-review, parser admission, frozen-corpus measurement
+and candidate binding establish different properties. None substitutes for another,
+and none proves runtime behavior or scientific validity. Their release gates are in the
+[verification guide](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/verification/README.md).
 
 ## Contributing
 

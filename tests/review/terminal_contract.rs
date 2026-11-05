@@ -17,7 +17,7 @@ use review_fixture::compile_value;
 use review_fixture::review_sources;
 
 const AUTHORITY: &str =
-    include_str!("../../docs/fixtures/core/authority.json");
+    include_str!("../../verification/fixtures/authority.json");
 const VALID_PYTHON: &str = concat!(
     "def _calculate_velocity(distance_m: float, ",
     r#"duration_s: float) -> float:
@@ -371,6 +371,11 @@ fn workspace_inventory_has_no_review_effect() {
         .unwrap();
     let baseline =
         sealed(reviewer().review(ReviewInput::Workspace(workspace.path())));
+    std::fs::write(
+        workspace.path().join("README.md"),
+        "说明文档保留句号。形状说明（B,C,H,W）\n",
+    )
+    .unwrap();
     for inventory in [
         r#"{"schema_version":1,"entries":[{"path":"velocity.py","language":"rust"}]}"#,
         "{malformed",
@@ -409,6 +414,231 @@ fn profile_directives_and_trailing_comments_are_exact() {
     }
 }
 
+/// 验证四语言普通注释区分句号硬违规与裸括号待确认
+#[test]
+fn ordinary_comment_punctuation_and_parenthesized_text_have_distinct_grades() {
+    for (path, marker) in [
+        ("value.py", "#"),
+        ("value.rs", "//"),
+        ("value.c", "//"),
+        ("value.cpp", "//"),
+    ] {
+        for (body, rule, grade) in [
+            (
+                "计算距离。",
+                "source.comment_punctuation",
+                csu::FindingGrade::HardViolation,
+            ),
+            (
+                "计算距离。再计算时间",
+                "source.comment_punctuation",
+                csu::FindingGrade::HardViolation,
+            ),
+            (
+                "Calculate distance.",
+                "source.comment_punctuation",
+                csu::FindingGrade::HardViolation,
+            ),
+            (
+                "Calculate distance. Then return",
+                "source.comment_punctuation",
+                csu::FindingGrade::HardViolation,
+            ),
+            (
+                "计算距离（附加说明）",
+                "source.comment_parentheses",
+                csu::FindingGrade::ReviewRequired,
+            ),
+            (
+                "计算距离(additional explanation)",
+                "source.comment_parentheses",
+                csu::FindingGrade::ReviewRequired,
+            ),
+            (
+                "数组形状(B,C,H,W)",
+                "source.comment_parentheses",
+                csu::FindingGrade::ReviewRequired,
+            ),
+        ] {
+            let source = format!("{marker} {body}\n");
+            let review = sealed(review_sources(
+                &reviewer(),
+                "comment-prose",
+                &[(path, &source)],
+            ));
+            assert_eq!(review.completion(), csu::Completion::Complete);
+            assert_eq!(review.findings().len(), 1, "{path}: {body}");
+            let finding = &review.findings()[0];
+            assert_eq!(finding.rule(), rule, "{path}: {body}");
+            assert_eq!(finding.grade(), grade, "{path}: {body}");
+            assert_eq!(finding.path(), path);
+            assert_eq!(finding.line(), 1);
+            assert_eq!(
+                finding
+                    .question()
+                    .is_some_and(|question| !question.is_empty()),
+                grade == csu::FindingGrade::ReviewRequired,
+            );
+        }
+    }
+}
+
+/// 验证普通注释允许版本号、路径和代码示例中的标点
+#[test]
+fn ordinary_comment_native_text_and_code_are_allowed() {
+    for (path, marker) in [
+        ("value.py", "#"),
+        ("value.rs", "//"),
+        ("value.c", "//"),
+        ("value.cpp", "//"),
+    ] {
+        for body in [
+            "计算距离并返回结果",
+            "采用 v3.0.0 与 1.25 进行计算",
+            "参见 https://example.org/guide 与 src/model.rs",
+            "使用 `calculate_distance(1.25)` 与 `（。）`",
+            "参见 [调用说明](https://example.org/guide)",
+            "```text\n示例内容。Calculate distance. (B,C,H,W)\n```",
+            "~~~~text\n示例内容。（附加说明）\n~~~~",
+        ] {
+            let source: String = body
+                .lines()
+                .map(|line| format!("{marker} {line}\n"))
+                .collect();
+            let review = sealed(review_sources(
+                &reviewer(),
+                "comment-technical",
+                &[(path, &source)],
+            ));
+            assert_eq!(review.completion(), csu::Completion::Complete);
+            assert!(
+                review.findings().is_empty(),
+                "{path}: {body}: {:?}",
+                review.findings()
+            );
+        }
+    }
+    for path in ["value.rs", "value.c", "value.cpp"] {
+        let source =
+            "/*\n * ```text\n * 示例内容。（附加说明）\n * ```\n */\n";
+        let review = sealed(review_sources(
+            &reviewer(),
+            "comment-block-code",
+            &[(path, source)],
+        ));
+        assert!(
+            review.findings().is_empty(),
+            "{path}: {:?}",
+            review.findings()
+        );
+    }
+}
+
+/// 验证围栏结束后恢复正文检查，未闭合的反引号也不会遮住句号
+#[test]
+fn ordinary_comment_code_keeps_narrative_visible() {
+    for (path, marker) in [
+        ("value.py", "#"),
+        ("value.rs", "//"),
+        ("value.c", "//"),
+        ("value.cpp", "//"),
+    ] {
+        for (body, expected_line) in [
+            ("```text\n示例内容。（附加说明）\n```\n仍需检查。", 4),
+            ("`未配对的技术标记。", 1),
+            ("``未配对的技术标记。`", 1),
+            ("```call()``` 这里是正文。", 1),
+        ] {
+            let source: String = body
+                .lines()
+                .map(|line| format!("{marker} {line}\n"))
+                .collect();
+            let review = sealed(review_sources(
+                &reviewer(),
+                "comment-code-scope",
+                &[(path, &source)],
+            ));
+            assert_eq!(review.findings().len(), 1, "{path}: {body}");
+            assert_eq!(
+                review.findings()[0].rule(),
+                "source.comment_punctuation"
+            );
+            assert_eq!(
+                review.findings()[0].line(),
+                expected_line,
+                "{path}: {body}"
+            );
+        }
+    }
+}
+
+/// 验证精确指令与字符串中的注释标记不触发注释正文规则
+#[test]
+fn comment_punctuation_ignores_directives_and_string_contents() {
+    for (path, source) in [
+        ("indented.rs", "/*\n    println!(\"说明。\");\n*/\n"),
+        ("literal.py", "distance_m = '# 文本。 (字符串)'\n"),
+        (
+            "literal.rs",
+            "const DISTANCE_M: &str = \"// 文本。 (字符串)\";\n",
+        ),
+        (
+            "literal.c",
+            "const char *distance_m = \"// 文本。 (字符串)\";\n",
+        ),
+        (
+            "literal.cpp",
+            "const char *distance_m = R\"(// 文本。 (字符串))\";\n",
+        ),
+        (
+            "directive.py",
+            "distance_m = 1 # pyright: ignore[report_error.1]\n",
+        ),
+        (
+            "directive.c",
+            "double distance_m = 1; // NOLINT(readability.magic)\n",
+        ),
+        (
+            "directive.cpp",
+            "double distance_m = 1; /* NOLINT(readability.magic) */\n",
+        ),
+    ] {
+        let review = sealed(review_sources(
+            &reviewer(),
+            "comment-exclusions",
+            &[(path, source)],
+        ));
+        assert_eq!(review.completion(), csu::Completion::Complete, "{path}");
+        assert!(
+            !review
+                .findings()
+                .iter()
+                .any(|finding| { finding.rule().starts_with("source.") }),
+            "{path}: {:?}",
+            review.findings()
+        );
+    }
+}
+
+/// 验证未被文档主体接管的注释仍检查正文
+#[test]
+fn comment_carrier_without_subject_keeps_punctuation() {
+    for (path, source) in [
+        ("value.c", "/// 注释。\n"),
+        ("value.cpp", "/*! 注释。 */\n"),
+        ("value.rs", "//! 注释。\n"),
+        ("value.rs", "/**\n * 注释。\n */\n"),
+    ] {
+        let review = sealed(review_sources(
+            &reviewer(),
+            "comment-carrier",
+            &[(path, source)],
+        ));
+        assert_eq!(review.findings().len(), 1, "{path}: {source}");
+        assert_eq!(review.findings()[0].rule(), "source.comment_punctuation");
+    }
+}
+
 /// 验证各事实类别均有检查结果且不依赖位掩码
 #[test]
 fn coverage_closes_all_owned_families_without_mask() {
@@ -420,7 +650,7 @@ fn coverage_closes_all_owned_families_without_mask() {
                 bytes: b"# \xce\xb1\r\n    \xc3\xa9\xff",
             }],
         })));
-    let expected = "observation method tree-sitter-python@0.25.0+direct-source-facts-v2 rejected source at 2:7: source is not valid UTF-8";
+    let expected = "observation method tree-sitter-python@0.25.0+direct-source-facts-v3 rejected source at 2:7: source is not valid UTF-8";
     let blocked = FactFamilyState::Blocked(expected.to_owned());
 
     assert_eq!(review.completion(), csu::Completion::Incomplete);
@@ -566,14 +796,13 @@ fn rule_catalog_finding_and_semantic_identity() {
         "ordinary comments must not share a physical line with code"
     );
     assert_eq!(finding.question(), None);
-    let fixture =
-        include_str!("../../docs/fixtures/core/fixture-manifest.json");
+    let fixture = include_str!("../../verification/fixtures/manifest.json");
     let manifest: serde_json::Value = serde_json::from_str(fixture).unwrap();
     let expected = manifest["semantic_authority_digest"].as_str().unwrap();
     assert_eq!(authority_digest(&review), expected);
     assert_eq!(
         review.seal(),
-        "4f4b5c333893dafb3f224fdfc2230408753be5acfe96c10bcb7e5a9000045c35"
+        "4cd2bf8a21849b6b28dc7cc44c4add89c4dba780069a8d7602cb8dd7e5c80238"
     );
 
     let canonical: serde_json::Value =
@@ -589,13 +818,13 @@ fn review_identity_is_canonical() {
             "clean",
             "src/velocity.py",
             "def _calculate_velocity():\n    \"\"\"\n    计算平均速度\n    \"\"\"\n    return 1\n".as_bytes(),
-            "8e08abbda049564b385d896f2c2d0da4bfa90996a0665e4581e38d0b5d3a9d15",
-            "a4634333d22cd5b7a2ccc98597cbf1f3765f5030d134d346140c97d539086959",
+            "6e7cd4ba1f3e49860ef1f83454217b0e50196c0a633fecaca701d62277059792",
+            "8968072a3455e7ca1bb87fa3f885766add95e8707e57a8ee8bb69154b0179acf",
         ),
-        ("findings", "src/value.py", b"Q = 1\n", "901d6020e9bad2f3e5be0f88c75ae7293a54307520fea30128249c4633e1046e", "e1af9842ae5bf303772654425944328b522a4bf99e64c4f5a6060edcedf526c9"),
-        ("source-rejected", "src/value.py", b"\xff", "72257a9c0ab21c70b870623c1424ab349b19bb50a88fd5093a50a24f1c02a2bb", "8b523123e060cb7f37610ddfa4dca783f0b41cd8b72f633ed3569a17457cf20e"),
-        ("documentation-blocked", "src/unowned.c", "/**\n * 计算平均速度\n */\ndouble calculate_velocity(void);\n".as_bytes(), "0d3595856bf68c5df4ebdb765dc62f532bdbf8f71a7e14915212de84c57d5b3a", "38f801cd2cb4709fcd25a83045dd4d7811c75288c8c6a2213a39a4aeaeefe91d"),
-        ("dependency-blocked", "src/dependency.py", b"import os\n", "f937c67140b6ea4494975c85a8d838fd5ca7e0bfa3232abaade5126d5a43035d", "1ce59a0efb0f4fc7ef38854c80feadd1b194b0092802be38f516ec82670a00ad"),
+        ("findings", "src/value.py", b"Q = 1\n", "18c392ed552e494fad48e296169819977482eff3a9d654085bebe5e7bcf0b2e8", "36dc63eb3d4845968b9fa818dc2a2b1133b41717d132f76c87fefe5dc2626780"),
+        ("source-rejected", "src/value.py", b"\xff", "ee79cf59629256214468945579daeca9f2996c9d8824cc2bf1dbd8c7529b4274", "19ea679c59f9b14be284793a5a78bc11af4afdf3773273e19c76e87a550eef53"),
+        ("documentation-blocked", "src/unowned.c", "/**\n * 计算平均速度\n */\ndouble calculate_velocity(void);\n".as_bytes(), "1628f8151d0bdeea6d11f7f888be192a0bc21623a25f34dc035507f8b405d32a", "2c48ca792ba3cc3db69f34f6c4438cba706a2c6b832befa5acaf16dc67b6d75f"),
+        ("dependency-blocked", "src/dependency.py", b"import os\n", "b1b0e8581559ab9bd5fab598fd88f0fabf46d7d00c12743532084cad988ba556", "940c5e9a777986bbefc251f055d209c68d934cccb49d4e811ec673e02185bc9b"),
     ];
     for (identity, path, bytes, canonical, seal) in cases {
         let documents = [SourceDocument {

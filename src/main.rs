@@ -38,7 +38,7 @@ enum OutputFormat {
     JavascriptObjectNotation,
 }
 
-/// 解析命令行参数并执行审查
+/// 解析命令行并执行所选子命令
 fn main() -> ExitCode {
     let CommandLine { command } = CommandLine::parse();
     match command {
@@ -50,7 +50,7 @@ fn main() -> ExitCode {
     }
 }
 
-/// 运行审查并输出结果与退出码
+/// 执行工作区审查，将投影写入标准输出并返回对应退出码
 fn execute_review(
     authority: PathBuf,
     workspace: PathBuf,

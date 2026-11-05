@@ -17,22 +17,22 @@ const PROCEDURAL_HEADER_PATH: &str = "api/velocity.h";
 const OBJECT_ORIENTED_HEADER_PATH: &str = "api/velocity.hpp";
 
 const PYTHON_VALID: &str = include_str!(
-    "../../docs/fixtures/core/documents/valid/python/calculate_velocity.py"
+    "../../verification/fixtures/documents/valid/python/calculate_velocity.py"
 );
 const RUST_VALID: &str = include_str!(
-    "../../docs/fixtures/core/documents/valid/rust/calculate_velocity.rs"
+    "../../verification/fixtures/documents/valid/rust/calculate_velocity.rs"
 );
 const PROCEDURAL_VALID: &str = include_str!(
-    "../../docs/fixtures/core/documents/valid/c/calculate_velocity.h"
+    "../../verification/fixtures/documents/valid/c/calculate_velocity.h"
 );
 const OBJECT_ORIENTED_VALID: &str = include_str!(
-    "../../docs/fixtures/core/documents/valid/cpp/calculate_velocity.hpp"
+    "../../verification/fixtures/documents/valid/cpp/calculate_velocity.hpp"
 );
 
 /// 创建测试审查器
 fn reviewer() -> WorkspaceReviewer {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
-        "../../docs/fixtures/core/authority.json"
+        "../../verification/fixtures/authority.json"
     ))
     .unwrap();
     authority["public_callables"] = serde_json::json!({

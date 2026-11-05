@@ -11,16 +11,16 @@ use review_fixture::compile_value;
 use review_fixture::review_sources;
 
 const VALID_PYTHON: &str = include_str!(
-    "../../docs/fixtures/core/documents/valid/python/calculate_velocity.py"
+    "../../verification/fixtures/documents/valid/python/calculate_velocity.py"
 );
 const VALID_RUST: &str = include_str!(
-    "../../docs/fixtures/core/documents/valid/rust/calculate_velocity.rs"
+    "../../verification/fixtures/documents/valid/rust/calculate_velocity.rs"
 );
 const VALID_PROCEDURAL: &str = include_str!(
-    "../../docs/fixtures/core/documents/valid/c/calculate_velocity.h"
+    "../../verification/fixtures/documents/valid/c/calculate_velocity.h"
 );
 const VALID_CPP: &str = include_str!(
-    "../../docs/fixtures/core/documents/valid/cpp/calculate_velocity.hpp"
+    "../../verification/fixtures/documents/valid/cpp/calculate_velocity.hpp"
 );
 const PROCEDURAL_PATH: &str = "api/contract.h";
 const OBJECT_ORIENTED_PATH: &str = "api/contract.hpp";
@@ -28,7 +28,7 @@ const OBJECT_ORIENTED_PATH: &str = "api/contract.hpp";
 /// 创建测试审查器
 fn reviewer(public_names: &[&str]) -> WorkspaceReviewer {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
-        "../../docs/fixtures/core/authority.json"
+        "../../verification/fixtures/authority.json"
     ))
     .unwrap();
     authority["public_callables"] = if public_names.is_empty() {

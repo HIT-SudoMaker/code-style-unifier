@@ -335,7 +335,7 @@ struct LocalFacts {
     declarations: Vec<Declaration>,
     python_module_docstring: Option<(usize, usize)>,
     dependencies: DependencyFacts,
-    trailing_comments: Vec<TrailingComment>,
+    comments: CommentFacts,
 }
 
 #[derive(Debug)]
@@ -357,6 +357,16 @@ struct TrailingComment {
     line: usize,
     column: usize,
     end_row: usize,
+}
+
+/// 保存普通注释的结构位置及正文标点证据
+#[derive(Debug, Default)]
+struct CommentFacts {
+    documentation: BTreeSet<usize>,
+    trailing: Vec<TrailingComment>,
+    narrative: Vec<(usize, usize, NarrativePunctuation)>,
+    fence: Option<(char, usize)>,
+    previous_row: Option<usize>,
 }
 
 /// 执行一次结构观察并返回 owned facts 或拒绝证据
@@ -436,7 +446,14 @@ fn observe_structure(
     let dependencies =
         observe_dependencies(language, tree.root_node(), &document.bytes);
     let profile = profile_law(language.key());
-    let mut trailing_comments = Vec::new();
+    let mut comments = CommentFacts {
+        documentation: callables
+            .iter()
+            .filter(|callable| !callable.carrier_unresolved)
+            .flat_map(|callable| callable.carrier_comments.iter().copied())
+            .collect(),
+        ..CommentFacts::default()
+    };
     let mut candidate_comments = Vec::new();
     let mut last_code_row = None;
     collect_trailing_comments(
@@ -446,7 +463,7 @@ fn observe_structure(
         &document.bytes,
         &mut last_code_row,
         &mut candidate_comments,
-        &mut trailing_comments,
+        &mut comments,
     );
     drop(tree);
     Ok((
@@ -455,7 +472,7 @@ fn observe_structure(
             declarations,
             python_module_docstring,
             dependencies,
-            trailing_comments,
+            comments,
         }),
         1,
     ))
@@ -491,7 +508,7 @@ fn first_parse_error(root: Node<'_>) -> Option<Node<'_>> {
     None
 }
 
-/// 收集由 CST 证明且与代码共享物理行的普通 comment token
+/// 从语法树识别与代码同行的注释，并检查普通注释正文的标点
 fn collect_trailing_comments(
     profile: &ProfileLaw,
     language: Language,
@@ -499,7 +516,7 @@ fn collect_trailing_comments(
     source: &[u8],
     last_code_row: &mut Option<usize>,
     candidate_comments: &mut Vec<TrailingComment>,
-    output: &mut Vec<TrailingComment>,
+    output: &mut CommentFacts,
 ) {
     let comment = node.kind() == "comment"
         || language == Language::Rust
@@ -513,21 +530,60 @@ fn collect_trailing_comments(
             .end_position()
             .row
             .saturating_sub(usize::from(text.ends_with('\n')));
+        let documentation = output.documentation.contains(&node.start_byte());
+        if !documentation && !profile.is_directive(text) {
+            if output.previous_row.is_none_or(|row| row + 1 != point.row) {
+                output.fence = None;
+            }
+            let body = text.trim_end().strip_suffix("*/").unwrap_or(text);
+            let body = body.strip_prefix("/*").unwrap_or(body);
+            for (offset, raw) in body.lines().enumerate() {
+                let content = raw.trim_start();
+                let content = content
+                    .strip_prefix("//")
+                    .or_else(|| content.strip_prefix('#'))
+                    .or_else(|| content.strip_prefix('*'))
+                    .map(|value| value.strip_prefix(' ').unwrap_or(value))
+                    .unwrap_or(raw);
+                if let Some(line) = documentation_line(content)
+                    && !documentation_line_is_code(
+                        &line,
+                        &mut output.fence,
+                        language == Language::Rust,
+                    )
+                {
+                    let punctuation = narrative_punctuation(line.text);
+                    if punctuation.punctuation || punctuation.parenthesized {
+                        output.narrative.push((
+                            point.row + offset + 1,
+                            point.column + 1,
+                            punctuation,
+                        ));
+                    }
+                }
+            }
+            output.previous_row = Some(end_row);
+        } else {
+            output.fence = None;
+            output.previous_row = None;
+        }
         let observation = TrailingComment {
             line: point.row + 1,
             column: point.column + 1,
             end_row,
         };
         if *last_code_row == Some(point.row) && !profile.is_directive(text) {
-            output.push(observation);
+            output.trailing.push(observation);
         } else {
             candidate_comments.push(observation);
         }
         return;
     }
     if node.child_count() == 0 {
+        output.fence = None;
+        output.previous_row = None;
         let start_row = node.start_position().row;
-        output.extend(
+        output.trailing.extend(
             candidate_comments
                 .drain(..)
                 .filter(|comment| comment.end_row == start_row),
@@ -1544,7 +1600,7 @@ fn python_import_identity(
         }
         item = parent;
     }
-    // 只有查完可证明的词法作用域且没有绑定时，才能回退到内置装饰器。
+    // 只有查完可证明的词法作用域且没有绑定时，才能回退到内置装饰器
     (member.is_none()
         && matches!(binding, "staticmethod" | "classmethod" | "property"))
     .then(|| format!("builtins.{binding}"))
@@ -1773,7 +1829,7 @@ impl DeclarationReview<'_> {
 
 /// 返回 Python 参数节点内的稳定标识符
 ///
-/// 类型化 splat（`*values_m: float`、`**options: dict`）的稳定名
+/// 类型化 splat 的稳定名，例如 `*values_m: float`、`**options: dict`
 /// 位于 list/dictionary_splat_pattern 内部的 identifier
 fn python_parameter_identifier(parameter: Node<'_>) -> Option<Node<'_>> {
     match parameter.kind() {
@@ -2037,7 +2093,7 @@ impl DeclarationReview<'_> {
                 self.push_rust_discard_declaration(node);
             }
             // match_pattern 把 guard 表达式并入同一节点；只提取首个命名
-            // 子节点（真实模式），guard 里的标识符不是绑定声明
+            // 子节点，即真实模式；guard 里的标识符不是绑定声明
             "match_pattern" => {
                 let mut cursor = node.walk();
                 let pattern = node.named_children(&mut cursor).next();
@@ -2340,6 +2396,7 @@ struct Callable {
     requires_template_parameters: bool,
     return_shape: ReturnShape,
     carrier: Option<String>,
+    carrier_comments: Vec<usize>,
     requires_safety: bool,
     requires_effect: bool,
     carrier_unresolved: bool,
@@ -2348,6 +2405,7 @@ struct Callable {
 /// 汇总一个 Rust 声明附着的属性事实
 struct RustAttributeFacts {
     documentation: Vec<String>,
+    comments: Vec<usize>,
     /// 是否观察到精确 macro_export 属性
     is_public: bool,
     nonliteral_documentation: bool,
@@ -2425,6 +2483,14 @@ fn observe_rust_tuple_fields(
         if public {
             let attribute = observe_rust_attribute(child, source);
             let point = child.start_position();
+            let mut carrier_comments = Vec::new();
+            let carrier = documentation_carrier(
+                Language::Rust,
+                child,
+                source,
+                Some(&attribute),
+                &mut carrier_comments,
+            );
             output.push(Callable {
                 language: Language::Rust,
                 name: format!("<tuple-field:{field_index}>"),
@@ -2438,12 +2504,8 @@ fn observe_rust_tuple_fields(
                 template_parameters_complete: true,
                 requires_template_parameters: false,
                 return_shape: ReturnShape::Unknown,
-                carrier: documentation_carrier(
-                    Language::Rust,
-                    child,
-                    source,
-                    Some(&attribute),
-                ),
+                carrier,
+                carrier_comments,
                 requires_safety: false,
                 requires_effect: false,
                 carrier_unresolved: attribute.nonliteral_documentation,
@@ -2524,11 +2586,13 @@ fn observe_callable_declaration(
                 rust_attribute.as_ref(),
             )
         };
+        let mut carrier_comments = Vec::new();
         let carrier = documentation_carrier(
             language,
             node,
             source,
             rust_attribute.as_ref(),
+            &mut carrier_comments,
         );
         let (parameters, parameters_complete) =
             callable_parameters(language, subject, source);
@@ -2555,6 +2619,7 @@ fn observe_callable_declaration(
                 callable_return_shape(language, node, source)
             },
             carrier,
+            carrier_comments,
             requires_safety: language == Language::Rust
                 && rust_requires_safety(node),
             requires_effect: language == Language::Cplusplus
@@ -2658,6 +2723,7 @@ fn observe_rust_attribute(
     items.sort_unstable_by_key(Node::start_byte);
     let mut facts = RustAttributeFacts {
         documentation: Vec::new(),
+        comments: Vec::new(),
         is_public: false,
         nonliteral_documentation: false,
     };
@@ -2672,6 +2738,7 @@ fn observe_rust_attribute(
                             text,
                         ))
             {
+                facts.comments.push(item.start_byte());
                 facts.documentation.extend(
                     rust_documentation_lines(text).iter().map(|line| {
                         format!("/// {}{}", line.left_padding, line.text)
@@ -3644,11 +3711,13 @@ fn documentation_carrier(
     node: Node<'_>,
     source: &[u8],
     rust_attribute: Option<&RustAttributeFacts>,
+    comments: &mut Vec<usize>,
 ) -> Option<String> {
     match profile_law(language.key()).documentation.carrier {
         DocumentationCarrierLaw::PythonSuite => python_docstring(node, source),
         DocumentationCarrierLaw::RustOuter => {
             let attribute = rust_attribute?;
+            comments.extend_from_slice(&attribute.comments);
             (!attribute.documentation.is_empty())
                 .then(|| attribute.documentation.join("\n"))
         }
@@ -3677,7 +3746,7 @@ fn documentation_carrier(
             } else {
                 node
             };
-            preceding_controlled_block(node, source)
+            preceding_controlled_block(node, source, comments)
         }
     }
 }
@@ -3801,6 +3870,7 @@ fn source_gap_is_whitespace(start: usize, end: usize, source: &[u8]) -> bool {
 fn preceding_controlled_block(
     node: Node<'_>,
     source: &[u8],
+    comments: &mut Vec<usize>,
 ) -> Option<String> {
     let candidate = node.prev_named_sibling()?;
     if candidate.kind() != "comment"
@@ -3820,6 +3890,7 @@ fn preceding_controlled_block(
     {
         return None;
     }
+    comments.push(candidate.start_byte());
     Some(carrier.to_owned())
 }
 
@@ -4078,7 +4149,7 @@ impl CplusplusModulePosition {
         if node.kind() == "preproc_else" {
             return branch;
         }
-        // 没有 else 时，条件不成立的路径保持入口事实。
+        // 没有 else 时，条件不成立的路径保持入口事实
         let other = alternative.map_or(self, |alternative| {
             self.observe_branch(alternative, source, output)
         });
@@ -4444,7 +4515,7 @@ fn close_complete_source(
         declarations,
         python_module_docstring,
         dependencies,
-        trailing_comments,
+        comments,
     } = facts;
     resolve_native_public_visibility(
         authority,
@@ -4494,13 +4565,35 @@ fn close_complete_source(
         };
         let documented_lines = documentation_lines(callable.language, carrier);
         let profile = profile_law(callable.language.key());
+        for (observed, operator) in [
+            (
+                documented_lines.iter().any(|line| {
+                    !line.is_code
+                        && narrative_punctuation(line.text).punctuation
+                }),
+                RuleOperator::DocumentationTerminator,
+            ),
+            (
+                documented_lines.iter().any(|line| {
+                    !line.is_code
+                        && narrative_punctuation(line.text).parenthesized
+                }),
+                RuleOperator::DocumentationParenthesized,
+            ),
+        ] {
+            if observed {
+                report(operator, &attached);
+            }
+        }
         let summary = profile.documentation_summary(
             documented_lines.iter().map(|line| line.text),
         );
         if summary.is_none_or(|line| {
             profile.is_documentation_heading(line)
-                || callable.language == Language::Rust
-                    && rust_markdown_line_is_indented_code(line)
+                || documented_lines
+                    .iter()
+                    .find(|item| !item.text.is_empty())
+                    .is_some_and(|item| item.is_code)
                 || !contains_chinese_phrase(line)
         }) {
             report(RuleOperator::DocumentationSummary, &attached);
@@ -4512,14 +4605,6 @@ fn close_complete_source(
             && callable.template_parameters_complete
             && (callable.return_shape != ReturnShape::Unknown
                 || !profile.return_surface.unknown_blocks_documentation);
-        if controlled_line_has_terminator(
-            callable.language,
-            has_public_contract,
-            callable.requires_safety,
-            &documented_lines,
-        ) {
-            report(RuleOperator::DocumentationTerminator, &attached);
-        }
         let forbidden_safety = callable.language == Language::Rust
             && callable.named
             && !callable.requires_safety
@@ -4565,7 +4650,7 @@ fn close_complete_source(
     }
     let dependency_state =
         judge_dependencies(authority, language, &dependencies, &mut findings);
-    for comment in &trailing_comments {
+    for comment in &comments.trailing {
         findings.push(
             RuleOperator::SourceTrailingComment,
             comment.line,
@@ -4573,6 +4658,28 @@ fn close_complete_source(
             "<comment>",
             "observed an ordinary comment sharing a physical line with code",
         );
+    }
+    for (line, column, punctuation) in &comments.narrative {
+        for (observed, operator) in [
+            (
+                punctuation.punctuation,
+                RuleOperator::SourceCommentPunctuation,
+            ),
+            (
+                punctuation.parenthesized,
+                RuleOperator::SourceCommentParenthesized,
+            ),
+        ] {
+            if observed {
+                findings.push(
+                    operator,
+                    *line,
+                    *column,
+                    "<comment>",
+                    "observed punctuation in ordinary comment narrative",
+                );
+            }
+        }
     }
     let unresolved: Vec<_> = declarations
         .iter()
@@ -4939,6 +5046,7 @@ fn split_identifier_tokens(name: &str) -> Vec<String> {
 struct DocumentationLine<'carrier> {
     text: &'carrier str,
     left_padding: &'carrier str,
+    is_code: bool,
 }
 
 /// 分离有效正文的首尾空白与 carrier-relative 缩进
@@ -4948,6 +5056,7 @@ fn documentation_line(line: &str) -> Option<DocumentationLine<'_>> {
         DocumentationLine {
             text,
             left_padding: &line[..line.len() - line.trim_start().len()],
+            is_code: false,
         },
     )
 }
@@ -4957,7 +5066,7 @@ fn documentation_lines(
     language: Language,
     carrier: &str,
 ) -> Vec<DocumentationLine<'_>> {
-    match profile_law(language.key()).documentation.carrier {
+    let mut lines = match profile_law(language.key()).documentation.carrier {
         DocumentationCarrierLaw::PythonSuite => {
             carrier.lines().filter_map(documentation_line).collect()
         }
@@ -4967,7 +5076,16 @@ fn documentation_lines(
         DocumentationCarrierLaw::NativeAdjacent => {
             native_family_documentation_lines(carrier)
         }
+    };
+    let mut fence = None;
+    for line in &mut lines {
+        line.is_code = documentation_line_is_code(
+            line,
+            &mut fence,
+            language == Language::Rust,
+        );
     }
+    lines
 }
 /// 去除 C 家族 carrier decoration 并保留正文缩进
 fn native_family_documentation_lines(
@@ -5013,7 +5131,7 @@ fn rust_documentation_lines(carrier: &str) -> Vec<DocumentationLine<'_>> {
         })
         .collect()
 }
-/// 判断 Rust Markdown 行是否属于缩进代码块
+/// 判断 Rust 文档行的缩进是否达到四列，制表符按四列制表位展开
 fn rust_markdown_line_is_indented_code(line: &str) -> bool {
     let mut column = 0_usize;
     for byte in line.bytes() {
@@ -5044,7 +5162,7 @@ fn contains_chinese_phrase(text: &str) -> bool {
     }
     false
 }
-/// 公开契约内部缺陷种类（私有诊断，不进入公共接口）
+/// 表示公开契约的内部缺陷种类，不进入公共接口
 enum PublicContractDefect {
     /// 摘要之后缺少规定的空行
     Narrative,
@@ -5213,11 +5331,9 @@ fn public_contract_is_complete(
     let empty_role = contract.empty_role;
     let mut expected = contract.headings.iter().filter(required);
     let mut sections = Vec::new();
-    for (index, line) in lines
-        .iter()
-        .enumerate()
-        .filter(|(_, line)| profile.is_documentation_heading(line.text))
-    {
+    for (index, line) in lines.iter().enumerate().filter(|(_, line)| {
+        !line.is_code && profile.is_documentation_heading(line.text)
+    }) {
         let Some(heading) = expected.next() else {
             return Err(PublicContractDefect::RoleOrder);
         };
@@ -5241,16 +5357,17 @@ fn public_contract_is_complete(
     if observed_gap != gap {
         return Err(PublicContractDefect::Narrative);
     }
-    // 摘要后的规定空行与首个标题之间不检查中文、句号和对齐
-    // 其中被识别为标题的行仍由上方标题检查处理
-    // 不能用叙述区隐藏不允许的标题
+    // 自由叙述也检查标点，但只有受控字段需要按列对齐
+    // 标题已在上方核对，此处只校验各章节的内容
     for (position, &(start, label, role)) in sections.iter().enumerate() {
         let end = sections
             .get(position + 1)
             .map_or(lines.len(), |section| section.0);
         let body = &lines[start + 1..end];
-        let content: Vec<_> =
-            body.iter().filter(|line| !line.text.is_empty()).collect();
+        let content: Vec<_> = body
+            .iter()
+            .filter(|line| !line.is_code && !line.text.is_empty())
+            .collect();
         if content.is_empty() {
             return Err(PublicContractDefect::RoleContent { role: label });
         }
@@ -5321,40 +5438,14 @@ fn rust_documentation_heading_indices(
     lines: &[DocumentationLine<'_>],
 ) -> Vec<usize> {
     let profile = profile_law(Language::Rust.key());
-    let mut fence = None;
-    let mut headings = Vec::new();
-    for (index, line) in lines.iter().enumerate() {
-        if rust_markdown_line_is_indented_code(line.left_padding) {
-            continue;
-        }
-        let marker = line.text.chars().next();
-        if let Some(marker @ ('`' | '~')) = marker {
-            let marker_count = line
-                .text
-                .chars()
-                .take_while(|character| *character == marker)
-                .count();
-            if marker_count >= 3 {
-                if let Some((open, minimum)) = fence {
-                    if marker == open
-                        && marker_count >= minimum
-                        && line.text[marker_count..].trim().is_empty()
-                    {
-                        fence = None;
-                    }
-                } else if marker != '`'
-                    || !line.text[marker_count..].contains('`')
-                {
-                    fence = Some((marker, marker_count));
-                }
-                continue;
-            }
-        }
-        if fence.is_none() && profile.is_documentation_heading(line.text) {
-            headings.push(index);
-        }
-    }
-    headings
+    lines
+        .iter()
+        .enumerate()
+        .filter_map(|(index, line)| {
+            (!line.is_code && profile.is_documentation_heading(line.text))
+                .then_some(index)
+        })
+        .collect()
 }
 
 /// 检查 Rust 安全文档的标题顺序和正文
@@ -5392,7 +5483,7 @@ fn rust_safety_contract_is_complete(lines: &[DocumentationLine<'_>]) -> bool {
         .filter(|line| !line.text.is_empty());
     body.clone().next().is_some()
         && body.all(|line| {
-            !rust_markdown_line_is_indented_code(line.left_padding)
+            !line.is_code
                 && controlled_description(Language::Rust, line.text)
                     .is_some_and(contains_chinese_phrase)
         })
@@ -5407,61 +5498,121 @@ fn controlled_description(language: Language, line: &str) -> Option<&str> {
     line.strip_prefix(law.prefix)
         .filter(|description| !description.contains(law.delimiter))
 }
-/// 检查摘要及受控字段是否以禁用句号结束
-fn controlled_line_has_terminator(
-    language: Language,
-    public: bool,
-    requires_safety: bool,
-    lines: &[DocumentationLine<'_>],
+/// 跟踪相邻行的代码围栏，并按语言识别 Rust 缩进代码
+fn documentation_line_is_code(
+    line: &DocumentationLine<'_>,
+    fence: &mut Option<(char, usize)>,
+    indented: bool,
 ) -> bool {
-    let profile = profile_law(language.key());
-    let summary =
-        profile.documentation_summary(lines.iter().map(|line| line.text));
-    if summary.is_some_and(|line| {
-        !(profile.is_documentation_heading(line)
-            || language == Language::Rust
-                && rust_markdown_line_is_indented_code(line))
-            && ends_in_sentence_terminator(line)
-    }) {
+    if indented && rust_markdown_line_is_indented_code(line.left_padding) {
         return true;
     }
-    if !(public || language == Language::Rust && requires_safety) {
-        return false;
-    }
-    let mut controlled = None;
-    lines.iter().any(|line| {
-        if profile.is_documentation_heading(line.text) {
-            controlled = profile
-                .documentation
-                .headings
-                .iter()
-                .find(|heading| line.text == heading.0)
-                .map(|heading| heading.1)
-                .filter(|role| {
-                    public
-                        || requires_safety
-                            && *role == DocumentationRole::Safety
-                });
-            return false;
+    if let Some(marker @ ('`' | '~')) = line.text.chars().next() {
+        let count = line
+            .text
+            .chars()
+            .take_while(|value| *value == marker)
+            .count();
+        if count >= 3 {
+            if let Some((open, minimum)) = *fence {
+                if marker == open
+                    && count >= minimum
+                    && line.text[count..].trim().is_empty()
+                {
+                    *fence = None;
+                }
+                return true;
+            } else if marker != '`' || !line.text[count..].contains('`') {
+                *fence = Some((marker, count));
+                return true;
+            }
         }
-        controlled.is_some_and(|role| {
-            let law = &profile.documentation.fields;
-            let is_controlled = if law.roles.contains(&role) {
-                !(language == Language::Rust
-                    && rust_markdown_line_is_indented_code(line.text))
-                    && line.text.starts_with(law.prefix)
-                    && line.text.contains(law.delimiter)
-            } else {
-                controlled_description(language, line.text).is_some()
-            };
-            is_controlled && ends_in_sentence_terminator(line.text)
-        })
-    })
+    }
+    fence.is_some()
 }
-/// 判断文本末尾是否为禁用句号
-fn ends_in_sentence_terminator(line: &str) -> bool {
-    line.trim_end()
-        .ends_with(narrative_law().forbidden_terminators)
+
+/// 分别记录正文中是否有违规句号和待确认的圆括号
+#[derive(Debug, Default)]
+struct NarrativePunctuation {
+    punctuation: bool,
+    parenthesized: bool,
+}
+
+/// 检查正文和链接文字的标点，跳过配对反引号内的代码与链接目标
+fn narrative_punctuation(text: &str) -> NarrativePunctuation {
+    let mut punctuation = NarrativePunctuation::default();
+    let mut rest = text;
+    while !rest.is_empty() {
+        if rest.starts_with('`') {
+            let marker_count =
+                rest.bytes().take_while(|byte| *byte == b'`').count();
+            let marker = &rest[..marker_count];
+            if let Some((end, _)) = rest[marker_count..]
+                .match_indices(marker)
+                .find(|(index, _)| {
+                    !rest[marker_count..marker_count + index].ends_with('`')
+                        && !rest[marker_count + index + marker_count..]
+                            .starts_with('`')
+                })
+            {
+                rest = &rest[marker_count + end + marker_count..];
+                continue;
+            }
+            // 反引号未配对时只跳过标记，后文仍按正文检查
+            rest = &rest[marker_count..];
+            continue;
+        }
+        if rest.starts_with("](")
+            && text[..text.len() - rest.len()].contains('[')
+        {
+            let mut level = 0;
+            let end =
+                rest[1..].char_indices().find_map(|(index, character)| {
+                    if character == '(' {
+                        level += 1;
+                    }
+                    if character == ')' {
+                        level -= 1;
+                    }
+                    (level == 0).then_some(index + 2)
+                });
+            if let Some(end) = end {
+                rest = &rest[end..];
+                continue;
+            }
+        }
+        if rest.starts_with("https://") || rest.starts_with("http://") {
+            let end = rest
+                .find(|character: char| {
+                    character.is_whitespace() || character == '。'
+                })
+                .unwrap_or(rest.len());
+            punctuation.punctuation |= rest[..end].ends_with('.');
+            rest = &rest[end..];
+            continue;
+        }
+        let character = rest
+            .chars()
+            .next()
+            .expect("nonempty narrative has a character");
+        let tail = &rest[character.len_utf8()..];
+        punctuation.parenthesized |= narrative_law()
+            .review_required_characters
+            .contains(&character);
+        if narrative_law().forbidden_terminators.contains(&character) {
+            let prefix = &text[..text.len() - rest.len()];
+            let list_marker = !prefix.is_empty()
+                && prefix.bytes().all(|byte| byte.is_ascii_digit())
+                && tail.starts_with(' ');
+            punctuation.punctuation |= character != '.'
+                || !list_marker
+                    && tail.chars().next().is_none_or(|next| {
+                        next.is_whitespace() || "\"'”’）)]".contains(next)
+                    });
+        }
+        rest = tail;
+    }
+    punctuation
 }
 
 /// 检查依赖声明并记录违规或缺失事实

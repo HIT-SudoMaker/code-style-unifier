@@ -348,7 +348,7 @@ for ($parent = Get-Item -LiteralPath $outputParent; $null -ne $parent;
         throw "Measurement staging output must not traverse a reparse point"
     }
 }
-$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "../../.."))
+$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $repositoryPrefix = $repositoryRoot.TrimEnd("\", "/") +
     [IO.Path]::DirectorySeparatorChar
 $targetPrefix = (Join-Path $repositoryRoot "target") +

@@ -19,9 +19,9 @@ fn text<'value>(value: &'value Value, field: &str) -> &'value str {
 #[test]
 fn frozen_fixture_cells_and_syntax_damage_execute_exact_oracles() {
     let repository = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let fixture_root = repository.join("docs/fixtures/core");
+    let fixture_root = repository.join("verification/fixtures");
     let manifest: Value = serde_json::from_str(include_str!(
-        "../../docs/fixtures/core/fixture-manifest.json"
+        "../../verification/fixtures/manifest.json"
     ))
     .expect("fixture manifest must be valid JSON");
     let reviewer =

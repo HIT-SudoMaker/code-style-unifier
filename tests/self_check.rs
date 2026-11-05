@@ -10,7 +10,7 @@ use std::path::Path;
 /// 验证指定 Rust 源码目录满足三零自检
 fn review_three_zero(source: &Path) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let authority = root.join("docs/authority/csu-self");
+    let authority = root.join("verification/authorities/self-review");
     let reviewer =
         WorkspaceReviewer::compile(AuthorityInput::Directory(&authority))
             .expect("the reviewed CSU project Authority must compile");

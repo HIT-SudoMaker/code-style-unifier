@@ -18,7 +18,7 @@ function Get-FileIdentity {
     }
 }
 
-$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot "../../.."))
+$repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $outputFullPath = [IO.Path]::GetFullPath($OutputPath)
 $targetPrefix = (Join-Path $repositoryRoot "target") +
     [IO.Path]::DirectorySeparatorChar
@@ -75,7 +75,7 @@ if ($LASTEXITCODE -ne 0) { throw "Candidate Clippy failed" }
 & cargo test --manifest-path $cargoManifest --locked
 if ($LASTEXITCODE -ne 0) { throw "Candidate tests failed" }
 
-$authority = Get-FileIdentity -RelativePath "docs/authority/csu-self/authority.json"
+$authority = Get-FileIdentity -RelativePath "verification/authorities/self-review/authority.json"
 $authorityDirectory = Split-Path -Parent (Join-Path $repositoryRoot $authority.path)
 $executable = Join-Path $repositoryRoot $candidate.executable.path
 $scopes = foreach ($scope in @("src", "tests")) {
@@ -123,7 +123,6 @@ $sourceCandidate = [pscustomobject][ordered]@{
     tracked_patch_sha256 = $before.premeasurement_full_patch_sha256
     untracked_inputs = @($candidate.untracked_inputs)
     untracked_maintenance = @($candidate.untracked_maintenance)
-    retained_local_planning_material = $candidate.retained_local_planning_material
     cargo_lock_sha256 = $candidate.cargo_lock_sha256
     executable = $candidate.executable
     semantic_authority_digest = $candidate.semantic_authority_digest
@@ -134,7 +133,7 @@ $standards | Add-Member -NotePropertyName physical_lines -NotePropertyValue (
     $candidate.line_counts.normative_standard
 )
 $receipt = [pscustomobject][ordered]@{
-    schema_version = 3
+    schema_version = 4
     source_candidate = $sourceCandidate
     measured_candidate = $candidate
     self_review = [pscustomobject][ordered]@{
@@ -143,11 +142,11 @@ $receipt = [pscustomobject][ordered]@{
         compiled_test_catalog = $candidate.compiled_test_catalog
     }
     candidate_inputs = [pscustomobject][ordered]@{
-        fixture_manifest = Get-FileIdentity "docs/fixtures/core/fixture-manifest.json"
-        benchmark_manifest = Get-FileIdentity "docs/fixtures/core/benchmark-manifest.json"
-        parser_admission = Get-FileIdentity "docs/fixtures/core/parser-admission.json"
+        fixture_manifest = Get-FileIdentity "verification/fixtures/manifest.json"
+        benchmark_manifest = Get-FileIdentity "verification/benchmark-manifest.json"
+        parser_admission = Get-FileIdentity "verification/parser-admission.json"
         release_workflow = Get-FileIdentity ".github/workflows/release.yml"
-        release_evidence = Get-FileIdentity "docs/fixtures/core/release_runs.json"
+        release_evidence = Get-FileIdentity "verification/release_runs.json"
         standards = $standards
         corpus = $candidate.corpus
         skills = [pscustomobject][ordered]@{

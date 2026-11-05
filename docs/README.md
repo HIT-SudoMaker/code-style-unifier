@@ -1,7 +1,6 @@
 # CSU 文档
 
-[项目介绍](../README.md) 说明 CSU 的科研软件定位、审查职责，以及安装和调用入口。
-详细内容按问题分工：
+[项目介绍](../README.md)说明 CSU 的定位与入口；其余文档各自拥有一个问题：
 
 | 任务 | 文档 | 负责回答 |
 |---|---|---|
@@ -15,21 +14,19 @@
 
 ## 表达与维护
 
-文档先说明目的和职责，再说明流程、证据与边界。使用短段落和直接表述；表格用于比较，示例用于解释合同。
-同一细节由一份文档负责，其他位置通过链接引用。
+每页先声明拥有的问题和证据边界，再说明流程。结论不超过证据，稳定 CSU 术语保持一致。
+同一含义只由一份文档负责，其他位置链接引用。行为变化时替换对应说明；版本差异和测量结果分别留在发布说明与验收收据。
 
-README 保留定位、核心模型和使用入口。规则、操作、架构或实现发生变化时，更新对应文档；每次发布检查准确性，
-不要求每份文档都修改。正文描述当前行为，优先替换过时内容、合并重复解释；版本差异写入发布说明，测量结果保留在验收收据中。
+## 源码仓库中的验证资料
 
-## 源码仓库中的维护资料
-
-发布包包含上述四份说明及本索引。以下开发资料通过源码仓库访问，避免将测试样例和验收环境混入安装目录。
+发布包包含上述四份说明及本索引。测试样例、Authority、冻结证据和验收脚本统一放在源码仓库的
+[`verification/`](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/verification/README.md)，不属于用户文档，也不进入安装包。
 
 | 需要核对的内容 | 入口 |
 |---|---|
 | 测试分组、运行入口和共享样例 | [测试指南](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/tests/README.md) |
-| 声明类别、结构排除、受阻条件和专项测试缺口 | [声明覆盖清单](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/declaration-coverage.md) |
-| 本地检查、冻结语料、性能测量与候选验收 | [靶场与发布验收](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/README.md) |
+| 声明类别、结构排除、受阻条件和专项测试缺口 | [声明覆盖清单](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/verification/declaration-coverage.md) |
+| 本地检查、冻结语料、性能测量与候选验收 | [验证指南](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/verification/README.md) |
 | 冻结项目来源及许可证 | [bench/targets](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/bench/targets/README.md) |
 | Agent 审查和证据处理 | [CSU Review](../.agents/skills/csu-review/SKILL.md) |
 | 已授权的源码修复与项目事实登记 | [修复指引](../.agents/skills/csu-review/references/remediation.md) |

@@ -48,7 +48,8 @@ Authority 由项目负责人确认，不是规则配置、豁免名单或真实�
 
 ### 1.3 当前边界
 
-CSU 检查可解析性、行末注释、作者自选名称、直接附属的源码文档和直接依赖声明。
+CSU 检查可解析性、源码注释的布局与正文、作者自选名称、直接附属的源码文档和直接依赖声明。
+正文规则只作用于受管源码中的原生文档与语法树识别的注释，不检查普通字符串、`docs/` 等目录中的 Markdown 或其他非源码文件。
 它不代替编译、运行、格式化、未使用项分析或构建图，也不展开宏、预处理或赋值及跨文件别名；不通过字符串猜测补齐这些能力。
 路径与语言接纳、固定解析器身份和完成记录见[技术参考](technical.md)。隐藏清单不能选择源码、指定语言或影响语义身份。
 
@@ -77,9 +78,17 @@ CSU 不执行、导入、编译或链接目标代码。受检源码必须是有�
 省略参数的 `type: ignore`、`pyright: ignore`、`noqa` 和 `NOLINT` 也精确允许。写出代码列表时必须非空，以逗号分隔，且每项只含
 ASCII 字母、数字、下划线、连字符或点。空参数、附加正文、近似头、混合指令或跨语言形式仍按普通行末注释判断；项目事实不能扩充这份名单。
 
+普通注释的自然语言正文禁止在任意位置出现中文句号 `。` 或英文句末句点 `.`，违反时产生硬违规
+`source.comment_punctuation`。URL、路径、版本号、小数等技术拼写中的点不作为句末标点；行内代码、围栏代码块和 Rust 缩进代码块排除。
+
+普通注释正文中的中英文圆括号 `()`、`（）` 均产生待确认问题 `source.comment_parentheses`，由负责人确认技术必要性。
+形状、公式等技术信息可以有保留理由，例如形状（B,C,H,W），但 CSU 不猜测括号内的含义；明确的行内代码、代码块与 Markdown 链接目标排除。
+确认理由不写入 Authority，也不改变固定等级或自动清除待确认问题；保留圆括号时，调用方可记录理由，但结果仍不是 `Clean`。
+精确符合上表的指令是技术语法，不参与正文标点和圆括号检查。
+
 ### 2.3 注释与叙述风格
 
-本节是作者要求，由人工或 AI 审查。CSU 不用词表、自然语言处理或正则猜测文风，`Clean` 不证明本节已经满足。
+本节的表达质量是作者要求，由人工或 AI 审查；§2.2 与 §4.1 的标点及圆括号规则由 CSU 检查。CSU 不猜测文风，`Clean` 不证明本节已经满足。
 
 - 简短而有用：只写当前代码不能直接表达的目的、理由、约束、不变量或证据
 - 直述职责：默认采用“动作＋对象”，必要时补充“方法/条件＋动作＋对象”；不用黑话，类型和字段可用名词短语
@@ -142,7 +151,7 @@ psi rho sigma tau theta upsilon xi zeta`。候选名称只触发待确认问题�
 ### 3.4 量值名称登记
 
 表示后缀只说明名称采用的表示方式，不证明量纲、换算、值域或运行正确性。具体名称与后缀的关系由项目登记，
-项目示例见源码仓库中的 [靶场指南](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/README.md#项目事实示例)，不能当作所有项目必须采用的单位词表。
+项目示例见源码仓库中的 [验证指南](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/verification/README.md#项目事实示例)，不能当作所有项目必须采用的单位词表。
 `quantity_concepts` 要求：概念名为非空 ASCII 小写下划线形式，每个概念至少登记一个后缀。
 后缀同样采用该形式，但每个小写段末尾可追加数字；原始后缀不得重复或含空白、大写、首尾或重复分隔符；生成的名称只能有一种拆分。
 
@@ -213,8 +222,8 @@ Rust 函数身份。`spelling` 必须是源码可观察的 Rust 标识符：普�
 |---|---|---|
 | 公开函数或方法 | 原生文档、摘要，以及按语言排序的参数、返回和失败说明；按声明结构增加必要部分 | 叙述只补充结构化字段无法表达的信息 |
 | 内部、私有或嵌套函数与方法 | 原生文档与摘要 | 不必添加空的公开接口章节 |
-| 普通注释 | 不能替代原生文档；除允许的行末指令外独占物理行 | 按 §2.3 保留最短必要说明 |
-| 文档与注释的表达 | 摘要和规定字段检查可判定的短语、标点与布局要求 | §2.3 的表达要求另行核验，不冒充机器检查结果 |
+| 普通注释 | 不能替代原生文档；除允许的行末指令外独占物理行；正文检查标点与圆括号 | 按 §2.3 保留最短必要说明 |
+| 文档与注释的表达 | 全部自然语言正文检查标点与圆括号；摘要和规定字段另检查短语与布局 | §2.3 的表达要求另行核验，不冒充机器检查结果 |
 结构已证明需要文档的声明，必须使用该语言支持且归属明确的原生文档形式。
 缺失文档或以普通注释代替时产生硬违规 `documentation.carrier`。摘要必须非空，
 且至少含两个连续的中日韩统一表意文字，否则产生硬违规
@@ -223,8 +232,9 @@ Rust 函数身份。`spelling` 必须是源码可观察的 Rust 标识符：普�
 内部函数只要求原生文档与摘要，不要求空的参数、返回或失败章节。公开函数
 在签名信息完整时必须具有这三个基本部分；没有参数、返回或声明失败时，也必须写该语言规定的空值，不能省略。
 
-摘要与规定字段描述禁止以 `。` 或 `.` 结束，违反时产生硬违规
-`documentation.punctuation`。叙述段、代码、URL、路径、版本号和小数不执行全局句号检查。
+原生文档的全部自然语言正文，包括摘要、字段描述与叙述段，禁止在任意位置出现中文句号 `。` 或英文句末句点 `.`，
+违反时产生硬违规 `documentation.punctuation`；中英文圆括号产生待确认问题 `documentation.parentheses`。
+技术点号、显式代码与链接目标的排除、技术必要性确认及其结果边界与 §2.2 相同；代码行也不能充当摘要、规定标题或非空安全说明。
 
 ### 4.2 正文与结构化字段
 
@@ -343,10 +353,10 @@ C++ 模块位置违规独立保留。当前工具尚不支持目标与预处理�
 共同要求是：公开函数 `calculate_velocity` 接收 `distance_m` 与 `duration_s`，并通过
 原生失败通道处理非正值；内部函数 `calculate_duration` 只保留摘要。源码仓库提供四个绑定文件哈希的示例：
 
-- [Python 公开函数与私有函数](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/documents/valid/python/calculate_velocity.py)
-- [Rust 公开函数与私有函数](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/documents/valid/rust/calculate_velocity.rs)
-- [C 公开声明与静态函数](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/documents/valid/c/calculate_velocity.h)
-- [C++ 公开声明与静态函数](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/docs/fixtures/core/documents/valid/cpp/calculate_velocity.hpp)
+- [Python 公开函数与私有函数](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/verification/fixtures/documents/valid/python/calculate_velocity.py)
+- [Rust 公开函数与私有函数](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/verification/fixtures/documents/valid/rust/calculate_velocity.rs)
+- [C 公开声明与静态函数](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/verification/fixtures/documents/valid/c/calculate_velocity.h)
+- [C++ 公开声明与静态函数](https://github.com/HIT-SudoMaker/code-style-unifier/blob/main/verification/fixtures/documents/valid/cpp/calculate_velocity.hpp)
 
 示例通过检查只证明符合本规范覆盖的源码要求；独立编译、链接和运行仍需对应验证。
 

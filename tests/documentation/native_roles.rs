@@ -24,7 +24,7 @@ fn reviewer_for_path(
     path: &str,
 ) -> WorkspaceReviewer {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
-        "../../docs/fixtures/core/authority.json"
+        "../../verification/fixtures/authority.json"
     ))
     .unwrap();
     if !public_callables.is_empty() {
@@ -75,7 +75,7 @@ fn has_public_contract_finding(terminal: &ReviewTerminal) -> bool {
 #[test]
 fn native_function_visibility_ignores_body_storage_and_modifier_order() {
     let mut authority: serde_json::Value = serde_json::from_str(include_str!(
-        "../../docs/fixtures/core/authority.json"
+        "../../verification/fixtures/authority.json"
     ))
     .unwrap();
     authority["public_callables"] = serde_json::json!({});
@@ -612,7 +612,8 @@ double calculate_velocity(int input, Pack... sample);
 /// 验证 C++ 非函数文档不依赖公开函数名单
 #[test]
 fn cpp_non_callable_subject_does_not_require_public_tier() {
-    let authority = include_bytes!("../../docs/fixtures/core/authority.json");
+    let authority =
+        include_bytes!("../../verification/fixtures/authority.json");
     let reviewer =
         compile_value(&serde_json::from_slice(authority).unwrap()).unwrap();
     for (identity, source, expected, blocked) in [

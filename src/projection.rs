@@ -58,7 +58,7 @@ struct ErrorBody<'projection> {
 /// 将审查终态投影为稳定 JSON
 ///
 /// # Arguments
-/// - terminal： 待投影的唯一审查终态
+/// - terminal： 待投影的审查终态
 /// # Returns
 /// - 对外 JSON 字节
 /// # Errors
@@ -181,7 +181,7 @@ fn blocked_family_details(
 /// 将审查终态投影为人类可读文本
 ///
 /// # Arguments
-/// - terminal： 待投影的唯一审查终态
+/// - terminal： 待投影的审查终态
 /// # Returns
 /// - 人类可读终态文本
 /// # Errors
